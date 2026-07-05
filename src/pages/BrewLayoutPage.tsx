@@ -5,7 +5,7 @@ import { loadBrewLayout, saveBrewLayout, DEFAULT_BREW_LAYOUT, BREW_BLOCK_LABELS 
 
 const BLOOM_MIN = 10
 const BLOOM_MAX = 120
-const BLOOM_STEP = 5
+const BLOOM_STEP = 1
 
 export default function BrewLayoutPage() {
   const navigate = useNavigate()
