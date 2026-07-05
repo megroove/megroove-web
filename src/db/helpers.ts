@@ -187,9 +187,10 @@ export const BREW_BLOCK_LABELS: Record<BrewBlockId, string> = {
 }
 
 export interface BrewLayoutSettings {
-  main:   BrewBlockId[]
-  detail: BrewBlockId[]
-  hidden: BrewBlockId[]
+  main:          BrewBlockId[]
+  detail:        BrewBlockId[]
+  hidden:        BrewBlockId[]
+  bloomTimeSec?: number  // 蒸らしタイマーのカスタム時間（秒）
 }
 
 export const DEFAULT_BREW_LAYOUT: BrewLayoutSettings = {

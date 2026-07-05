@@ -1,9 +1,16 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
+import { loadBrewLayout } from '../../db'
 
-const PRESETS = [20, 30, 40, 45]
+const FIXED_PRESETS = [20, 30, 40, 45]
+
+function buildPresets(customSec: number): number[] {
+  return [customSec, ...FIXED_PRESETS.filter(s => s !== customSec).slice(0, 3)]
+}
 
 export default function BloomTimer() {
-  const [targetSec, setTargetSec] = useState(30)
+  const customSec = loadBrewLayout().bloomTimeSec ?? 30
+  const presets   = buildPresets(customSec)
+  const [targetSec, setTargetSec] = useState(customSec)
   const [elapsed, setElapsed] = useState(0)
   const [running, setRunning] = useState(false)
   const [done, setDone] = useState(false)
@@ -65,7 +72,7 @@ export default function BloomTimer() {
       {/* プリセット（アイドル時のみ） */}
       {!running && elapsed === 0 && (
         <div className="flex gap-2">
-          {PRESETS.map(s => (
+          {presets.map(s => (
             <button
               key={s}
               type="button"

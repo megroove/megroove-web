@@ -3,6 +3,10 @@ import { useNavigate } from 'react-router-dom'
 import type { BrewBlockId, BrewLayoutSettings } from '../db'
 import { loadBrewLayout, saveBrewLayout, DEFAULT_BREW_LAYOUT, BREW_BLOCK_LABELS } from '../db'
 
+const BLOOM_MIN = 10
+const BLOOM_MAX = 120
+const BLOOM_STEP = 5
+
 export default function BrewLayoutPage() {
   const navigate = useNavigate()
   const [layout, setLayout] = useState<BrewLayoutSettings>(loadBrewLayout)
@@ -10,6 +14,13 @@ export default function BrewLayoutPage() {
   const updateLayout = (next: BrewLayoutSettings) => {
     setLayout(next)
     saveBrewLayout(next)
+  }
+
+  const bloomTimeSec = layout.bloomTimeSec ?? 30
+
+  const changeBloomTime = (delta: number) => {
+    const next = Math.min(BLOOM_MAX, Math.max(BLOOM_MIN, bloomTimeSec + delta))
+    updateLayout({ ...layout, bloomTimeSec: next })
   }
 
   const changeZone = (id: BrewBlockId, zone: 'main' | 'detail' | 'hidden') => {
@@ -145,6 +156,40 @@ export default function BrewLayoutPage() {
       {layout.hidden.length > 0 &&
         renderZoneSection('hidden', '非表示', layout.hidden)
       }
+
+      {/* 蒸らしタイマー設定 */}
+      <div className="bg-[#2E2018] rounded-xl overflow-hidden">
+        <div className="px-4 py-2.5 bg-[#3e3020]">
+          <p className="text-xs text-[#CE9C68] font-medium">蒸らしタイマー</p>
+        </div>
+        <div className="px-4 py-4 flex items-center justify-between">
+          <div>
+            <p className="text-sm text-[#F7EFE6]">カスタム時間</p>
+            <p className="text-xs text-[#6b5a4a] mt-0.5">記録画面のタイマーで最初に選択される時間</p>
+          </div>
+          <div className="flex items-center gap-3">
+            <button
+              type="button"
+              onClick={() => changeBloomTime(-BLOOM_STEP)}
+              disabled={bloomTimeSec <= BLOOM_MIN}
+              className="w-8 h-8 rounded-full bg-[#3e3020] text-[#CE9C68] text-lg flex items-center justify-center disabled:text-[#3e3020] active:opacity-70"
+            >
+              −
+            </button>
+            <span className="text-[#F7EFE6] font-semibold tabular-nums text-base w-14 text-center">
+              {bloomTimeSec}秒
+            </span>
+            <button
+              type="button"
+              onClick={() => changeBloomTime(BLOOM_STEP)}
+              disabled={bloomTimeSec >= BLOOM_MAX}
+              className="w-8 h-8 rounded-full bg-[#3e3020] text-[#CE9C68] text-lg flex items-center justify-center disabled:text-[#3e3020] active:opacity-70"
+            >
+              ＋
+            </button>
+          </div>
+        </div>
+      </div>
 
       <button
         type="button"
