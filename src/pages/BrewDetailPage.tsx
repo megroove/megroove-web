@@ -5,6 +5,7 @@ import {
   getBrew, getBean, getEquipment, getRecipe, deleteBrew,
   calcRatio, formatBrewDate, ROAST_LEVEL_LABELS, daysSinceRoast,
 } from '../db'
+import PhotoLightbox from '../components/PhotoLightbox'
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
@@ -38,6 +39,7 @@ export default function BrewDetailPage() {
   const [equipment, setEquipment] = useState<Equipment | undefined>()
   const [recipe, setRecipe] = useState<Recipe | undefined>()
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
+  const [lightboxOpen, setLightboxOpen] = useState(false)
 
   useEffect(() => {
     if (!id) return
@@ -106,13 +108,22 @@ export default function BrewDetailPage() {
 
         {/* 写真 */}
         {brew.photoDataUrl && (
-          <div className="rounded-xl overflow-hidden">
-            <img
-              src={brew.photoDataUrl}
-              alt="記録の写真"
-              className="w-full object-cover max-h-72"
-            />
-          </div>
+          <>
+            <button
+              type="button"
+              onClick={() => setLightboxOpen(true)}
+              className="rounded-xl overflow-hidden w-full active:opacity-80"
+            >
+              <img
+                src={brew.photoDataUrl}
+                alt="記録の写真"
+                className="w-full object-cover max-h-72"
+              />
+            </button>
+            {lightboxOpen && (
+              <PhotoLightbox src={brew.photoDataUrl} onClose={() => setLightboxOpen(false)} />
+            )}
+          </>
         )}
 
         {/* 豆 */}

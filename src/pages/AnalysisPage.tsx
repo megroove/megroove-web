@@ -156,6 +156,7 @@ function RankingSection({
 // ─── AnalysisPage ────────────────────────────────────────────────────────────
 
 export default function AnalysisPage() {
+  const navigate = useNavigate()
   const [brews, setBrews]     = useState<Brew[]>([])
   const [beanMap, setBeanMap] = useState<Map<string, Bean>>(new Map())
   const [dbError, setDbError] = useState(false)
@@ -253,6 +254,22 @@ export default function AnalysisPage() {
         beanMap={beanMap}
         emptyMessage="今年の記録がありません"
       />
+
+      {/* 産地パスポートへ */}
+      <button
+        type="button"
+        onClick={() => navigate('/passport')}
+        className="w-full bg-[#2E2018] rounded-xl p-4 flex items-center justify-between active:opacity-80"
+      >
+        <div className="flex items-center gap-3">
+          <span className="text-2xl leading-none">🌍</span>
+          <div className="text-left">
+            <p className="text-[#F7EFE6] text-sm font-semibold">産地パスポート</p>
+            <p className="text-xs text-[#6b5a4a] mt-0.5">記録した豆の産地を一覧で確認</p>
+          </div>
+        </div>
+        <span className="text-[#6b5a4a] text-sm">→</span>
+      </button>
     </div>
   )
 }

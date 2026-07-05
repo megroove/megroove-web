@@ -15,6 +15,7 @@ import BeanPickerModal from '../components/brew/BeanPickerModal'
 import RecipePickerModal from '../components/brew/RecipePickerModal'
 import EquipmentSection from '../components/brew/EquipmentSection'
 import SaveAnimation from '../components/brew/SaveAnimation'
+import BloomTimer from '../components/brew/BloomTimer'
 
 function Stepper({
   label,
@@ -337,26 +338,32 @@ export default function BrewPage() {
 
       case 'extraction':
         return (
-          <div key="extraction" className="bg-[#2E2018] rounded-xl p-4 grid grid-cols-2 gap-4">
-            <div>
-              <p className="text-xs text-[#CE9C68] mb-2">総抽出時間（秒）</p>
-              <input
-                type="number"
-                value={totalTimeSec ?? ''}
-                onChange={e => setTotalTimeSec(e.target.value ? Number(e.target.value) : undefined)}
-                placeholder="—"
-                className="w-full bg-transparent text-[#F7EFE6] text-xl font-semibold outline-none placeholder-[#4a3a2a] tabular-nums"
-              />
+          <div key="extraction" className="bg-[#2E2018] rounded-xl p-4 flex flex-col gap-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <p className="text-xs text-[#CE9C68] mb-2">総抽出時間（秒）</p>
+                <input
+                  type="number"
+                  value={totalTimeSec ?? ''}
+                  onChange={e => setTotalTimeSec(e.target.value ? Number(e.target.value) : undefined)}
+                  placeholder="—"
+                  className="w-full bg-transparent text-[#F7EFE6] text-xl font-semibold outline-none placeholder-[#4a3a2a] tabular-nums"
+                />
+              </div>
+              <div>
+                <p className="text-xs text-[#CE9C68] mb-2">注湯回数</p>
+                <input
+                  type="number"
+                  value={pourCount ?? ''}
+                  onChange={e => setPourCount(e.target.value ? Number(e.target.value) : undefined)}
+                  placeholder="—"
+                  className="w-full bg-transparent text-[#F7EFE6] text-xl font-semibold outline-none placeholder-[#4a3a2a] tabular-nums"
+                />
+              </div>
             </div>
-            <div>
-              <p className="text-xs text-[#CE9C68] mb-2">注湯回数</p>
-              <input
-                type="number"
-                value={pourCount ?? ''}
-                onChange={e => setPourCount(e.target.value ? Number(e.target.value) : undefined)}
-                placeholder="—"
-                className="w-full bg-transparent text-[#F7EFE6] text-xl font-semibold outline-none placeholder-[#4a3a2a] tabular-nums"
-              />
+            <div className="border-t border-[#3e3020] pt-4">
+              <p className="text-xs text-[#CE9C68] mb-3">蒸らしタイマー</p>
+              <BloomTimer />
             </div>
           </div>
         )

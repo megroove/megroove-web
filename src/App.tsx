@@ -12,6 +12,7 @@ import CafeVisitPage from './pages/CafeVisitPage'
 import CafeVisitDetailPage from './pages/CafeVisitDetailPage'
 import SettingsPage from './pages/SettingsPage'
 import BrewLayoutPage from './pages/BrewLayoutPage'
+import PassportPage from './pages/PassportPage'
 import OnboardingTour, { hasCompletedOnboarding } from './components/OnboardingTour'
 
 export default function App() {
@@ -35,6 +36,7 @@ export default function App() {
           <Route path="/cafe/:id"        element={<CafeVisitDetailPage />} />
           <Route path="/settings"             element={<SettingsPage />} />
           <Route path="/settings/brew-layout" element={<BrewLayoutPage />} />
+          <Route path="/passport"             element={<PassportPage />} />
         </Routes>
       </div>
       <BottomNav />

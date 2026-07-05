@@ -6,6 +6,7 @@ import {
   CAFE_DRINK_TYPE_LABELS, CAFE_DRINK_SIZE_LABELS,
   formatBrewDate,
 } from '../db'
+import PhotoLightbox from '../components/PhotoLightbox'
 
 const CUPPING_LABELS: Record<string, string> = {
   acidity: '酸味', sweetness: '甘み', bitterness: '苦味',
@@ -35,6 +36,7 @@ export default function CafeVisitDetailPage() {
   const { id } = useParams<{ id: string }>()
   const [visit, setVisit] = useState<CafeVisit | null>(null)
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
+  const [lightboxOpen, setLightboxOpen] = useState(false)
 
   useEffect(() => {
     if (!id) return
@@ -82,13 +84,22 @@ export default function CafeVisitDetailPage() {
 
       {/* 写真 */}
       {visit.photoDataUrl && (
-        <div className="rounded-xl overflow-hidden -mt-1">
-          <img
-            src={visit.photoDataUrl}
-            alt="記録の写真"
-            className="w-full object-cover max-h-72"
-          />
-        </div>
+        <>
+          <button
+            type="button"
+            onClick={() => setLightboxOpen(true)}
+            className="rounded-xl overflow-hidden w-full -mt-1 active:opacity-80"
+          >
+            <img
+              src={visit.photoDataUrl}
+              alt="記録の写真"
+              className="w-full object-cover max-h-72"
+            />
+          </button>
+          {lightboxOpen && (
+            <PhotoLightbox src={visit.photoDataUrl} onClose={() => setLightboxOpen(false)} />
+          )}
+        </>
       )}
 
       {/* フレーバー */}
