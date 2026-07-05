@@ -14,6 +14,15 @@ interface BackupData {
   brews: Brew[]
 }
 
+const MAX_IMPORT_FILE_SIZE = 100 * 1024 * 1024 // 100MB
+
+// data: URL が JPEG / PNG / WebP / GIF / AVIF のいずれかに限定する
+function isSafePhotoDataUrl(url: unknown): boolean {
+  if (url === undefined || url === null) return true
+  if (typeof url !== 'string') return false
+  return /^data:image\/(jpeg|png|webp|gif|avif);base64,/.test(url)
+}
+
 export async function exportBackup(): Promise<void> {
   const [beans, equipment, recipes, brews] = await Promise.all([
     getAllBeans(), getAllEquipment(), getAllRecipes(), getAllBrews(),
@@ -42,6 +51,9 @@ export interface ImportResult {
 }
 
 export async function parseBackupFile(file: File): Promise<BackupData> {
+  if (file.size > MAX_IMPORT_FILE_SIZE) {
+    throw new Error('ファイルサイズが大きすぎます（最大100MB）')
+  }
   const text = await file.text()
   let data: BackupData
   try {
@@ -70,11 +82,16 @@ export async function importBackup(
 ): Promise<ImportResult> {
   if (mode === 'replace') await clearAllData()
 
+  const safeBrew = (b: Brew): Brew => ({
+    ...b,
+    photoDataUrl: isSafePhotoDataUrl(b.photoDataUrl) ? b.photoDataUrl : undefined,
+  })
+
   await Promise.all([
     ...(data.beans     ?? []).map(putBean),
     ...(data.equipment ?? []).map(putEquipment),
     ...(data.recipes   ?? []).map(putRecipe),
-    ...(data.brews     ?? []).map(putBrew),
+    ...(data.brews     ?? []).map(b => putBrew(safeBrew(b))),
   ])
 
   return summarizeBackup(data)

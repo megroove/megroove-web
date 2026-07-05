@@ -231,7 +231,15 @@ export function saveBrewLayout(layout: BrewLayoutSettings): void {
 
 // ─── Image resize ─────────────────────────────────────────────────────────────
 
+const MAX_PHOTO_FILE_SIZE = 20 * 1024 * 1024 // 20MB
+
 export function resizeImage(file: File, maxPx = 800): Promise<string> {
+  if (!file.type.startsWith('image/')) {
+    return Promise.reject(new Error('画像ファイルを選択してください'))
+  }
+  if (file.size > MAX_PHOTO_FILE_SIZE) {
+    return Promise.reject(new Error('ファイルサイズが大きすぎます（最大20MB）'))
+  }
   return new Promise((resolve, reject) => {
     const img = new Image()
     const url = URL.createObjectURL(file)
@@ -246,7 +254,7 @@ export function resizeImage(file: File, maxPx = 800): Promise<string> {
       canvas.getContext('2d')!.drawImage(img, 0, 0, w, h)
       resolve(canvas.toDataURL('image/jpeg', 0.82))
     }
-    img.onerror = reject
+    img.onerror = () => { URL.revokeObjectURL(url); reject(new Error('画像の読み込みに失敗しました')) }
     img.src = url
   })
 }
