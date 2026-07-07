@@ -6,25 +6,15 @@ import {
   newId, nowISO,
   CAFE_DRINK_TYPE_LABELS, CAFE_DRINK_SIZE_LABELS, estimateCafeCaffeine,
   calcCuppingAverage, formatBrewDateShort, resizeImage,
+  toDatetimeLocal, fromDatetimeLocal,
 } from '../db'
 import StarRating from '../components/brew/StarRating'
 import FlavorChips from '../components/brew/FlavorChips'
 import CuppingSliders from '../components/brew/CuppingSliders'
+import { useToast } from '../components/Toast'
 
 const DRINK_TYPES = Object.keys(CAFE_DRINK_TYPE_LABELS) as CafeDrinkType[]
 const DRINK_SIZES = Object.keys(CAFE_DRINK_SIZE_LABELS) as CafeDrinkSize[]
-
-function toDatetimeLocal(iso: string): string {
-  const d = new Date(iso)
-  return [
-    d.getFullYear(),
-    String(d.getMonth() + 1).padStart(2, '0'),
-    String(d.getDate()).padStart(2, '0'),
-  ].join('-') + 'T' + [
-    String(d.getHours()).padStart(2, '0'),
-    String(d.getMinutes()).padStart(2, '0'),
-  ].join(':')
-}
 
 // ─── 過去の記録ピッカー ────────────────────────────────────────────────────────
 
@@ -105,6 +95,7 @@ function PastVisitPicker({
 
 export default function CafeVisitPage() {
   const navigate = useNavigate()
+  const showToast = useToast()
   const { id: editId } = useParams<{ id?: string }>()
   const isEdit = Boolean(editId)
 
@@ -201,7 +192,7 @@ export default function CafeVisitPage() {
     setSaving(true)
 
     const fields: Partial<CafeVisit> = {
-      visitedAt:      new Date(visitedAt).toISOString(),
+      visitedAt:      fromDatetimeLocal(visitedAt),
       cafeName:       cafeName.trim(),
       drinkName:      drinkName.trim() || undefined,
       drinkType,
@@ -217,15 +208,22 @@ export default function CafeVisitPage() {
       note:           note.trim() || undefined,
     }
 
-    if (isEdit) {
-      const existing = await getCafeVisit(editId!)
-      if (existing) await putCafeVisit({ ...existing, ...fields })
+    try {
+      if (isEdit) {
+        const existing = await getCafeVisit(editId!)
+        if (existing) await putCafeVisit({ ...existing, ...fields })
+        setSaving(false)
+        navigate(`/cafe/${editId}`, { replace: true })
+        showToast('変更を保存しました', { type: 'success' })
+      } else {
+        await putCafeVisit({ id: newId(), createdAt: nowISO(), ...fields } as CafeVisit)
+        setSaving(false)
+        navigate('/library', { state: { tab: 'cafe' } })
+        showToast('カフェの一杯を記録しました', { type: 'success' })
+      }
+    } catch {
       setSaving(false)
-      navigate(`/cafe/${editId}`, { replace: true })
-    } else {
-      await putCafeVisit({ id: newId(), createdAt: nowISO(), ...fields } as CafeVisit)
-      setSaving(false)
-      navigate('/library', { state: { tab: 'cafe' } })
+      showToast('保存に失敗しました。ストレージの空き容量を確認してください', { type: 'error' })
     }
   }
 
@@ -438,9 +436,13 @@ export default function CafeVisitPage() {
                 className="hidden"
                 onChange={async e => {
                   const file = e.target.files?.[0]
-                  if (!file) return
-                  setPhotoDataUrl(await resizeImage(file, 800))
                   e.target.value = ''
+                  if (!file) return
+                  try {
+                    setPhotoDataUrl(await resizeImage(file, 800))
+                  } catch (err) {
+                    showToast(err instanceof Error ? err.message : '写真の読み込みに失敗しました', { type: 'error' })
+                  }
                 }}
               />
             </div>

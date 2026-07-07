@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import type { Recipe, Equipment } from '../../db'
 import { getAllRecipes, putRecipe, deleteRecipe, getAllEquipment, newId, nowISO, calcRatio } from '../../db'
 import { Field, TextInput, NumberInput, DeleteButton, ModalSheet, SaveButton } from './FormHelpers'
+import { useToast } from '../Toast'
 
 function RecipeForm({
   initial, equipment, onSave, onDelete, onCancel,
@@ -107,6 +108,7 @@ export default function RecipeTab() {
   const [recipes,   setRecipes]   = useState<Recipe[]>([])
   const [equipment, setEquipment] = useState<Equipment[]>([])
   const [editing,   setEditing]   = useState<Recipe | 'new' | null>(null)
+  const showToast = useToast()
 
   useEffect(() => {
     Promise.all([getAllRecipes(), getAllEquipment()]).then(([rs, eqs]) => {
@@ -124,10 +126,25 @@ export default function RecipeTab() {
     setEditing(null)
   }
 
-  const handleDelete = async (id: string) => {
-    await deleteRecipe(id)
-    setRecipes(prev => prev.filter(r => r.id !== id))
+  const handleDelete = async (recipe: Recipe) => {
+    try {
+      await deleteRecipe(recipe.id)
+    } catch {
+      showToast('削除に失敗しました', { type: 'error' })
+      return
+    }
+    setRecipes(prev => prev.filter(r => r.id !== recipe.id))
     setEditing(null)
+    showToast(`「${recipe.name}」を削除しました`, {
+      action: {
+        label: '取り消す',
+        onClick: () => {
+          putRecipe(recipe)
+            .then(() => setRecipes(prev => [...prev, recipe]))
+            .catch(() => showToast('復元に失敗しました', { type: 'error' }))
+        },
+      },
+    })
   }
 
   const equipMap = new Map(equipment.map(e => [e.id, e]))
@@ -174,7 +191,7 @@ export default function RecipeTab() {
           initial={editing === 'new' ? undefined : (editing ?? undefined)}
           equipment={equipment}
           onSave={handleSave}
-          onDelete={editing !== 'new' && editing !== null ? () => handleDelete(editing.id) : undefined}
+          onDelete={editing !== 'new' && editing !== null ? () => handleDelete(editing) : undefined}
           onCancel={() => setEditing(null)}
         />
       </ModalSheet>

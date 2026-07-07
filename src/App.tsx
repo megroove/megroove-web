@@ -1,6 +1,7 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { HashRouter, Routes, Route } from 'react-router-dom'
 import BottomNav from './components/BottomNav'
+import { ToastProvider } from './components/Toast'
 import HomePage from './pages/HomePage'
 import BrewPage from './pages/BrewPage'
 import LibraryPage from './pages/LibraryPage'
@@ -18,8 +19,14 @@ import OnboardingTour, { hasCompletedOnboarding } from './components/OnboardingT
 export default function App() {
   const [showTour, setShowTour] = useState(() => !hasCompletedOnboarding())
 
+  // ブラウザ都合の IndexedDB 削除（ストレージ逼迫時の自動消去）を防ぐよう要求する
+  useEffect(() => {
+    navigator.storage?.persist?.().catch(() => {})
+  }, [])
+
   return (
     <HashRouter>
+      <ToastProvider>
       {showTour && <OnboardingTour onDone={() => setShowTour(false)} />}
       <div className="flex flex-col min-h-svh pb-16 w-full max-w-lg mx-auto">
         <Routes>
@@ -40,6 +47,7 @@ export default function App() {
         </Routes>
       </div>
       <BottomNav />
+      </ToastProvider>
     </HashRouter>
   )
 }

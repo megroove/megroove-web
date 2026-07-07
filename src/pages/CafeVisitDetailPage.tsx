@@ -2,11 +2,12 @@ import { useState, useEffect } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import type { CafeVisit } from '../db'
 import {
-  getCafeVisit, deleteCafeVisit,
+  getCafeVisit, deleteCafeVisit, putCafeVisit,
   CAFE_DRINK_TYPE_LABELS, CAFE_DRINK_SIZE_LABELS,
   formatBrewDate,
 } from '../db'
 import PhotoLightbox from '../components/PhotoLightbox'
+import { useToast, notifyDataRestored } from '../components/Toast'
 
 const CUPPING_LABELS: Record<string, string> = {
   acidity: '酸味', sweetness: '甘み', bitterness: '苦味',
@@ -33,6 +34,7 @@ function Row({ label, value }: { label: string; value: React.ReactNode }) {
 
 export default function CafeVisitDetailPage() {
   const navigate = useNavigate()
+  const showToast = useToast()
   const { id } = useParams<{ id: string }>()
   const [visit, setVisit] = useState<CafeVisit | null>(null)
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
@@ -52,8 +54,24 @@ export default function CafeVisitDetailPage() {
   }
 
   const handleDelete = async () => {
-    await deleteCafeVisit(visit.id)
+    const snapshot = visit
+    try {
+      await deleteCafeVisit(visit.id)
+    } catch {
+      showToast('削除に失敗しました', { type: 'error' })
+      return
+    }
     navigate('/library', { state: { tab: 'cafe' }, replace: true })
+    showToast('記録を削除しました', {
+      action: {
+        label: '取り消す',
+        onClick: () => {
+          putCafeVisit(snapshot)
+            .then(() => { notifyDataRestored(); showToast('削除を取り消しました', { type: 'success' }) })
+            .catch(() => showToast('復元に失敗しました', { type: 'error' }))
+        },
+      },
+    })
   }
 
   const stars = visit.rating

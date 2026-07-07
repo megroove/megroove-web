@@ -1,9 +1,10 @@
-import type { Bean, Equipment, Recipe, Brew } from './types'
+import type { Bean, Equipment, Recipe, Brew, CafeVisit } from './types'
 import {
-  getAllBeans, getAllEquipment, getAllRecipes, getAllBrews,
-  putBean, putEquipment, putRecipe, putBrew,
+  getAllBeans, getAllEquipment, getAllRecipes, getAllBrews, getAllCafeVisits,
+  putBean, putEquipment, putRecipe, putBrew, putCafeVisit,
   clearAllData,
 } from './client'
+import { saveLastExportAt } from './helpers'
 
 interface BackupData {
   version: number
@@ -12,6 +13,7 @@ interface BackupData {
   equipment: Equipment[]
   recipes: Recipe[]
   brews: Brew[]
+  cafeVisits?: CafeVisit[]  // version 1 のファイルには存在しない（後方互換）
 }
 
 const MAX_IMPORT_FILE_SIZE = 100 * 1024 * 1024 // 100MB
@@ -24,13 +26,13 @@ function isSafePhotoDataUrl(url: unknown): boolean {
 }
 
 export async function exportBackup(): Promise<void> {
-  const [beans, equipment, recipes, brews] = await Promise.all([
-    getAllBeans(), getAllEquipment(), getAllRecipes(), getAllBrews(),
+  const [beans, equipment, recipes, brews, cafeVisits] = await Promise.all([
+    getAllBeans(), getAllEquipment(), getAllRecipes(), getAllBrews(), getAllCafeVisits(),
   ])
   const data: BackupData = {
-    version: 1,
+    version: 2,
     exportedAt: new Date().toISOString(),
-    beans, equipment, recipes, brews,
+    beans, equipment, recipes, brews, cafeVisits,
   }
   const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' })
   const url  = URL.createObjectURL(blob)
@@ -41,6 +43,7 @@ export async function exportBackup(): Promise<void> {
   a.click()
   document.body.removeChild(a)
   URL.revokeObjectURL(url)
+  saveLastExportAt()
 }
 
 export interface ImportResult {
@@ -48,6 +51,7 @@ export interface ImportResult {
   equipment: number
   recipes: number
   brews: number
+  cafeVisits: number
 }
 
 export async function parseBackupFile(file: File): Promise<BackupData> {
@@ -69,10 +73,11 @@ export async function parseBackupFile(file: File): Promise<BackupData> {
 
 export function summarizeBackup(data: BackupData): ImportResult {
   return {
-    beans:     data.beans?.length ?? 0,
-    equipment: data.equipment?.length ?? 0,
-    recipes:   data.recipes?.length ?? 0,
-    brews:     data.brews?.length ?? 0,
+    beans:      data.beans?.length ?? 0,
+    equipment:  data.equipment?.length ?? 0,
+    recipes:    data.recipes?.length ?? 0,
+    brews:      data.brews?.length ?? 0,
+    cafeVisits: data.cafeVisits?.length ?? 0,
   }
 }
 
@@ -86,12 +91,17 @@ export async function importBackup(
     ...b,
     photoDataUrl: isSafePhotoDataUrl(b.photoDataUrl) ? b.photoDataUrl : undefined,
   })
+  const safeVisit = (v: CafeVisit): CafeVisit => ({
+    ...v,
+    photoDataUrl: isSafePhotoDataUrl(v.photoDataUrl) ? v.photoDataUrl : undefined,
+  })
 
   await Promise.all([
-    ...(data.beans     ?? []).map(putBean),
-    ...(data.equipment ?? []).map(putEquipment),
-    ...(data.recipes   ?? []).map(putRecipe),
-    ...(data.brews     ?? []).map(b => putBrew(safeBrew(b))),
+    ...(data.beans      ?? []).map(putBean),
+    ...(data.equipment  ?? []).map(putEquipment),
+    ...(data.recipes    ?? []).map(putRecipe),
+    ...(data.brews      ?? []).map(b => putBrew(safeBrew(b))),
+    ...(data.cafeVisits ?? []).map(v => putCafeVisit(safeVisit(v))),
   ])
 
   return summarizeBackup(data)

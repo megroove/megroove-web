@@ -2,10 +2,11 @@ import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import type { Brew, Bean, Equipment, Recipe } from '../db'
 import {
-  getBrew, getBean, getEquipment, getRecipe, deleteBrew,
+  getBrew, getBean, getEquipment, getRecipe, deleteBrew, putBrew,
   calcRatio, formatBrewDate, ROAST_LEVEL_LABELS, daysSinceRoast,
 } from '../db'
 import PhotoLightbox from '../components/PhotoLightbox'
+import { useToast, notifyDataRestored } from '../components/Toast'
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
@@ -33,6 +34,7 @@ const CUPPING_LABELS = {
 export default function BrewDetailPage() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
+  const showToast = useToast()
 
   const [brew, setBrew] = useState<Brew | null>(null)
   const [bean, setBean] = useState<Bean | undefined>()
@@ -63,8 +65,24 @@ export default function BrewDetailPage() {
   const hasCupping = Object.values(brew.cupping).some(v => v !== undefined)
 
   const handleDelete = async () => {
-    await deleteBrew(brew.id)
+    const snapshot = brew
+    try {
+      await deleteBrew(brew.id)
+    } catch {
+      showToast('削除に失敗しました', { type: 'error' })
+      return
+    }
     navigate('/library', { replace: true })
+    showToast('記録を削除しました', {
+      action: {
+        label: '取り消す',
+        onClick: () => {
+          putBrew(snapshot)
+            .then(() => { notifyDataRestored(); showToast('削除を取り消しました', { type: 'success' }) })
+            .catch(() => showToast('復元に失敗しました', { type: 'error' }))
+        },
+      },
+    })
   }
 
   const handleReproduce = () => {

@@ -7,6 +7,7 @@ import {
   newId, nowISO, calcCuppingAverage, calcRatio, estimateCaffeine, calcResidualCaffeine,
   loadSettings, loadBrewLayout, resizeImage,
   ROAST_LEVEL_LABELS, daysSinceRoast,
+  toDatetimeLocal, fromDatetimeLocal, formatBeanRemaining,
 } from '../db'
 import StarRating from '../components/brew/StarRating'
 import FlavorChips from '../components/brew/FlavorChips'
@@ -16,6 +17,8 @@ import RecipePickerModal from '../components/brew/RecipePickerModal'
 import EquipmentSection from '../components/brew/EquipmentSection'
 import SaveAnimation from '../components/brew/SaveAnimation'
 import BloomTimer from '../components/brew/BloomTimer'
+import ExtractionStopwatch from '../components/brew/ExtractionStopwatch'
+import { useToast } from '../components/Toast'
 
 function Stepper({
   label,
@@ -65,10 +68,14 @@ export default function BrewPage() {
   const fromBrewId = (location.state as { fromBrewId?: string } | null)?.fromBrewId
   const isEditMode = Boolean(editBrewId)
 
+  const showToast = useToast()
+
   const [beans, setBeans] = useState<Bean[]>([])
   const [equipment, setEquipment] = useState<Equipment[]>([])
   const [recipes, setRecipes] = useState<Recipe[]>([])
+  const [allBrews, setAllBrews] = useState<Brew[]>([])
 
+  const [brewedAtLocal, setBrewedAtLocal] = useState(() => toDatetimeLocal(nowISO()))
   const [beanId, setBeanId] = useState<string | undefined>()
   const [recipeId, setRecipeId] = useState<string | undefined>()
   const [doseG, setDoseG] = useState(15)
@@ -146,24 +153,31 @@ export default function BrewPage() {
   }, [])
 
   useEffect(() => {
-    Promise.all([getAllBeans(), getAllEquipment(), getAllRecipes()]).then(([bs, eqs, recs]) => {
-      setBeans(bs)
-      setEquipment(eqs)
-      setRecipes(recs)
-    }).catch(() => {/* データ読込失敗時は空のまま続行 */})
+    Promise.all([getAllBeans(), getAllEquipment(), getAllRecipes(), getAllBrews()])
+      .then(([bs, eqs, recs, brews]) => {
+        setBeans(bs)
+        setEquipment(eqs)
+        setRecipes(recs)
+        setAllBrews(brews)
+        if (!editBrewId && !fromBrewId) {
+          // 通常モード: 最後の記録で初期値
+          const last = brews.at(-1)
+          if (last) fillFromBrew(last, false)
+        }
+      })
+      .catch(() => {/* データ読込失敗時は空のまま続行 */})
 
     if (editBrewId) {
-      // 編集モード: 既存記録を全フィールド（評価含む）で読み込む
-      getBrew(editBrewId).then(b => { if (b) fillFromBrew(b, true) }).catch(() => {})
+      // 編集モード: 既存記録を全フィールド（評価・日時含む）で読み込む
+      getBrew(editBrewId).then(b => {
+        if (b) {
+          fillFromBrew(b, true)
+          setBrewedAtLocal(toDatetimeLocal(b.brewedAt))
+        }
+      }).catch(() => {})
     } else if (fromBrewId) {
       // 再現モード: 技術パラメータのみ転写、評価はリセット
       getBrew(fromBrewId).then(b => { if (b) fillFromBrew(b, false) }).catch(() => {})
-    } else {
-      // 通常モード: 最後の記録で初期値
-      getAllBrews().then(brews => {
-        const last = brews.at(-1)
-        if (last) fillFromBrew(last, false)
-      }).catch(() => {})
     }
   }, [editBrewId, fromBrewId, fillFromBrew])
 
@@ -194,27 +208,33 @@ export default function BrewPage() {
     if (saving) return
     setSaving(true)
 
-    if (isEditMode && editBrewId) {
-      const existing = await getBrew(editBrewId)
-      if (existing) {
-        await putBrew({ ...existing, ...buildBrewFields() })
+    try {
+      if (isEditMode && editBrewId) {
+        const existing = await getBrew(editBrewId)
+        if (existing) {
+          await putBrew({ ...existing, ...buildBrewFields(), brewedAt: fromDatetimeLocal(brewedAtLocal) })
+        }
+        setSaving(false)
+        navigate(`/library/${editBrewId}`, { replace: true })
+        showToast('変更を保存しました', { type: 'success' })
+        return
       }
-      setSaving(false)
-      navigate(`/library/${editBrewId}`, { replace: true })
-      return
-    }
 
-    const count = await getBrewCount()
-    const brew: Brew = {
-      id: newId(),
-      brewedAt: nowISO(),
-      createdAt: nowISO(),
-      ...buildBrewFields(),
+      const count = await getBrewCount()
+      const brew: Brew = {
+        id: newId(),
+        createdAt: nowISO(),
+        ...buildBrewFields(),
+        brewedAt: fromDatetimeLocal(brewedAtLocal),
+      }
+      await putBrew(brew)
+      setSavedBrewCount(count + 1)
+      setSaving(false)
+      setShowSaveAnim(true)
+    } catch {
+      setSaving(false)
+      showToast('保存に失敗しました。ストレージの空き容量を確認してください', { type: 'error' })
     }
-    await putBrew(brew)
-    setSavedBrewCount(count + 1)
-    setSaving(false)
-    setShowSaveAnim(true)
   }
 
   const handleAnimDone = useCallback(() => {
@@ -339,27 +359,20 @@ export default function BrewPage() {
       case 'extraction':
         return (
           <div key="extraction" className="bg-[#2E2018] rounded-xl p-4 flex flex-col gap-4">
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <p className="text-xs text-[#CE9C68] mb-2">総抽出時間（秒）</p>
-                <input
-                  type="number"
-                  value={totalTimeSec ?? ''}
-                  onChange={e => setTotalTimeSec(e.target.value ? Number(e.target.value) : undefined)}
-                  placeholder="—"
-                  className="w-full bg-transparent text-[#F7EFE6] text-xl font-semibold outline-none placeholder-[#4a3a2a] tabular-nums"
-                />
-              </div>
-              <div>
-                <p className="text-xs text-[#CE9C68] mb-2">注湯回数</p>
-                <input
-                  type="number"
-                  value={pourCount ?? ''}
-                  onChange={e => setPourCount(e.target.value ? Number(e.target.value) : undefined)}
-                  placeholder="—"
-                  className="w-full bg-transparent text-[#F7EFE6] text-xl font-semibold outline-none placeholder-[#4a3a2a] tabular-nums"
-                />
-              </div>
+            <div>
+              <p className="text-xs text-[#CE9C68] mb-2">総抽出時間</p>
+              <ExtractionStopwatch valueSec={totalTimeSec} onChange={setTotalTimeSec} />
+            </div>
+            <div className="border-t border-[#3e3020] pt-4">
+              <p className="text-xs text-[#CE9C68] mb-2">注湯回数</p>
+              <input
+                type="number"
+                inputMode="numeric"
+                value={pourCount ?? ''}
+                onChange={e => setPourCount(e.target.value ? Number(e.target.value) : undefined)}
+                placeholder="—"
+                className="w-full bg-transparent text-[#F7EFE6] text-xl font-semibold outline-none placeholder-[#4a3a2a] tabular-nums"
+              />
             </div>
             <div className="border-t border-[#3e3020] pt-4">
               <p className="text-xs text-[#CE9C68] mb-3">蒸らしタイマー</p>
@@ -419,9 +432,13 @@ export default function BrewPage() {
               className="hidden"
               onChange={async e => {
                 const file = e.target.files?.[0]
-                if (!file) return
-                setPhotoDataUrl(await resizeImage(file, 800))
                 e.target.value = ''
+                if (!file) return
+                try {
+                  setPhotoDataUrl(await resizeImage(file, 800))
+                } catch (err) {
+                  showToast(err instanceof Error ? err.message : '写真の読み込みに失敗しました', { type: 'error' })
+                }
               }}
             />
           </div>
@@ -444,6 +461,17 @@ export default function BrewPage() {
           {isEditMode ? '記録を編集' : 'この一杯を記録する'}
         </h2>
 
+        {/* 日時（既定は今。過去の一杯もあとから記録できる） */}
+        <div className="w-full bg-[#2E2018] rounded-xl px-4 py-3 flex items-center justify-between gap-3">
+          <p className="text-xs text-[#CE9C68] shrink-0">日時</p>
+          <input
+            type="datetime-local"
+            value={brewedAtLocal}
+            onChange={e => setBrewedAtLocal(e.target.value)}
+            className="bg-transparent text-[#F7EFE6] text-sm outline-none text-right"
+          />
+        </div>
+
         {/* 豆カード（固定） */}
         <button
           type="button"
@@ -459,6 +487,11 @@ export default function BrewPage() {
                 {selectedBean.roastedAt ? ` · 焙煎から${daysSinceRoast(selectedBean.roastedAt)}日` : ''}
                 {selectedBean.origin ? ` · ${selectedBean.origin}` : ''}
               </p>
+              {formatBeanRemaining(selectedBean, allBrews) && (
+                <p className="text-xs text-[#6b5a4a] mt-0.5">
+                  {formatBeanRemaining(selectedBean, allBrews)}
+                </p>
+              )}
             </>
           ) : (
             <p className="text-[#6b5a4a]">タップして豆を選ぶ →</p>

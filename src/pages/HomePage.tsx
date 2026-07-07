@@ -6,6 +6,7 @@ import type { Brew, Bean, CafeVisit, Equipment } from '../db'
 import {
   formatBrewDateShort, ROAST_LEVEL_LABELS, CAFE_DRINK_TYPE_LABELS,
   EQUIPMENT_TYPE_LABELS, daysSinceRoast,
+  getBackupReminder, snoozeBackupReminder,
 } from '../db'
 
 // ─── 型定義 ──────────────────────────────────────────────────────────────────
@@ -148,6 +149,7 @@ export default function HomePage() {
   const [bestDrink, setBestDrink] = useState<{ name: string; rating: number; count: number } | null>(null)
   const [topCafe, setTopCafe] = useState<{ name: string; count: number } | null>(null)
   const [dbError, setDbError] = useState(false)
+  const [backupReminder, setBackupReminder] = useState<string | null>(null)
 
   // Featured 選択（localStorage から復元）
   const [featuredBeanId, setFeaturedBeanId] = useState<string | null>(loadFeaturedBeanId)
@@ -199,6 +201,9 @@ export default function HomePage() {
         // ランキング計算
         setBestDrink(calcBestDrink(brews, beanMap, visits))
         setTopCafe(calcTopCafe(visits))
+
+        // バックアップリマインダー（記録10件以上・未エクスポート or 30日超過）
+        setBackupReminder(getBackupReminder(brews.length + visits.length))
       },
     ).catch(() => setDbError(true))
   }, [])
@@ -279,6 +284,29 @@ export default function HomePage() {
           <span className="text-sm font-semibold">カフェを記録</span>
         </button>
       </div>
+
+      {/* バックアップリマインダー */}
+      {backupReminder && (
+        <div className="bg-[#2E2018] border border-[#CE9C68]/30 rounded-xl p-4 flex flex-col gap-3">
+          <p className="text-sm text-[#CE9C68] leading-relaxed">💾 {backupReminder}</p>
+          <div className="flex gap-3">
+            <button
+              type="button"
+              onClick={() => navigate('/settings')}
+              className="flex-1 py-2 rounded-xl bg-[#993C1D] text-[#F7EFE6] text-sm font-semibold active:opacity-80"
+            >
+              エクスポートする
+            </button>
+            <button
+              type="button"
+              onClick={() => { snoozeBackupReminder(); setBackupReminder(null) }}
+              className="flex-1 py-2 rounded-xl bg-[#3e3020] text-[#6b5a4a] text-sm active:opacity-80"
+            >
+              あとで（7日間非表示）
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* 今月のランキング */}
       {hasRanking && (

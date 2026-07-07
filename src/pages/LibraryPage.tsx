@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo, useCallback } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import type { Brew, Bean, CafeVisit } from '../db'
 import {
@@ -6,6 +6,7 @@ import {
   calcRatio, ROAST_LEVEL_LABELS, CAFE_DRINK_TYPE_LABELS,
   formatBrewDateShort,
 } from '../db'
+import { DATA_RESTORED_EVENT } from '../components/Toast'
 
 // ─── 表示モード ────────────────────────────────────────────────────────────────
 
@@ -219,12 +220,19 @@ function BrewTab({ displayMode }: { displayMode: DisplayMode }) {
   const [beanFilter, setBeanFilter] = useState('all')
   const [dbError, setDbError] = useState(false)
 
-  useEffect(() => {
+  const load = useCallback(() => {
     Promise.all([getAllBrews(), getAllBeans()]).then(([bs, beans]) => {
       setBrews([...bs].reverse())
       setBeanMap(new Map(beans.map(b => [b.id, b])))
     }).catch(() => setDbError(true))
   }, [])
+
+  useEffect(() => {
+    load()
+    // 削除アンドゥで復元されたら一覧を再読込
+    window.addEventListener(DATA_RESTORED_EVENT, load)
+    return () => window.removeEventListener(DATA_RESTORED_EVENT, load)
+  }, [load])
 
   const usedBeans = useMemo(() => {
     const ids = new Set(brews.map(b => b.beanId).filter(Boolean) as string[])
@@ -351,9 +359,15 @@ function CafeTab({ displayMode }: { displayMode: DisplayMode }) {
   const [visits, setVisits] = useState<CafeVisit[]>([])
   const [ratingFilter, setRatingFilter] = useState<RatingFilter>('all')
 
-  useEffect(() => {
-    getAllCafeVisits().then(vs => setVisits([...vs].reverse()))
+  const load = useCallback(() => {
+    getAllCafeVisits().then(vs => setVisits([...vs].reverse())).catch(() => {})
   }, [])
+
+  useEffect(() => {
+    load()
+    window.addEventListener(DATA_RESTORED_EVENT, load)
+    return () => window.removeEventListener(DATA_RESTORED_EVENT, load)
+  }, [load])
 
   const filtered = useMemo(() => visits.filter(v => {
     if (ratingFilter === '3+' && (v.rating ?? 0) < 3) return false

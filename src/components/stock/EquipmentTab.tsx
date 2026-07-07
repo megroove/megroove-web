@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import type { Equipment, EquipmentType } from '../../db'
 import { getAllEquipment, putEquipment, deleteEquipment, newId, nowISO, EQUIPMENT_TYPE_LABELS } from '../../db'
 import { Field, TextInput, ChipSelect, DeleteButton, ModalSheet, SaveButton } from './FormHelpers'
+import { useToast } from '../Toast'
 
 const EQUIPMENT_TYPES: EquipmentType[] = ['dripper', 'server', 'grinder', 'kettle', 'scale', 'other']
 
@@ -72,8 +73,9 @@ function EquipmentForm({
 export default function EquipmentTab() {
   const [equipment, setEquipment] = useState<Equipment[]>([])
   const [editing,   setEditing]   = useState<Equipment | 'new' | null>(null)
+  const showToast = useToast()
 
-  useEffect(() => { getAllEquipment().then(setEquipment) }, [])
+  useEffect(() => { getAllEquipment().then(setEquipment).catch(() => {}) }, [])
 
   const handleSave = (item: Equipment) => {
     setEquipment(prev => {
@@ -84,10 +86,25 @@ export default function EquipmentTab() {
     setEditing(null)
   }
 
-  const handleDelete = async (id: string) => {
-    await deleteEquipment(id)
-    setEquipment(prev => prev.filter(e => e.id !== id))
+  const handleDelete = async (item: Equipment) => {
+    try {
+      await deleteEquipment(item.id)
+    } catch {
+      showToast('削除に失敗しました', { type: 'error' })
+      return
+    }
+    setEquipment(prev => prev.filter(e => e.id !== item.id))
     setEditing(null)
+    showToast(`「${item.name}」を削除しました`, {
+      action: {
+        label: '取り消す',
+        onClick: () => {
+          putEquipment(item)
+            .then(() => setEquipment(prev => [...prev, item]))
+            .catch(() => showToast('復元に失敗しました', { type: 'error' }))
+        },
+      },
+    })
   }
 
   return (
@@ -126,7 +143,7 @@ export default function EquipmentTab() {
         <EquipmentForm
           initial={editing === 'new' ? undefined : (editing ?? undefined)}
           onSave={handleSave}
-          onDelete={editing !== 'new' && editing !== null ? () => handleDelete(editing.id) : undefined}
+          onDelete={editing !== 'new' && editing !== null ? () => handleDelete(editing) : undefined}
           onCancel={() => setEditing(null)}
         />
       </ModalSheet>

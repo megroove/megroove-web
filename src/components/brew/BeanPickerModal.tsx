@@ -1,6 +1,9 @@
 import { useState, useEffect } from 'react'
-import type { Bean, RoastLevel } from '../../db'
-import { getAllBeans, putBean, newId, nowISO, ROAST_LEVEL_LABELS, daysSinceRoast } from '../../db'
+import type { Bean, Brew, RoastLevel } from '../../db'
+import {
+  getAllBeans, getAllBrews, putBean, newId, nowISO,
+  ROAST_LEVEL_LABELS, daysSinceRoast, formatBeanRemaining,
+} from '../../db'
 
 interface Props {
   currentBeanId?: string
@@ -15,6 +18,7 @@ function AddBeanForm({ onAdd, onCancel }: { onAdd: (b: Bean) => void; onCancel: 
   const [roastLevel, setRoastLevel] = useState<RoastLevel>('medium')
   const [roastedAt, setRoastedAt] = useState('')
   const [origin, setOrigin] = useState('')
+  const [amountG, setAmountG] = useState<number | undefined>()
   const [submitting, setSubmitting] = useState(false)
 
   const handleSubmit = async () => {
@@ -26,6 +30,7 @@ function AddBeanForm({ onAdd, onCancel }: { onAdd: (b: Bean) => void; onCancel: 
       roastLevel,
       roastedAt: roastedAt || undefined,
       origin: origin.trim() || undefined,
+      initialAmountG: amountG,
       createdAt: nowISO(),
     }
     await putBean(bean)
@@ -89,6 +94,19 @@ function AddBeanForm({ onAdd, onCancel }: { onAdd: (b: Bean) => void; onCancel: 
         />
       </div>
 
+      <div>
+        <label className="text-xs text-[#CE9C68] mb-1.5 block">内容量 g（任意・残量を自動計算）</label>
+        <input
+          type="number"
+          inputMode="numeric"
+          min={1}
+          value={amountG ?? ''}
+          onChange={e => setAmountG(e.target.value ? Number(e.target.value) : undefined)}
+          placeholder="例: 200"
+          className="w-full bg-[#3e3020] text-[#F7EFE6] rounded-xl px-4 py-3 outline-none placeholder-[#6b5a4a] tabular-nums"
+        />
+      </div>
+
       <div className="flex flex-col gap-2 pt-2">
         <button
           type="button"
@@ -112,16 +130,25 @@ function AddBeanForm({ onAdd, onCancel }: { onAdd: (b: Bean) => void; onCancel: 
 
 export default function BeanPickerModal({ currentBeanId, onSelect, onClose }: Props) {
   const [beans, setBeans] = useState<Bean[]>([])
+  const [brews, setBrews] = useState<Brew[]>([])
   const [showAdd, setShowAdd] = useState(false)
+  const [showFinished, setShowFinished] = useState(false)
 
   useEffect(() => {
-    getAllBeans().then(setBeans)
+    getAllBeans().then(setBeans).catch(() => {})
+    getAllBrews().then(setBrews).catch(() => {})
   }, [])
 
   const handleAdd = (bean: Bean) => {
     onSelect(bean)
     onClose()
   }
+
+  // 飲み切った豆は既定で隠す（選択中の豆は常に表示）
+  const finishedCount = beans.filter(b => b.finishedAt && b.id !== currentBeanId).length
+  const visibleBeans = showFinished
+    ? beans
+    : beans.filter(b => !b.finishedAt || b.id === currentBeanId)
 
   if (showAdd) {
     return (
@@ -159,14 +186,14 @@ export default function BeanPickerModal({ currentBeanId, onSelect, onClose }: Pr
           </div>
         ) : (
           <ul>
-            {beans.map(bean => (
+            {visibleBeans.map(bean => (
               <li key={bean.id}>
                 <button
                   type="button"
                   onClick={() => { onSelect(bean); onClose() }}
                   className={`w-full flex items-center justify-between px-4 py-4 text-left border-b border-[#2e2018] active:bg-[#2e1810] ${
                     bean.id === currentBeanId ? 'bg-[#2e1810]' : ''
-                  }`}
+                  } ${bean.finishedAt ? 'opacity-60' : ''}`}
                 >
                   <div>
                     <p className="text-[#F7EFE6] font-medium">{bean.name}</p>
@@ -175,6 +202,11 @@ export default function BeanPickerModal({ currentBeanId, onSelect, onClose }: Pr
                       {bean.roastedAt ? ` · 焙煎から${daysSinceRoast(bean.roastedAt)}日` : ''}
                       {bean.origin ? ` · ${bean.origin}` : ''}
                     </p>
+                    {(bean.finishedAt || formatBeanRemaining(bean, brews)) && (
+                      <p className="text-xs text-[#6b5a4a] mt-0.5">
+                        {bean.finishedAt ? '飲み切り' : formatBeanRemaining(bean, brews)}
+                      </p>
+                    )}
                   </div>
                   {bean.id === currentBeanId && (
                     <span className="text-[#993C1D] text-lg">✓</span>
@@ -182,6 +214,17 @@ export default function BeanPickerModal({ currentBeanId, onSelect, onClose }: Pr
                 </button>
               </li>
             ))}
+            {finishedCount > 0 && (
+              <li>
+                <button
+                  type="button"
+                  onClick={() => setShowFinished(v => !v)}
+                  className="w-full px-4 py-3 text-left text-xs text-[#6b5a4a] border-b border-[#2e2018]"
+                >
+                  {showFinished ? '▲ 飲み切った豆を隠す' : `▽ 飲み切った豆を表示（${finishedCount}）`}
+                </button>
+              </li>
+            )}
             <li>
               <button
                 type="button"

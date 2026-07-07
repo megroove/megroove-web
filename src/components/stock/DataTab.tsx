@@ -1,10 +1,26 @@
 import { useState, useRef } from 'react'
-import { exportBackup, parseBackupFile, importBackup, type ImportResult } from '../../db'
+import {
+  exportBackup, parseBackupFile, importBackup, summarizeBackup,
+  loadLastExportAt, daysSinceLastExport,
+  type ImportResult,
+} from '../../db'
+import { useToast } from '../Toast'
 
 type ImportStep = 'idle' | 'preview' | 'importing' | 'done' | 'error'
 
+function formatLastExport(): string {
+  const last = loadLastExportAt()
+  if (!last) return 'まだエクスポートしていません'
+  const days = daysSinceLastExport()
+  const d = new Date(last)
+  const dateStr = `${d.getFullYear()}/${d.getMonth() + 1}/${d.getDate()}`
+  return days === 0 ? `最終エクスポート: 今日（${dateStr}）` : `最終エクスポート: ${days}日前（${dateStr}）`
+}
+
 export default function DataTab() {
+  const showToast = useToast()
   const fileRef = useRef<HTMLInputElement>(null)
+  const [lastExportLabel, setLastExportLabel] = useState(formatLastExport)
   const [exporting,   setExporting]   = useState(false)
   const [step,        setStep]        = useState<ImportStep>('idle')
   const [preview,     setPreview]     = useState<ImportResult | null>(null)
@@ -17,6 +33,10 @@ export default function DataTab() {
     setExporting(true)
     try {
       await exportBackup()
+      setLastExportLabel(formatLastExport())
+      showToast('バックアップを書き出しました', { type: 'success' })
+    } catch {
+      showToast('エクスポートに失敗しました', { type: 'error' })
     } finally {
       setExporting(false)
     }
@@ -31,12 +51,7 @@ export default function DataTab() {
     try {
       const data = await parseBackupFile(file)
       setParsedData(data)
-      setPreview({
-        beans:     data.beans?.length ?? 0,
-        equipment: data.equipment?.length ?? 0,
-        recipes:   data.recipes?.length ?? 0,
-        brews:     data.brews?.length ?? 0,
-      })
+      setPreview(summarizeBackup(data))
       setStep('preview')
     } catch (err) {
       setErrorMsg(err instanceof Error ? err.message : 'ファイルの読み込みに失敗しました')
@@ -73,7 +88,7 @@ export default function DataTab() {
         <div>
           <h3 className="text-sm font-semibold text-[#F7EFE6]">データをエクスポート</h3>
           <p className="text-xs text-[#6b5a4a] mt-1">
-            全記録（豆・器具・レシピ・ブリュー）をJSONファイルに書き出します。端末移行やバックアップに使用してください。
+            全記録（豆・器具・レシピ・ブリュー・カフェ記録）をJSONファイルに書き出します。端末移行やバックアップに使用してください。
           </p>
         </div>
         <button
@@ -84,6 +99,7 @@ export default function DataTab() {
         >
           {exporting ? '書き出し中...' : '⬆ JSONファイルを書き出す'}
         </button>
+        <p className="text-xs text-[#6b5a4a] text-center">{lastExportLabel}</p>
       </section>
 
       {/* インポート */}
@@ -124,10 +140,11 @@ export default function DataTab() {
             <div className="bg-[#3e3020] rounded-xl p-4">
               <p className="text-xs text-[#CE9C68] mb-2">読み込み内容</p>
               {[
-                ['豆',       preview.beans],
-                ['器具',     preview.equipment],
-                ['レシピ',   preview.recipes],
-                ['ブリュー', preview.brews],
+                ['豆',         preview.beans],
+                ['器具',       preview.equipment],
+                ['レシピ',     preview.recipes],
+                ['ブリュー',   preview.brews],
+                ['カフェ記録', preview.cafeVisits],
               ].map(([label, count]) => (
                 <div key={label as string} className="flex justify-between py-1 border-b border-[#2e2018] last:border-0">
                   <span className="text-sm text-[#6b5a4a]">{label}</span>
@@ -195,7 +212,7 @@ export default function DataTab() {
             <div className="bg-[#3e3020] rounded-xl p-4 text-center">
               <p className="text-[#F7EFE6] font-semibold mb-1">インポート完了</p>
               <p className="text-xs text-[#CE9C68]">
-                豆{result.beans}・器具{result.equipment}・レシピ{result.recipes}・ブリュー{result.brews}件
+                豆{result.beans}・器具{result.equipment}・レシピ{result.recipes}・ブリュー{result.brews}・カフェ{result.cafeVisits}件
               </p>
             </div>
             <button

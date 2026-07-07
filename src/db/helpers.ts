@@ -1,4 +1,4 @@
-import type { CuppingScores } from './types'
+import type { Bean, Brew, CuppingScores } from './types'
 
 export function newId(): string {
   return crypto.randomUUID()
@@ -107,6 +107,93 @@ export function formatBrewDateShort(isoString: string): string {
   const day = d.getDate()
   const weekday = WEEKDAYS[d.getDay()]
   return `${month}/${day}（${weekday}）`
+}
+
+// ISO datetime → <input type="datetime-local"> 用のローカル時刻文字列
+export function toDatetimeLocal(iso: string): string {
+  const d = new Date(iso)
+  return [
+    d.getFullYear(),
+    String(d.getMonth() + 1).padStart(2, '0'),
+    String(d.getDate()).padStart(2, '0'),
+  ].join('-') + 'T' + [
+    String(d.getHours()).padStart(2, '0'),
+    String(d.getMinutes()).padStart(2, '0'),
+  ].join(':')
+}
+
+// datetime-local の値 → ISO datetime。不正値は現在時刻にフォールバック
+export function fromDatetimeLocal(value: string): string {
+  const t = new Date(value).getTime()
+  return Number.isNaN(t) ? nowISO() : new Date(t).toISOString()
+}
+
+export function formatSecToMmSs(sec: number): string {
+  return `${Math.floor(sec / 60)}:${String(sec % 60).padStart(2, '0')}`
+}
+
+// ─── Bean remaining ──────────────────────────────────────────────────────────
+
+// 内容量が未入力の豆は null（残量管理の対象外）
+export function calcBeanRemainingG(bean: Bean, brews: Brew[]): number | null {
+  if (bean.initialAmountG === undefined) return null
+  const used = brews.reduce(
+    (sum, b) => (b.beanId === bean.id ? sum + (b.doseG ?? 0) : sum),
+    0,
+  )
+  return Math.max(0, Math.round((bean.initialAmountG - used) * 10) / 10)
+}
+
+// 残量から「あと約何杯か」を推定（その豆の平均粉量、なければ15g）
+export function estimateRemainingCups(remainingG: number, bean: Bean, brews: Brew[]): number {
+  const doses = brews.filter(b => b.beanId === bean.id && b.doseG).map(b => b.doseG!)
+  const avgDose = doses.length > 0 ? doses.reduce((a, b) => a + b, 0) / doses.length : 15
+  return Math.floor(remainingG / avgDose)
+}
+
+export function formatBeanRemaining(bean: Bean, brews: Brew[]): string | null {
+  const remaining = calcBeanRemainingG(bean, brews)
+  if (remaining === null) return null
+  if (remaining <= 0) return '残りわずか'
+  const cups = estimateRemainingCups(remaining, bean, brews)
+  return cups > 0 ? `残り約${remaining}g（約${cups}杯）` : `残り約${remaining}g`
+}
+
+// ─── Backup reminder (localStorage) ──────────────────────────────────────────
+
+const LAST_EXPORT_KEY   = 'megroove-last-export'
+const BACKUP_SNOOZE_KEY = 'megroove-backup-snooze'
+
+export function loadLastExportAt(): string | null {
+  return localStorage.getItem(LAST_EXPORT_KEY)
+}
+
+export function saveLastExportAt(): void {
+  localStorage.setItem(LAST_EXPORT_KEY, new Date().toISOString())
+}
+
+export function daysSinceLastExport(): number | null {
+  const last = loadLastExportAt()
+  if (!last) return null
+  return Math.floor((Date.now() - new Date(last).getTime()) / (1000 * 60 * 60 * 24))
+}
+
+// リマインダーを7日間非表示にする
+export function snoozeBackupReminder(): void {
+  const until = new Date()
+  until.setDate(until.getDate() + 7)
+  localStorage.setItem(BACKUP_SNOOZE_KEY, until.toISOString())
+}
+
+// 記録が10件以上あり、未エクスポート or 30日超過ならリマインド文言を返す
+export function getBackupReminder(recordCount: number): string | null {
+  if (recordCount < 10) return null
+  const snooze = localStorage.getItem(BACKUP_SNOOZE_KEY)
+  if (snooze && new Date(snooze).getTime() > Date.now()) return null
+  const days = daysSinceLastExport()
+  if (days === null) return 'まだバックアップがありません。ブラウザのデータ消去に備えてエクスポートを推奨します。'
+  if (days > 30) return `最後のバックアップから${days}日経過しています。エクスポートを推奨します。`
+  return null
 }
 
 // ─── Caffeine ────────────────────────────────────────────────────────────────

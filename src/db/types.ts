@@ -17,6 +17,8 @@ export interface Bean {
   roastLevel: RoastLevel
   roastedAt?: string   // ISO date string (YYYY-MM-DD)
   purchasedAt?: string // ISO date string
+  initialAmountG?: number // 内容量 (g)。記録の粉量から残量を自動計算する
+  finishedAt?: string     // 飲み切った日時 (ISO)。設定されるとアーカイブ扱い
   stockNote?: string
   createdAt: string    // ISO datetime
 }
