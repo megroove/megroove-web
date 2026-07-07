@@ -1,58 +1,17 @@
 import { useState, useEffect, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
-import type { Brew, Bean } from '../db'
-import { getAllBrews, getAllBeans, formatBrewDateShort, ROAST_LEVEL_LABELS } from '../db'
-import RadarChart, { type RadarScores } from '../components/analysis/RadarChart'
-import { RankBadge, GlobeIcon } from '../components/icons'
-
-// ─── データ計算 ───────────────────────────────────────────────────────────────
-
-type ScoreKey = 'acidity' | 'sweetness' | 'bitterness' | 'body' | 'aftertaste'
-const SCORE_KEYS: ScoreKey[] = ['acidity', 'sweetness', 'bitterness', 'body', 'aftertaste']
-const SCORE_LABELS: Record<ScoreKey, string> = {
-  acidity: '酸味', sweetness: '甘み', bitterness: '苦味',
-  body: 'ボディ', aftertaste: '後味',
-}
-
-function calcWeightedScores(brews: Brew[]): { scores: RadarScores; count: number } {
-  // 星評価がありカッピングスコアが1軸以上入っているものが対象
-  const eligible = brews.filter(
-    b => (b.rating ?? 0) > 0 && SCORE_KEYS.some(k => b.cupping[k] !== undefined)
-  )
-
-  const scores: RadarScores = {}
-  for (const key of SCORE_KEYS) {
-    let wSum = 0, wTotal = 0
-    for (const brew of eligible) {
-      const val    = brew.cupping[key]
-      const weight = brew.rating ?? 0
-      if (val !== undefined && weight > 0) {
-        wSum   += val * weight
-        wTotal += weight
-      }
-    }
-    if (wTotal > 0) scores[key] = wSum / wTotal
-  }
-
-  return { scores, count: eligible.length }
-}
-
-function generateInsight(scores: RadarScores): string {
-  const entries = (Object.entries(scores) as [ScoreKey, number][]).sort((a, b) => b[1] - a[1])
-  if (entries.length === 0) return ''
-
-  const avg = entries.reduce((s, [, v]) => s + v, 0) / entries.length
-  if (avg >= 4.2) return 'バランスよく高スコアです。理想の一杯を安定して再現できています。'
-  if (avg <= 2.5) return '好みの軸を探し中。記録を重ねるほど傾向が明確になります。'
-
-  const topKey    = entries[0][0]
-  const bottomKey = entries[entries.length - 1][0]
-  const spread    = entries[0][1] - entries[entries.length - 1][1]
-
-  if (spread < 0.5) return 'すべての軸がバランスよく取れています。'
-
-  return `${SCORE_LABELS[topKey]}を高く評価し、${SCORE_LABELS[bottomKey]}は控えめなコーヒーが好みのようです。`
-}
+import type { Brew, Bean, CafeVisit } from '../db'
+import {
+  getAllBrews, getAllBeans, getAllCafeVisits,
+  formatBrewDateShort, formatSecToMmSs, ROAST_LEVEL_LABELS,
+} from '../db'
+import RadarChart from '../components/analysis/RadarChart'
+import TrendChart from '../components/analysis/TrendChart'
+import {
+  calcWeightedScores, generateInsight, rankBrews,
+  calcMonthlyTrend, calcBestConditions, calcBeanStats,
+} from '../components/analysis/stats'
+import { RankBadge, GlobeIcon, CupIcon } from '../components/icons'
 
 function isThisMonth(brew: Brew): boolean {
   const d = new Date(brew.brewedAt), now = new Date()
@@ -61,16 +20,6 @@ function isThisMonth(brew: Brew): boolean {
 
 function isThisYear(brew: Brew): boolean {
   return new Date(brew.brewedAt).getFullYear() === new Date().getFullYear()
-}
-
-function rankBrews(brews: Brew[]): Brew[] {
-  return [...brews].sort((a, b) => {
-    const r = (b.rating ?? 0) - (a.rating ?? 0)
-    if (r !== 0) return r
-    const c = (b.cuppingAverage ?? 0) - (a.cuppingAverage ?? 0)
-    if (c !== 0) return c
-    return new Date(b.brewedAt).getTime() - new Date(a.brewedAt).getTime()
-  })
 }
 
 // ─── RankCard ────────────────────────────────────────────────────────────────
@@ -157,12 +106,15 @@ function RankingSection({
 export default function AnalysisPage() {
   const navigate = useNavigate()
   const [brews, setBrews]     = useState<Brew[]>([])
+  const [visits, setVisits]   = useState<CafeVisit[]>([])
   const [beanMap, setBeanMap] = useState<Map<string, Bean>>(new Map())
+  const [trendMonths, setTrendMonths] = useState<6 | 12>(6)
   const [dbError, setDbError] = useState(false)
 
   useEffect(() => {
-    Promise.all([getAllBrews(), getAllBeans()]).then(([bs, beans]) => {
+    Promise.all([getAllBrews(), getAllBeans(), getAllCafeVisits()]).then(([bs, beans, vs]) => {
       setBrews(bs)
+      setVisits(vs)
       setBeanMap(new Map(beans.map(b => [b.id, b])))
     }).catch(() => setDbError(true))
   }, [])
@@ -171,8 +123,33 @@ export default function AnalysisPage() {
   const insight           = useMemo(() => generateInsight(scores), [scores])
   const hasEnoughData     = count >= 3
 
+  const bestConditions = useMemo(() => calcBestConditions(brews), [brews])
+  const trend          = useMemo(() => calcMonthlyTrend(brews, visits, trendMonths), [brews, visits, trendMonths])
+  const hasTrendData   = useMemo(() => trend.some(m => m.cups > 0), [trend])
+  const beanStats      = useMemo(() => calcBeanStats(brews).slice(0, 5), [brews])
+
   const monthlyBrews = useMemo(() => brews.filter(isThisMonth), [brews])
   const yearlyBrews  = useMemo(() => brews.filter(isThisYear),  [brews])
+
+  // 累計統計
+  const totals = useMemo(() => {
+    const doseSum = brews.reduce((s, b) => s + (b.doseG ?? 0), 0)
+    const spend   = visits.reduce((s, v) => s + (v.price ?? 0), 0)
+    const origins = new Set<string>()
+    for (const b of brews) {
+      const origin = b.beanId ? beanMap.get(b.beanId)?.origin : undefined
+      if (origin) origins.add(origin)
+    }
+    for (const v of visits) {
+      if (v.beanOrigin) origins.add(v.beanOrigin)
+    }
+    return {
+      cups: brews.length + visits.length,
+      doseSum,
+      spend,
+      originCount: origins.size,
+    }
+  }, [brews, visits, beanMap])
 
   const now          = new Date()
   const monthLabel   = `${now.getMonth() + 1}月のトップ3`
@@ -238,6 +215,99 @@ export default function AnalysisPage() {
         )}
       </section>
 
+      {/* あなたのベスト条件 */}
+      {bestConditions && (
+        <section className="bg-[#2E2018] rounded-xl p-5 flex flex-col gap-3">
+          <div className="flex items-center justify-between">
+            <h3 className="text-sm font-semibold text-[#CE9C68] uppercase tracking-wider">
+              あなたのベスト条件
+            </h3>
+            <span className="text-xs text-[#6b5a4a]">★4以上 {bestConditions.count}杯の平均</span>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            {bestConditions.ratio !== undefined && (
+              <div className="bg-[#3e3020] rounded-xl p-3 text-center">
+                <p className="text-lg font-bold text-[#F7EFE6] tabular-nums">1:{bestConditions.ratio.toFixed(1)}</p>
+                <p className="text-[10px] text-[#6b5a4a] mt-0.5">比率</p>
+              </div>
+            )}
+            {bestConditions.tempC !== undefined && (
+              <div className="bg-[#3e3020] rounded-xl p-3 text-center">
+                <p className="text-lg font-bold text-[#F7EFE6] tabular-nums">{Math.round(bestConditions.tempC)}°C</p>
+                <p className="text-[10px] text-[#6b5a4a] mt-0.5">湯温</p>
+              </div>
+            )}
+            {bestConditions.grindSize !== undefined && (
+              <div className="bg-[#3e3020] rounded-xl p-3 text-center">
+                <p className="text-lg font-bold text-[#F7EFE6] tabular-nums">{bestConditions.grindSize.toFixed(1)}</p>
+                <p className="text-[10px] text-[#6b5a4a] mt-0.5">挽き目</p>
+              </div>
+            )}
+            {bestConditions.timeSec !== undefined && (
+              <div className="bg-[#3e3020] rounded-xl p-3 text-center">
+                <p className="text-lg font-bold text-[#F7EFE6] tabular-nums">{formatSecToMmSs(Math.round(bestConditions.timeSec))}</p>
+                <p className="text-[10px] text-[#6b5a4a] mt-0.5">抽出時間</p>
+              </div>
+            )}
+          </div>
+          <p className="text-xs text-[#6b5a4a] leading-relaxed">
+            高評価の一杯はこの条件帯に集中しています。迷ったらここに戻りましょう。
+          </p>
+        </section>
+      )}
+
+      {/* トレンド */}
+      {hasTrendData && (
+        <section className="bg-[#2E2018] rounded-xl p-5 flex flex-col gap-3">
+          <div className="flex items-center justify-between">
+            <h3 className="text-sm font-semibold text-[#CE9C68] uppercase tracking-wider">トレンド</h3>
+            <div className="flex gap-0.5 bg-[#1a0a05] rounded-lg p-0.5">
+              {([6, 12] as const).map(m => (
+                <button key={m} type="button" onClick={() => setTrendMonths(m)}
+                  className={`px-2.5 py-1 rounded-md text-xs transition-colors ${
+                    trendMonths === m ? 'bg-[#993C1D] text-[#F7EFE6]' : 'text-[#6b5a4a]'
+                  }`}
+                >
+                  {m}ヶ月
+                </button>
+              ))}
+            </div>
+          </div>
+          <TrendChart months={trend} />
+        </section>
+      )}
+
+      {/* 豆ごとの分析 */}
+      {beanStats.length > 0 && (
+        <section className="flex flex-col gap-3">
+          <h3 className="text-sm font-semibold text-[#CE9C68] uppercase tracking-wider">豆ごとの分析</h3>
+          {beanStats.map(stat => {
+            const bean = beanMap.get(stat.beanId)
+            if (!bean) return null
+            return (
+              <button
+                key={stat.beanId}
+                type="button"
+                onClick={() => navigate(`/analysis/bean/${stat.beanId}`)}
+                className="w-full bg-[#2E2018] rounded-xl p-4 flex items-center justify-between active:opacity-80"
+              >
+                <div className="flex items-center gap-3 min-w-0">
+                  <span className="text-[#CE9C68]"><CupIcon size={18} /></span>
+                  <div className="text-left min-w-0">
+                    <p className="text-[#F7EFE6] text-sm font-medium truncate">{bean.name}</p>
+                    <p className="text-xs text-[#6b5a4a] mt-0.5">
+                      {stat.count}杯
+                      {stat.avgRating !== undefined ? ` · 平均★${stat.avgRating.toFixed(1)}` : ''}
+                    </p>
+                  </div>
+                </div>
+                <span className="text-[#6b5a4a] text-sm shrink-0 ml-2">→</span>
+              </button>
+            )
+          })}
+        </section>
+      )}
+
       {/* 月間ランキング */}
       <RankingSection
         title={monthLabel}
@@ -253,6 +323,33 @@ export default function AnalysisPage() {
         beanMap={beanMap}
         emptyMessage="今年の記録がありません"
       />
+
+      {/* 累計 */}
+      {totals.cups > 0 && (
+        <section className="flex flex-col gap-3">
+          <h3 className="text-sm font-semibold text-[#CE9C68] uppercase tracking-wider">これまでの記録</h3>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="bg-[#2E2018] rounded-xl p-4 text-center">
+              <p className="text-2xl font-bold text-[#F7EFE6] tabular-nums">{totals.cups}</p>
+              <p className="text-xs text-[#CE9C68] mt-0.5">総杯数</p>
+            </div>
+            <div className="bg-[#2E2018] rounded-xl p-4 text-center">
+              <p className="text-2xl font-bold text-[#F7EFE6] tabular-nums">
+                {totals.doseSum >= 1000 ? `${(totals.doseSum / 1000).toFixed(1)}kg` : `${Math.round(totals.doseSum)}g`}
+              </p>
+              <p className="text-xs text-[#CE9C68] mt-0.5">豆の消費量</p>
+            </div>
+            <div className="bg-[#2E2018] rounded-xl p-4 text-center">
+              <p className="text-2xl font-bold text-[#F7EFE6] tabular-nums">¥{totals.spend.toLocaleString()}</p>
+              <p className="text-xs text-[#CE9C68] mt-0.5">カフェ支出</p>
+            </div>
+            <div className="bg-[#2E2018] rounded-xl p-4 text-center">
+              <p className="text-2xl font-bold text-[#F7EFE6] tabular-nums">{totals.originCount}</p>
+              <p className="text-xs text-[#CE9C68] mt-0.5">出会った産地</p>
+            </div>
+          </div>
+        </section>
+      )}
 
       {/* 産地パスポートへ */}
       <button

@@ -7,6 +7,7 @@ import BrewPage from './pages/BrewPage'
 import LibraryPage from './pages/LibraryPage'
 import BrewDetailPage from './pages/BrewDetailPage'
 import AnalysisPage from './pages/AnalysisPage'
+import BeanAnalysisPage from './pages/BeanAnalysisPage'
 import StockPage from './pages/StockPage'
 import CaffeinePage from './pages/CaffeinePage'
 import CafeVisitPage from './pages/CafeVisitPage'
@@ -28,7 +29,8 @@ function AppRoutes() {
         <Route path="/brew/edit/:id"   element={<BrewPage />} />
         <Route path="/library"         element={<LibraryPage />} />
         <Route path="/library/:id"     element={<BrewDetailPage />} />
-        <Route path="/analysis"        element={<AnalysisPage />} />
+        <Route path="/analysis"          element={<AnalysisPage />} />
+        <Route path="/analysis/bean/:id" element={<BeanAnalysisPage />} />
         <Route path="/caffeine"        element={<CaffeinePage />} />
         <Route path="/stock"           element={<StockPage />} />
         <Route path="/cafe"            element={<CafeVisitPage />} />
