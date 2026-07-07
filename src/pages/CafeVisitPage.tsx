@@ -13,6 +13,7 @@ import FlavorChips from '../components/brew/FlavorChips'
 import CuppingSliders from '../components/brew/CuppingSliders'
 import { useToast } from '../components/Toast'
 import { CameraIcon, CafeIcon, ClockIcon } from '../components/icons'
+import OriginInput from '../components/OriginInput'
 
 const DRINK_TYPES = Object.keys(CAFE_DRINK_TYPE_LABELS) as CafeDrinkType[]
 const DRINK_SIZES = Object.keys(CAFE_DRINK_SIZE_LABELS) as CafeDrinkSize[]
@@ -378,12 +379,11 @@ export default function CafeVisitPage() {
             {/* 豆の産地 */}
             <div className="bg-[#2E2018] rounded-xl p-4">
               <p className="text-xs text-[#CE9C68] mb-2">豆の産地</p>
-              <input
-                type="text"
+              <OriginInput
                 value={beanOrigin}
-                onChange={e => setBeanOrigin(e.target.value)}
-                placeholder="例: エチオピア イルガチェフェ"
-                className="w-full bg-transparent text-[#F7EFE6] outline-none placeholder-[#4a3a2a] text-sm"
+                onChange={setBeanOrigin}
+                variant="bare"
+                recentOrigins={pastVisits.map(v => v.beanOrigin).filter((o): o is string => Boolean(o))}
               />
             </div>
 

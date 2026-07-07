@@ -4,6 +4,7 @@ import {
   getAllBeans, getAllBrews, putBean, newId, nowISO,
   ROAST_LEVEL_LABELS, daysSinceRoast, formatBeanRemaining,
 } from '../../db'
+import OriginInput from '../OriginInput'
 
 interface Props {
   currentBeanId?: string
@@ -13,7 +14,11 @@ interface Props {
 
 const ROAST_LEVELS: RoastLevel[] = ['light', 'light-medium', 'medium', 'medium-dark', 'dark']
 
-function AddBeanForm({ onAdd, onCancel }: { onAdd: (b: Bean) => void; onCancel: () => void }) {
+function AddBeanForm({ onAdd, onCancel, recentOrigins }: {
+  onAdd: (b: Bean) => void
+  onCancel: () => void
+  recentOrigins: string[]
+}) {
   const [name, setName] = useState('')
   const [roastLevel, setRoastLevel] = useState<RoastLevel>('medium')
   const [roastedAt, setRoastedAt] = useState('')
@@ -85,13 +90,7 @@ function AddBeanForm({ onAdd, onCancel }: { onAdd: (b: Bean) => void; onCancel: 
 
       <div>
         <label className="text-xs text-[#CE9C68] mb-1.5 block">産地（任意）</label>
-        <input
-          type="text"
-          value={origin}
-          onChange={e => setOrigin(e.target.value)}
-          placeholder="例: エチオピア"
-          className="w-full bg-[#3e3020] text-[#F7EFE6] rounded-xl px-4 py-3 outline-none placeholder-[#6b5a4a]"
-        />
+        <OriginInput value={origin} onChange={setOrigin} recentOrigins={recentOrigins} />
       </div>
 
       <div>
@@ -158,7 +157,11 @@ export default function BeanPickerModal({ currentBeanId, onSelect, onClose }: Pr
             ← 戻る
           </button>
         </div>
-        <AddBeanForm onAdd={handleAdd} onCancel={() => setShowAdd(false)} />
+        <AddBeanForm
+          onAdd={handleAdd}
+          onCancel={() => setShowAdd(false)}
+          recentOrigins={[...beans].reverse().map(b => b.origin).filter((o): o is string => Boolean(o))}
+        />
       </div>
     )
   }

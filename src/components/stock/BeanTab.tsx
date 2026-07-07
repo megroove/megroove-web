@@ -6,13 +6,15 @@ import {
 } from '../../db'
 import { Field, TextInput, NumberInput, DateInput, ChipSelect, DeleteButton, ModalSheet, SaveButton } from './FormHelpers'
 import { useToast } from '../Toast'
+import OriginInput from '../OriginInput'
 
 const ROAST_LEVELS: RoastLevel[] = ['light', 'light-medium', 'medium', 'medium-dark', 'dark']
 
 function BeanForm({
-  initial, onSave, onDelete, onCancel,
+  initial, recentOrigins, onSave, onDelete, onCancel,
 }: {
   initial?: Bean
+  recentOrigins: string[]
   onSave: (b: Bean) => void
   onDelete?: () => void
   onCancel: () => void
@@ -102,7 +104,7 @@ function BeanForm({
       )}
 
       <Field label="産地">
-        <TextInput value={origin} onChange={setOrigin} placeholder="例: エチオピア" />
+        <OriginInput value={origin} onChange={setOrigin} recentOrigins={recentOrigins} />
       </Field>
 
       <div className="grid grid-cols-2 gap-3">
@@ -205,6 +207,10 @@ export default function BeanTab() {
 
   const activeBeans   = beans.filter(b => !b.finishedAt)
   const finishedBeans = beans.filter(b => Boolean(b.finishedAt))
+  // 産地候補のユーザー履歴（新しく登録した豆の産地を優先）
+  const recentOrigins = [...beans].reverse()
+    .map(b => b.origin)
+    .filter((o): o is string => Boolean(o))
 
   return (
     <div className="flex-1 overflow-y-auto px-4 py-4">
@@ -237,6 +243,7 @@ export default function BeanTab() {
       <ModalSheet open={editing !== null}>
         <BeanForm
           initial={editing === 'new' ? undefined : (editing ?? undefined)}
+          recentOrigins={recentOrigins}
           onSave={handleSave}
           onDelete={editing !== 'new' && editing !== null ? () => handleDelete(editing) : undefined}
           onCancel={() => setEditing(null)}
