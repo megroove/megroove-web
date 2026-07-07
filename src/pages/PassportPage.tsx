@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { getAllBrews, getAllBeans, getAllCafeVisits } from '../db'
+import { CupIcon, GlobeIcon } from '../components/icons'
 
 interface OriginEntry {
   name: string
@@ -31,8 +32,8 @@ function Stamp({ origin }: { origin: OriginEntry }) {
         <span className="absolute top-1.5 right-2.5 text-[10px] text-[#CE9C68]">{style.label}</span>
       )}
       {/* スタンプ風の丸 */}
-      <div className={`w-12 h-12 rounded-full border-2 ${style.border} flex items-center justify-center`}>
-        <span className="text-xl">☕</span>
+      <div className={`w-12 h-12 rounded-full border-2 ${style.border} flex items-center justify-center text-[#CE9C68]`}>
+        <CupIcon size={22} />
       </div>
       <p className="text-[#F7EFE6] text-xs font-semibold text-center leading-tight line-clamp-2">
         {origin.name}
@@ -127,8 +128,8 @@ export default function PassportPage() {
           <p className="text-[#6b5a4a] text-sm text-center py-12">読み込み中...</p>
         ) : origins.length === 0 ? (
           <div className="flex flex-col items-center gap-4 py-12 text-center">
-            <div className="w-20 h-20 rounded-full border-2 border-dashed border-[#3e3020] flex items-center justify-center">
-              <span className="text-3xl">🌍</span>
+            <div className="w-20 h-20 rounded-full border-2 border-dashed border-[#3e3020] flex items-center justify-center text-[#6b5a4a]">
+              <GlobeIcon size={36} />
             </div>
             <div>
               <p className="text-[#CE9C68] font-semibold">まだ産地の記録がありません</p>

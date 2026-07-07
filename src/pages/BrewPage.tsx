@@ -19,6 +19,7 @@ import SaveAnimation from '../components/brew/SaveAnimation'
 import BloomTimer from '../components/brew/BloomTimer'
 import ExtractionStopwatch from '../components/brew/ExtractionStopwatch'
 import { useToast } from '../components/Toast'
+import { CameraIcon, CaffeineIcon } from '../components/icons'
 
 function Stepper({
   label,
@@ -295,6 +296,7 @@ export default function BrewPage() {
               <p className="text-xs text-[#CE9C68] mb-2">挽き目</p>
               <input
                 type="number"
+                inputMode="decimal"
                 value={grindSize ?? ''}
                 onChange={e => setGrindSize(e.target.value ? Number(e.target.value) : undefined)}
                 placeholder="—"
@@ -420,7 +422,7 @@ export default function BrewPage() {
                 onClick={() => photoInputRef.current?.click()}
                 className="w-full border border-dashed border-[#CE9C68]/40 text-[#CE9C68] py-7 rounded-xl text-sm flex items-center justify-center gap-2 active:opacity-70"
               >
-                <span className="text-xl">📷</span>
+                <CameraIcon size={20} />
                 <span>写真を追加</span>
               </button>
             )}
@@ -523,7 +525,7 @@ export default function BrewPage() {
         {/* カフェインアラート */}
         {caffeineAlert && (
           <div className="bg-amber-900/40 border border-amber-600/40 rounded-xl p-3 flex gap-2.5 items-start">
-            <span className="text-amber-400 text-base leading-none mt-0.5">⚡</span>
+            <span className="text-amber-400 mt-0.5"><CaffeineIcon size={16} /></span>
             <div>
               <p className="text-amber-300 text-sm font-medium">就寝時の残留量が目標を超える見込みです</p>
               <p className="text-amber-400/70 text-xs mt-0.5">

@@ -159,6 +159,35 @@ export function formatBeanRemaining(bean: Bean, brews: Brew[]): string | null {
   return cups > 0 ? `残り約${remaining}g（約${cups}杯）` : `残り約${remaining}g`
 }
 
+// ─── Streak ──────────────────────────────────────────────────────────────────
+
+function toLocalDateKey(d: Date): string {
+  return `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`
+}
+
+// 連続記録日数。今日が未記録でも昨日まで続いていればその日数を返す（0時リセットにしない）
+export function calcStreakDays(recordISOs: string[]): number {
+  const days = new Set(recordISOs.map(iso => toLocalDateKey(new Date(iso))))
+  if (days.size === 0) return 0
+
+  const cursor = new Date()
+  if (!days.has(toLocalDateKey(cursor))) {
+    cursor.setDate(cursor.getDate() - 1)
+    if (!days.has(toLocalDateKey(cursor))) return 0
+  }
+
+  let streak = 0
+  while (days.has(toLocalDateKey(cursor))) {
+    streak++
+    cursor.setDate(cursor.getDate() - 1)
+  }
+  return streak
+}
+
+export function isSameLocalDay(iso: string, base: Date = new Date()): boolean {
+  return toLocalDateKey(new Date(iso)) === toLocalDateKey(base)
+}
+
 // ─── Backup reminder (localStorage) ──────────────────────────────────────────
 
 const LAST_EXPORT_KEY   = 'megroove-last-export'

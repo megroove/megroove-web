@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import RecordDisk from './brew/RecordDisk'
+import { CupIcon, CafeIcon, AnalysisIcon } from './icons'
 
 const ONBOARDING_KEY = 'megroove-onboarded'
 
@@ -18,17 +19,17 @@ const STEPS = [
     body: 'こだわりの一杯を、ずっと記録しよう。\nコーヒーとレコードの世界観で、あなただけのログを残せます。',
   },
   {
-    visual: <span className="text-6xl leading-none">☕</span>,
+    visual: <span className="text-[#CE9C68]"><CupIcon size={64} strokeWidth={1.4} /></span>,
     title: '前回値からそのまま始まる',
     body: '「淹れる」を押すと、前回の記録がそのまま入力済みで表示されます。変えたところだけ直すだけで、記録が完成します。',
   },
   {
-    visual: <span className="text-6xl leading-none">🏪</span>,
+    visual: <span className="text-[#CE9C68]"><CafeIcon size={64} strokeWidth={1.4} /></span>,
     title: 'カフェの一杯も記録できる',
     body: 'お気に入りのカフェで飲んだドリンクも同じように記録。フレーバーや評価を残せます。',
   },
   {
-    visual: <span className="text-6xl leading-none">📊</span>,
+    visual: <span className="text-[#CE9C68]"><AnalysisIcon size={64} strokeWidth={1.4} /></span>,
     title: '記録が積み重なるほど深まる',
     body: '分析画面では、あなたの好みをレーダーチャートで可視化。今月の一杯ランキングも確認できます。',
   },

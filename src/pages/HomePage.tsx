@@ -7,7 +7,11 @@ import {
   formatBrewDateShort, ROAST_LEVEL_LABELS, CAFE_DRINK_TYPE_LABELS,
   EQUIPMENT_TYPE_LABELS, daysSinceRoast,
   getBackupReminder, snoozeBackupReminder,
+  calcResidualCaffeine, calcStreakDays, isSameLocalDay,
 } from '../db'
+import {
+  GearIcon, CupIcon, CafeIcon, TrophyIcon, CameraIcon, DownloadIcon,
+} from '../components/icons'
 
 // ─── 型定義 ──────────────────────────────────────────────────────────────────
 
@@ -127,6 +131,14 @@ function saveFeaturedItemToLS(item: FeaturedItem | null) {
   else localStorage.removeItem(FEATURED_ITEM_KEY)
 }
 
+// ─── 挨拶 ────────────────────────────────────────────────────────────────────
+
+function greetingByHour(hour: number): string {
+  if (hour >= 5 && hour < 11) return 'おはようございます。今日の一杯を記録しよう'
+  if (hour >= 11 && hour < 17) return 'こんにちは。午後の一杯を記録しよう'
+  return 'こんばんは。今日の一杯を振り返ろう'
+}
+
 // ─── サブコンポーネント ───────────────────────────────────────────────────────
 
 function StarDisplay({ rating }: { rating?: number }) {
@@ -149,7 +161,9 @@ export default function HomePage() {
   const [bestDrink, setBestDrink] = useState<{ name: string; rating: number; count: number } | null>(null)
   const [topCafe, setTopCafe] = useState<{ name: string; count: number } | null>(null)
   const [dbError, setDbError] = useState(false)
+  const [loading, setLoading] = useState(true)
   const [backupReminder, setBackupReminder] = useState<string | null>(null)
+  const [todayStats, setTodayStats] = useState<{ cups: number; residualMg: number; streak: number } | null>(null)
 
   // Featured 選択（localStorage から復元）
   const [featuredBeanId, setFeaturedBeanId] = useState<string | null>(loadFeaturedBeanId)
@@ -204,8 +218,31 @@ export default function HomePage() {
 
         // バックアップリマインダー（記録10件以上・未エクスポート or 30日超過）
         setBackupReminder(getBackupReminder(brews.length + visits.length))
+
+        // 今日のサマリ（杯数・カフェイン残留量・連続記録日数）
+        const now = new Date()
+        const cutoff = now.getTime() - 24 * 60 * 60 * 1000
+        const intakes = [
+          ...brews
+            .filter(b => b.caffeineAmount != null && new Date(b.brewedAt).getTime() > cutoff)
+            .map(b => ({ caffeineAmount: b.caffeineAmount!, brewedAt: b.brewedAt })),
+          ...visits
+            .filter(v => v.caffeineAmount != null && new Date(v.visitedAt).getTime() > cutoff)
+            .map(v => ({ caffeineAmount: v.caffeineAmount!, brewedAt: v.visitedAt })),
+        ]
+        setTodayStats({
+          cups:
+            brews.filter(b => isSameLocalDay(b.brewedAt, now)).length +
+            visits.filter(v => isSameLocalDay(v.visitedAt, now)).length,
+          residualMg: Math.round(calcResidualCaffeine(intakes, now)),
+          streak: calcStreakDays([
+            ...brews.map(b => b.brewedAt),
+            ...visits.map(v => v.visitedAt),
+          ]),
+        })
+        setLoading(false)
       },
-    ).catch(() => setDbError(true))
+    ).catch(() => { setDbError(true); setLoading(false) })
   }, [])
 
   const featuredBean = beans.find(b => b.id === featuredBeanId)
@@ -253,15 +290,15 @@ export default function HomePage() {
         <RecordDisk size={96} />
         <div className="text-center">
           <h1 className="text-2xl font-semibold text-[#F7EFE6]">Megroove</h1>
-          <p className="text-[#CE9C68] text-sm mt-0.5">今日の一杯を記録しよう</p>
+          <p className="text-[#CE9C68] text-sm mt-0.5">{greetingByHour(new Date().getHours())}</p>
         </div>
         <button
           type="button"
           onClick={() => navigate('/settings')}
           aria-label="設定"
-          className="absolute top-2 right-0 w-10 h-10 flex items-center justify-center text-[#6b5a4a] text-2xl active:opacity-60 rounded-full"
+          className="absolute top-2 right-0 w-10 h-10 flex items-center justify-center text-[#6b5a4a] active:opacity-60 rounded-full"
         >
-          ⚙
+          <GearIcon size={22} />
         </button>
       </div>
 
@@ -272,7 +309,7 @@ export default function HomePage() {
           onClick={() => navigate('/brew')}
           className="bg-[#993C1D] text-[#F7EFE6] rounded-xl py-3.5 flex items-center justify-center gap-2 active:opacity-80"
         >
-          <span className="text-xl leading-none">☕</span>
+          <CupIcon size={20} />
           <span className="text-sm font-semibold">淹れる</span>
         </button>
         <button
@@ -280,15 +317,46 @@ export default function HomePage() {
           onClick={() => navigate('/cafe')}
           className="bg-[#4a3828] text-[#F7EFE6] rounded-xl py-3.5 flex items-center justify-center gap-2 active:opacity-80"
         >
-          <span className="text-xl leading-none">🏪</span>
+          <CafeIcon size={20} />
           <span className="text-sm font-semibold">カフェを記録</span>
         </button>
       </div>
 
+      {/* 今日のサマリ */}
+      {loading ? (
+        <div className="grid grid-cols-3 gap-3">
+          <div className="skeleton h-[72px]" />
+          <div className="skeleton h-[72px]" />
+          <div className="skeleton h-[72px]" />
+        </div>
+      ) : todayStats && (
+        <div className="grid grid-cols-3 gap-3">
+          <div className="bg-[#2E2018] rounded-xl px-2 py-3 text-center">
+            <p className="text-xl font-bold text-[#F7EFE6] tabular-nums">{todayStats.cups}<span className="text-xs font-normal text-[#CE9C68] ml-0.5">杯</span></p>
+            <p className="text-[10px] text-[#6b5a4a] mt-1">今日の一杯</p>
+          </div>
+          <button
+            type="button"
+            onClick={() => navigate('/caffeine')}
+            className="bg-[#2E2018] rounded-xl px-2 py-3 text-center active:opacity-80"
+          >
+            <p className="text-xl font-bold text-[#F7EFE6] tabular-nums">{todayStats.residualMg}<span className="text-xs font-normal text-[#CE9C68] ml-0.5">mg</span></p>
+            <p className="text-[10px] text-[#6b5a4a] mt-1">カフェイン残</p>
+          </button>
+          <div className="bg-[#2E2018] rounded-xl px-2 py-3 text-center">
+            <p className="text-xl font-bold text-[#F7EFE6] tabular-nums">{todayStats.streak}<span className="text-xs font-normal text-[#CE9C68] ml-0.5">日</span></p>
+            <p className="text-[10px] text-[#6b5a4a] mt-1">連続記録</p>
+          </div>
+        </div>
+      )}
+
       {/* バックアップリマインダー */}
       {backupReminder && (
         <div className="bg-[#2E2018] border border-[#CE9C68]/30 rounded-xl p-4 flex flex-col gap-3">
-          <p className="text-sm text-[#CE9C68] leading-relaxed">💾 {backupReminder}</p>
+          <p className="text-sm text-[#CE9C68] leading-relaxed flex items-start gap-2">
+            <DownloadIcon size={16} className="shrink-0 mt-0.5" />
+            <span>{backupReminder}</span>
+          </p>
           <div className="flex gap-3">
             <button
               type="button"
@@ -315,7 +383,9 @@ export default function HomePage() {
           <div className="grid grid-cols-2 gap-3">
             {bestDrink && (
               <div className="bg-[#2E2018] rounded-xl p-3 flex flex-col">
-                <p className="text-[10px] text-[#CE9C68] mb-1.5">🏆 ベストドリンク</p>
+                <p className="text-[10px] text-[#CE9C68] mb-1.5 flex items-center gap-1">
+                  <TrophyIcon size={12} /> ベストドリンク
+                </p>
                 <p className="text-sm text-[#F7EFE6] font-semibold leading-snug line-clamp-2 flex-1">
                   {bestDrink.name}
                 </p>
@@ -329,7 +399,9 @@ export default function HomePage() {
             )}
             {topCafe && (
               <div className="bg-[#2E2018] rounded-xl p-3 flex flex-col">
-                <p className="text-[10px] text-[#CE9C68] mb-1.5">🏪 よく行くカフェ</p>
+                <p className="text-[10px] text-[#CE9C68] mb-1.5 flex items-center gap-1">
+                  <CafeIcon size={12} /> よく行くカフェ
+                </p>
                 <p className="text-sm text-[#F7EFE6] font-semibold leading-snug line-clamp-2 flex-1">
                   {topCafe.name}
                 </p>
@@ -448,9 +520,10 @@ export default function HomePage() {
                     <p className="text-[#F7EFE6] text-sm font-medium">
                       {item.bean?.name ?? <span className="text-[#6b5a4a]">豆の記録なし</span>}
                     </p>
-                    <p className="text-xs text-[#6b5a4a] mt-0.5">
-                      ☕ {item.bean ? ROAST_LEVEL_LABELS[item.bean.roastLevel] : ''}
-                      {' · '}{formatBrewDateShort(item.brew.brewedAt)}
+                    <p className="text-xs text-[#6b5a4a] mt-0.5 flex items-center gap-1">
+                      <CupIcon size={12} className="shrink-0" />
+                      {item.bean ? `${ROAST_LEVEL_LABELS[item.bean.roastLevel]} · ` : ''}
+                      {formatBrewDateShort(item.brew.brewedAt)}
                     </p>
                   </div>
                   <StarDisplay rating={item.brew.rating} />
@@ -464,8 +537,9 @@ export default function HomePage() {
                 >
                   <div>
                     <p className="text-[#F7EFE6] text-sm font-medium">{item.visit.cafeName}</p>
-                    <p className="text-xs text-[#6b5a4a] mt-0.5">
-                      🏪 {item.visit.drinkName
+                    <p className="text-xs text-[#6b5a4a] mt-0.5 flex items-center gap-1">
+                      <CafeIcon size={12} className="shrink-0" />
+                      {item.visit.drinkName
                         ? `${item.visit.drinkName}${item.visit.drinkType ? ` · ${CAFE_DRINK_TYPE_LABELS[item.visit.drinkType]}` : ''}`
                         : 'カフェ訪問'
                       }
@@ -636,7 +710,7 @@ export default function HomePage() {
                       onClick={() => photoInputRef.current?.click()}
                       className="w-full border border-dashed border-[#3e3020] rounded-xl p-8 flex flex-col items-center gap-2 text-[#4a3a2a] active:opacity-70"
                     >
-                      <span className="text-3xl leading-none">📷</span>
+                      <CameraIcon size={32} />
                       <span className="text-sm">写真を選ぶ</span>
                       <span className="text-xs">器具・カップ・淹れている風景など</span>
                     </button>

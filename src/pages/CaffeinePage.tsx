@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { getAllBrews, getAllCafeVisits } from '../db'
 import { calcResidualCaffeine, loadSettings, saveSettings } from '../db'
 import CaffeineGraph from '../components/caffeine/CaffeineGraph'
+import { CupIcon, CafeIcon } from '../components/icons'
 
 function pad(n: number) {
   return n.toString().padStart(2, '0')
@@ -40,7 +41,7 @@ export default function CaffeinePage() {
         .map(b => ({
           caffeineAmount: b.caffeineAmount!,
           brewedAt: b.brewedAt,
-          label: '☕ ホームブリュー',
+          label: 'ホームブリュー',
           kind: 'brew' as const,
         }))
 
@@ -49,7 +50,7 @@ export default function CaffeinePage() {
         .map(v => ({
           caffeineAmount: v.caffeineAmount!,
           brewedAt: v.visitedAt,
-          label: `🏪 ${v.cafeName}`,
+          label: v.cafeName,
           kind: 'cafe' as const,
         }))
 
@@ -183,7 +184,12 @@ export default function CaffeinePage() {
                     </span>
                     <div>
                       <p className="text-sm text-[#F7EFE6]">{entry.caffeineAmount}mg 摂取</p>
-                      <p className="text-xs text-[#6b5a4a]">{entry.label}</p>
+                      <p className="text-xs text-[#6b5a4a] flex items-center gap-1">
+                        {entry.kind === 'brew'
+                          ? <CupIcon size={11} className="shrink-0" />
+                          : <CafeIcon size={11} className="shrink-0" />}
+                        {entry.label}
+                      </p>
                     </div>
                   </div>
                   <span className="text-xs text-[#CE9C68] tabular-nums shrink-0">

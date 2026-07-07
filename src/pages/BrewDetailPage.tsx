@@ -7,6 +7,7 @@ import {
 } from '../db'
 import PhotoLightbox from '../components/PhotoLightbox'
 import { useToast, notifyDataRestored } from '../components/Toast'
+import { CupIcon } from '../components/icons'
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
@@ -222,9 +223,10 @@ export default function BrewDetailPage() {
           <button
             type="button"
             onClick={handleReproduce}
-            className="w-full bg-[#993C1D] text-[#F7EFE6] py-4 rounded-2xl font-semibold active:opacity-80"
+            className="w-full bg-[#993C1D] text-[#F7EFE6] py-4 rounded-2xl font-semibold active:opacity-80 flex items-center justify-center gap-2"
           >
-            ☕ この条件で淹れる
+            <CupIcon size={20} />
+            この条件で淹れる
           </button>
 
           {!showDeleteConfirm ? (

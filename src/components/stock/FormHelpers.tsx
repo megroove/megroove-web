@@ -40,6 +40,7 @@ export function NumberInput({
   return (
     <input
       type="number"
+      inputMode="decimal"
       value={value ?? ''}
       onChange={e => onChange(e.target.value ? Number(e.target.value) : undefined)}
       placeholder={placeholder ?? '—'}

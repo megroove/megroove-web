@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import type { Brew, Bean } from '../db'
 import { getAllBrews, getAllBeans, formatBrewDateShort, ROAST_LEVEL_LABELS } from '../db'
 import RadarChart, { type RadarScores } from '../components/analysis/RadarChart'
+import { RankBadge, GlobeIcon } from '../components/icons'
 
 // ─── データ計算 ───────────────────────────────────────────────────────────────
 
@@ -74,8 +75,6 @@ function rankBrews(brews: Brew[]): Brew[] {
 
 // ─── RankCard ────────────────────────────────────────────────────────────────
 
-const RANK_BADGES = ['🥇', '🥈', '🥉']
-
 function RankCard({
   rank, brew, bean,
 }: {
@@ -90,7 +89,7 @@ function RankCard({
       onClick={() => navigate(`/library/${brew.id}`)}
       className="w-full flex items-center gap-3 bg-[#2E2018] rounded-xl p-4 text-left active:opacity-80"
     >
-      <span className="text-2xl flex-shrink-0 w-8 text-center">{RANK_BADGES[rank - 1]}</span>
+      <RankBadge rank={rank} />
       <div className="flex-1 min-w-0">
         <div className="flex items-center justify-between gap-2">
           <p className="text-[#F7EFE6] font-medium truncate">
@@ -262,7 +261,7 @@ export default function AnalysisPage() {
         className="w-full bg-[#2E2018] rounded-xl p-4 flex items-center justify-between active:opacity-80"
       >
         <div className="flex items-center gap-3">
-          <span className="text-2xl leading-none">🌍</span>
+          <span className="text-[#CE9C68]"><GlobeIcon size={24} /></span>
           <div className="text-left">
             <p className="text-[#F7EFE6] text-sm font-semibold">産地パスポート</p>
             <p className="text-xs text-[#6b5a4a] mt-0.5">記録した豆の産地を一覧で確認</p>

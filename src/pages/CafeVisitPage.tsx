@@ -12,6 +12,7 @@ import StarRating from '../components/brew/StarRating'
 import FlavorChips from '../components/brew/FlavorChips'
 import CuppingSliders from '../components/brew/CuppingSliders'
 import { useToast } from '../components/Toast'
+import { CameraIcon, CafeIcon, ClockIcon } from '../components/icons'
 
 const DRINK_TYPES = Object.keys(CAFE_DRINK_TYPE_LABELS) as CafeDrinkType[]
 const DRINK_SIZES = Object.keys(CAFE_DRINK_SIZE_LABELS) as CafeDrinkSize[]
@@ -246,7 +247,7 @@ export default function CafeVisitPage() {
             onClick={() => setShowPicker(true)}
             className="w-full border border-dashed border-[#CE9C68]/40 text-[#CE9C68] py-3 rounded-xl text-sm flex items-center justify-center gap-2 active:opacity-70"
           >
-            <span>🕐</span>
+            <ClockIcon size={16} />
             <span>過去の記録から始める</span>
           </button>
         )}
@@ -283,9 +284,10 @@ export default function CafeVisitPage() {
                   key={name}
                   type="button"
                   onMouseDown={() => selectSuggestion(name)}
-                  className="w-full px-4 py-3 text-left text-sm text-[#F7EFE6] border-b border-[#2e2018] last:border-0 hover:bg-[#2e2018] active:bg-[#2e2018]"
+                  className="w-full px-4 py-3 text-left text-sm text-[#F7EFE6] border-b border-[#2e2018] last:border-0 hover:bg-[#2e2018] active:bg-[#2e2018] flex items-center gap-2"
                 >
-                  🏪 {name}
+                  <CafeIcon size={14} className="text-[#6b5a4a] shrink-0" />
+                  {name}
                 </button>
               ))}
             </div>
@@ -392,6 +394,7 @@ export default function CafeVisitPage() {
                 <span className="text-[#CE9C68] text-sm">¥</span>
                 <input
                   type="number"
+                  inputMode="numeric"
                   value={price ?? ''}
                   onChange={e => setPrice(e.target.value ? Number(e.target.value) : undefined)}
                   placeholder="—"
@@ -424,7 +427,7 @@ export default function CafeVisitPage() {
                   onClick={() => photoInputRef.current?.click()}
                   className="w-full border border-dashed border-[#CE9C68]/40 text-[#CE9C68] py-7 rounded-xl text-sm flex items-center justify-center gap-2 active:opacity-70"
                 >
-                  <span className="text-xl">📷</span>
+                  <CameraIcon size={20} />
                   <span>写真を追加</span>
                 </button>
               )}

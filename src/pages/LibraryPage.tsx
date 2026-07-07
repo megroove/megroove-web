@@ -7,6 +7,7 @@ import {
   formatBrewDateShort,
 } from '../db'
 import { DATA_RESTORED_EVENT } from '../components/Toast'
+import { CupIcon, CafeIcon, ListIcon, GridIcon, DiscIcon, SearchIcon } from '../components/icons'
 
 // ─── 表示モード ────────────────────────────────────────────────────────────────
 
@@ -20,6 +21,64 @@ function loadDisplayMode(): DisplayMode {
 }
 
 // ─── 共通コンポーネント ────────────────────────────────────────────────────────
+
+// 新しい順に並んだ記録を月ごとのセクションにまとめる
+function groupByMonth<T>(items: T[], getISO: (item: T) => string): { label: string; items: T[] }[] {
+  const groups: { label: string; items: T[] }[] = []
+  for (const item of items) {
+    const d = new Date(getISO(item))
+    const label = `${d.getFullYear()}年${d.getMonth() + 1}月`
+    const last = groups.at(-1)
+    if (last && last.label === label) last.items.push(item)
+    else groups.push({ label, items: [item] })
+  }
+  return groups
+}
+
+function SearchBox({ value, onChange, placeholder }: {
+  value: string; onChange: (v: string) => void; placeholder: string
+}) {
+  return (
+    <div className="px-4 pb-2">
+      <div className="flex items-center gap-2 bg-[#2E2018] rounded-xl px-3.5 py-2.5">
+        <SearchIcon size={16} className="text-[#6b5a4a] shrink-0" />
+        <input
+          type="search"
+          value={value}
+          onChange={e => onChange(e.target.value)}
+          placeholder={placeholder}
+          className="flex-1 bg-transparent text-sm text-[#F7EFE6] outline-none placeholder-[#4a3a2a]"
+        />
+        {value && (
+          <button type="button" onClick={() => onChange('')} aria-label="検索をクリア"
+            className="text-[#6b5a4a] text-sm px-1"
+          >
+            ✕
+          </button>
+        )}
+      </div>
+    </div>
+  )
+}
+
+function MonthHeader({ label, count }: { label: string; count: number }) {
+  return (
+    <div className="flex items-baseline justify-between pt-1">
+      <p className="text-xs text-[#CE9C68] font-semibold tracking-wider">{label}</p>
+      <p className="text-[10px] text-[#6b5a4a]">{count}件</p>
+    </div>
+  )
+}
+
+function LoadingSkeleton() {
+  return (
+    <div className="flex flex-col gap-3 pt-1">
+      <div className="skeleton h-28" />
+      <div className="skeleton h-28" />
+      <div className="skeleton h-28" />
+    </div>
+  )
+}
 
 function StarDisplay({ rating }: { rating?: number }) {
   if (!rating) return null
@@ -47,8 +106,8 @@ function PhotoGridCard({
         {photoUrl ? (
           <img src={photoUrl} alt="" className="w-full h-full object-cover" />
         ) : (
-          <div className="absolute inset-0 flex items-center justify-center">
-            <span className="text-[#2e1a0a] text-5xl">☕</span>
+          <div className="absolute inset-0 flex items-center justify-center text-[#2e1a0a]">
+            <CupIcon size={48} />
           </div>
         )}
       </div>
@@ -218,13 +277,16 @@ function BrewTab({ displayMode }: { displayMode: DisplayMode }) {
   const [beanMap, setBeanMap] = useState<Map<string, Bean>>(new Map())
   const [ratingFilter, setRatingFilter] = useState<RatingFilter>('all')
   const [beanFilter, setBeanFilter] = useState('all')
+  const [search, setSearch] = useState('')
+  const [loading, setLoading] = useState(true)
   const [dbError, setDbError] = useState(false)
 
   const load = useCallback(() => {
     Promise.all([getAllBrews(), getAllBeans()]).then(([bs, beans]) => {
       setBrews([...bs].reverse())
       setBeanMap(new Map(beans.map(b => [b.id, b])))
-    }).catch(() => setDbError(true))
+      setLoading(false)
+    }).catch(() => { setDbError(true); setLoading(false) })
   }, [])
 
   useEffect(() => {
@@ -239,13 +301,25 @@ function BrewTab({ displayMode }: { displayMode: DisplayMode }) {
     return [...ids].map(id => beanMap.get(id)).filter(Boolean) as Bean[]
   }, [brews, beanMap])
 
-  const filtered = useMemo(() => brews.filter(b => {
-    if (ratingFilter === '3+' && (b.rating ?? 0) < 3) return false
-    if (ratingFilter === '4+' && (b.rating ?? 0) < 4) return false
-    if (ratingFilter === '5'  && b.rating !== 5)       return false
-    if (beanFilter !== 'all' && b.beanId !== beanFilter) return false
-    return true
-  }), [brews, ratingFilter, beanFilter])
+  const filtered = useMemo(() => {
+    const q = search.trim().toLowerCase()
+    return brews.filter(b => {
+      if (ratingFilter === '3+' && (b.rating ?? 0) < 3) return false
+      if (ratingFilter === '4+' && (b.rating ?? 0) < 4) return false
+      if (ratingFilter === '5'  && b.rating !== 5)       return false
+      if (beanFilter !== 'all' && b.beanId !== beanFilter) return false
+      if (q) {
+        const bean = b.beanId ? beanMap.get(b.beanId) : undefined
+        const haystack = [
+          bean?.name, bean?.origin, b.note, ...b.flavors,
+        ].filter(Boolean).join(' ').toLowerCase()
+        if (!haystack.includes(q)) return false
+      }
+      return true
+    })
+  }, [brews, ratingFilter, beanFilter, search, beanMap])
+
+  const groups = useMemo(() => groupByMonth(filtered, b => b.brewedAt), [filtered])
 
   return (
     <>
@@ -254,6 +328,9 @@ function BrewTab({ displayMode }: { displayMode: DisplayMode }) {
           データの読み込みに失敗しました。ブラウザを再読み込みしてください。
         </div>
       )}
+      {/* 検索 */}
+      <SearchBox value={search} onChange={setSearch} placeholder="豆名・産地・メモ・フレーバーで検索" />
+
       {/* 評価フィルタ */}
       <div className="px-4 pb-2 flex gap-2 overflow-x-auto no-scrollbar">
         {(Object.keys(RATING_FILTER_LABELS) as RatingFilter[]).map(key => (
@@ -290,9 +367,11 @@ function BrewTab({ displayMode }: { displayMode: DisplayMode }) {
         </div>
       )}
 
-      {/* 一覧 */}
+      {/* 一覧（月ごとのセクション） */}
       <div className="flex-1 overflow-y-auto px-4 pb-4">
-        {brews.length === 0 ? (
+        {loading ? (
+          <LoadingSkeleton />
+        ) : brews.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-48 gap-3">
             <p className="text-[#CE9C68] text-sm">まだ記録がありません</p>
             <button type="button" onClick={() => navigate('/brew')}
@@ -302,49 +381,57 @@ function BrewTab({ displayMode }: { displayMode: DisplayMode }) {
           </div>
         ) : filtered.length === 0 ? (
           <div className="text-center py-12 text-[#6b5a4a] text-sm">条件に一致する記録がありません</div>
-        ) : displayMode === 'list' ? (
-          <div className="flex flex-col gap-3">
-            {filtered.map(brew => (
-              <BrewCard key={brew.id} brew={brew}
-                bean={brew.beanId ? beanMap.get(brew.beanId) : undefined}
-                onClick={() => navigate(`/library/${brew.id}`)}
-              />
-            ))}
-          </div>
-        ) : displayMode === 'card' ? (
-          <div className="grid grid-cols-2 gap-3">
-            {filtered.map(brew => {
-              const bean = brew.beanId ? beanMap.get(brew.beanId) : undefined
-              const sub = bean ? ROAST_LEVEL_LABELS[bean.roastLevel] : undefined
-              return (
-                <PhotoGridCard
-                  key={brew.id}
-                  photoUrl={brew.photoDataUrl}
-                  name={bean?.name ?? '豆なし'}
-                  sub={sub}
-                  date={formatBrewDateShort(brew.brewedAt)}
-                  rating={brew.rating}
-                  onClick={() => navigate(`/library/${brew.id}`)}
-                />
-              )
-            })}
-          </div>
         ) : (
-          <div className="grid grid-cols-2 gap-4">
-            {filtered.map(brew => {
-              const bean = brew.beanId ? beanMap.get(brew.beanId) : undefined
-              const sub = formatBrewDateShort(brew.brewedAt)
-              return (
-                <VinylCard
-                  key={brew.id}
-                  photoUrl={brew.photoDataUrl}
-                  name={bean?.name ?? '豆なし'}
-                  sub={sub}
-                  rating={brew.rating}
-                  onClick={() => navigate(`/library/${brew.id}`)}
-                />
-              )
-            })}
+          <div className="flex flex-col gap-3">
+            {groups.map(group => (
+              <div key={group.label} className="flex flex-col gap-3">
+                <MonthHeader label={group.label} count={group.items.length} />
+                {displayMode === 'list' ? (
+                  <div className="flex flex-col gap-3">
+                    {group.items.map(brew => (
+                      <BrewCard key={brew.id} brew={brew}
+                        bean={brew.beanId ? beanMap.get(brew.beanId) : undefined}
+                        onClick={() => navigate(`/library/${brew.id}`)}
+                      />
+                    ))}
+                  </div>
+                ) : displayMode === 'card' ? (
+                  <div className="grid grid-cols-2 gap-3">
+                    {group.items.map(brew => {
+                      const bean = brew.beanId ? beanMap.get(brew.beanId) : undefined
+                      const sub = bean ? ROAST_LEVEL_LABELS[bean.roastLevel] : undefined
+                      return (
+                        <PhotoGridCard
+                          key={brew.id}
+                          photoUrl={brew.photoDataUrl}
+                          name={bean?.name ?? '豆なし'}
+                          sub={sub}
+                          date={formatBrewDateShort(brew.brewedAt)}
+                          rating={brew.rating}
+                          onClick={() => navigate(`/library/${brew.id}`)}
+                        />
+                      )
+                    })}
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-2 gap-4">
+                    {group.items.map(brew => {
+                      const bean = brew.beanId ? beanMap.get(brew.beanId) : undefined
+                      return (
+                        <VinylCard
+                          key={brew.id}
+                          photoUrl={brew.photoDataUrl}
+                          name={bean?.name ?? '豆なし'}
+                          sub={formatBrewDateShort(brew.brewedAt)}
+                          rating={brew.rating}
+                          onClick={() => navigate(`/library/${brew.id}`)}
+                        />
+                      )
+                    })}
+                  </div>
+                )}
+              </div>
+            ))}
           </div>
         )}
       </div>
@@ -358,9 +445,13 @@ function CafeTab({ displayMode }: { displayMode: DisplayMode }) {
   const navigate = useNavigate()
   const [visits, setVisits] = useState<CafeVisit[]>([])
   const [ratingFilter, setRatingFilter] = useState<RatingFilter>('all')
+  const [search, setSearch] = useState('')
+  const [loading, setLoading] = useState(true)
 
   const load = useCallback(() => {
-    getAllCafeVisits().then(vs => setVisits([...vs].reverse())).catch(() => {})
+    getAllCafeVisits()
+      .then(vs => { setVisits([...vs].reverse()); setLoading(false) })
+      .catch(() => setLoading(false))
   }, [])
 
   useEffect(() => {
@@ -369,15 +460,27 @@ function CafeTab({ displayMode }: { displayMode: DisplayMode }) {
     return () => window.removeEventListener(DATA_RESTORED_EVENT, load)
   }, [load])
 
-  const filtered = useMemo(() => visits.filter(v => {
-    if (ratingFilter === '3+' && (v.rating ?? 0) < 3) return false
-    if (ratingFilter === '4+' && (v.rating ?? 0) < 4) return false
-    if (ratingFilter === '5'  && v.rating !== 5)       return false
-    return true
-  }), [visits, ratingFilter])
+  const filtered = useMemo(() => {
+    const q = search.trim().toLowerCase()
+    return visits.filter(v => {
+      if (ratingFilter === '3+' && (v.rating ?? 0) < 3) return false
+      if (ratingFilter === '4+' && (v.rating ?? 0) < 4) return false
+      if (ratingFilter === '5'  && v.rating !== 5)       return false
+      if (q) {
+        const haystack = [
+          v.cafeName, v.drinkName, v.beanOrigin, v.note, ...v.flavors,
+        ].filter(Boolean).join(' ').toLowerCase()
+        if (!haystack.includes(q)) return false
+      }
+      return true
+    })
+  }, [visits, ratingFilter, search])
+
+  const groups = useMemo(() => groupByMonth(filtered, v => v.visitedAt), [filtered])
 
   return (
     <>
+      <SearchBox value={search} onChange={setSearch} placeholder="カフェ名・ドリンク・メモで検索" />
       <div className="px-4 pb-2 flex gap-2 overflow-x-auto no-scrollbar">
         {(Object.keys(RATING_FILTER_LABELS) as RatingFilter[]).map(key => (
           <button key={key} type="button" onClick={() => setRatingFilter(key)}
@@ -391,7 +494,9 @@ function CafeTab({ displayMode }: { displayMode: DisplayMode }) {
       </div>
 
       <div className="flex-1 overflow-y-auto px-4 pb-4">
-        {visits.length === 0 ? (
+        {loading ? (
+          <LoadingSkeleton />
+        ) : visits.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-48 gap-3">
             <p className="text-[#CE9C68] text-sm">まだカフェの記録がありません</p>
             <button type="button" onClick={() => navigate('/cafe')}
@@ -401,48 +506,57 @@ function CafeTab({ displayMode }: { displayMode: DisplayMode }) {
           </div>
         ) : filtered.length === 0 ? (
           <div className="text-center py-12 text-[#6b5a4a] text-sm">条件に一致する記録がありません</div>
-        ) : displayMode === 'list' ? (
-          <div className="flex flex-col gap-3">
-            {filtered.map(visit => (
-              <CafeCard key={visit.id} visit={visit}
-                onClick={() => navigate(`/cafe/${visit.id}`)}
-              />
-            ))}
-          </div>
-        ) : displayMode === 'card' ? (
-          <div className="grid grid-cols-2 gap-3">
-            {filtered.map(visit => {
-              const sub = visit.drinkName
-                ?? (visit.drinkType ? CAFE_DRINK_TYPE_LABELS[visit.drinkType] : undefined)
-              return (
-                <PhotoGridCard
-                  key={visit.id}
-                  photoUrl={visit.photoDataUrl}
-                  name={visit.cafeName}
-                  sub={sub}
-                  date={formatBrewDateShort(visit.visitedAt)}
-                  rating={visit.rating}
-                  onClick={() => navigate(`/cafe/${visit.id}`)}
-                />
-              )
-            })}
-          </div>
         ) : (
-          <div className="grid grid-cols-2 gap-4">
-            {filtered.map(visit => {
-              const sub = visit.drinkName
-                ?? (visit.drinkType ? CAFE_DRINK_TYPE_LABELS[visit.drinkType] : undefined)
-              return (
-                <VinylCard
-                  key={visit.id}
-                  photoUrl={visit.photoDataUrl}
-                  name={visit.cafeName}
-                  sub={sub}
-                  rating={visit.rating}
-                  onClick={() => navigate(`/cafe/${visit.id}`)}
-                />
-              )
-            })}
+          <div className="flex flex-col gap-3">
+            {groups.map(group => (
+              <div key={group.label} className="flex flex-col gap-3">
+                <MonthHeader label={group.label} count={group.items.length} />
+                {displayMode === 'list' ? (
+                  <div className="flex flex-col gap-3">
+                    {group.items.map(visit => (
+                      <CafeCard key={visit.id} visit={visit}
+                        onClick={() => navigate(`/cafe/${visit.id}`)}
+                      />
+                    ))}
+                  </div>
+                ) : displayMode === 'card' ? (
+                  <div className="grid grid-cols-2 gap-3">
+                    {group.items.map(visit => {
+                      const sub = visit.drinkName
+                        ?? (visit.drinkType ? CAFE_DRINK_TYPE_LABELS[visit.drinkType] : undefined)
+                      return (
+                        <PhotoGridCard
+                          key={visit.id}
+                          photoUrl={visit.photoDataUrl}
+                          name={visit.cafeName}
+                          sub={sub}
+                          date={formatBrewDateShort(visit.visitedAt)}
+                          rating={visit.rating}
+                          onClick={() => navigate(`/cafe/${visit.id}`)}
+                        />
+                      )
+                    })}
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-2 gap-4">
+                    {group.items.map(visit => {
+                      const sub = visit.drinkName
+                        ?? (visit.drinkType ? CAFE_DRINK_TYPE_LABELS[visit.drinkType] : undefined)
+                      return (
+                        <VinylCard
+                          key={visit.id}
+                          photoUrl={visit.photoDataUrl}
+                          name={visit.cafeName}
+                          sub={sub}
+                          rating={visit.rating}
+                          onClick={() => navigate(`/cafe/${visit.id}`)}
+                        />
+                      )
+                    })}
+                  </div>
+                )}
+              </div>
+            ))}
           </div>
         )}
       </div>
@@ -477,12 +591,12 @@ export default function LibraryPage() {
               key={m}
               type="button"
               onClick={() => changeMode(m)}
-              className={`w-9 h-7 flex items-center justify-center rounded-lg text-base transition-colors ${
+              className={`w-9 h-7 flex items-center justify-center rounded-lg transition-colors ${
                 displayMode === m ? 'bg-[#993C1D] text-[#F7EFE6]' : 'text-[#6b5a4a]'
               }`}
               aria-label={m === 'list' ? 'リスト表示' : m === 'card' ? 'カード表示' : 'レコード表示'}
             >
-              {m === 'list' ? '≡' : m === 'card' ? '⊞' : '◉'}
+              {m === 'list' ? <ListIcon size={16} /> : m === 'card' ? <GridIcon size={16} /> : <DiscIcon size={16} />}
             </button>
           ))}
         </div>
@@ -492,13 +606,14 @@ export default function LibraryPage() {
       <div className="flex border-b border-[#2e2018] mb-1">
         {(['brew', 'cafe'] as LibTab[]).map(t => (
           <button key={t} type="button" onClick={() => setTab(t)}
-            className={`w-1/2 py-2.5 text-sm font-medium transition-colors border-b-2 ${
+            className={`w-1/2 py-2.5 text-sm font-medium transition-colors border-b-2 flex items-center justify-center gap-1.5 ${
               tab === t
                 ? 'text-[#CE9C68] border-[#993C1D]'
                 : 'text-[#6b5a4a] border-transparent'
             }`}
           >
-            {t === 'brew' ? '☕ ブリュー' : '🏪 カフェ'}
+            {t === 'brew' ? <CupIcon size={15} /> : <CafeIcon size={15} />}
+            {t === 'brew' ? 'ブリュー' : 'カフェ'}
           </button>
         ))}
       </div>
