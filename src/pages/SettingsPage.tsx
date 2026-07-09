@@ -46,6 +46,31 @@ export default function SettingsPage() {
         </h3>
         <DataTab />
       </section>
+
+      {/* このアプリについて */}
+      <section className="flex flex-col gap-2">
+        <h3 className="text-sm font-semibold text-[#CE9C68] uppercase tracking-wider">
+          このアプリについて
+        </h3>
+        <button
+          type="button"
+          onClick={() => navigate('/settings/privacy')}
+          className="w-full bg-[#2E2018] rounded-xl px-4 py-4 flex items-center justify-between active:opacity-80"
+        >
+          <p className="text-sm text-[#F7EFE6]">プライバシーポリシー</p>
+          <span className="text-[#6b5a4a] text-sm ml-3">→</span>
+        </button>
+        <a
+          href="mailto:megroove.app@gmail.com"
+          className="w-full bg-[#2E2018] rounded-xl px-4 py-4 flex items-center justify-between active:opacity-80"
+        >
+          <div className="text-left">
+            <p className="text-sm text-[#F7EFE6]">お問い合わせ</p>
+            <p className="text-xs text-[#6b5a4a] mt-0.5">megroove.app@gmail.com</p>
+          </div>
+          <span className="text-[#6b5a4a] text-sm ml-3">→</span>
+        </a>
+      </section>
     </div>
   )
 }

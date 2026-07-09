@@ -183,7 +183,8 @@ POST {endpoint}/provisions
 - [x] 匿名化エンジン実装（スコープ抽出・丸め・除外を行う純関数群 `src/provision/anonymize.ts`）
 - [x] 「提供用データのプレビュー&手動ダウンロード」機能（設定 →「データ提供の準備」`/settings/data-provision`）
 - [x] `userSecret` 生成と仮名ID導出（IndexedDB `meta` ストア、HMAC-SHA256）、バックアップJSON（version 3）への組み込み
-- [ ] プライバシーポリシー整備・外部送信規律の通知文面ドラフト ← **Phase 1 着手前に必須**
+- [x] プライバシーポリシー整備・外部送信規律の通知文面（アプリ内 `/settings/privacy` として公開。
+      パートナー接続開始前に法務レビューを実施すること）
 - 依存: なし。**今すぐ着手可能**
 
 ### Phase 1 — パイロット（パートナー1社・手動提供）

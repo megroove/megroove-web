@@ -73,6 +73,15 @@ export default function DataProvisionPage() {
           将来、あなたの記録データをカフェやロースターに提供してポイント等の特典を受け取れる仕組みを準備しています。
           ここでは「実際に提供されるデータ」を匿名化した形で確認・ダウンロードできます。
           <span className="text-[#F7EFE6] font-medium">この画面からデータが端末の外へ送信されることは一切ありません。</span>
+          {' '}詳しくは
+          <button
+            type="button"
+            onClick={() => navigate('/settings/privacy')}
+            className="underline text-[#F7EFE6] mx-0.5"
+          >
+            プライバシーポリシー
+          </button>
+          をご覧ください。
         </p>
       </div>
 
