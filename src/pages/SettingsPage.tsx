@@ -26,6 +26,17 @@ export default function SettingsPage() {
           </div>
           <span className="text-[#6b5a4a] text-sm ml-3">→</span>
         </button>
+        <button
+          type="button"
+          onClick={() => navigate('/settings/data-provision')}
+          className="w-full bg-[#2E2018] rounded-xl px-4 py-4 flex items-center justify-between active:opacity-80"
+        >
+          <div className="text-left">
+            <p className="text-sm text-[#F7EFE6]">データ提供の準備 <span className="text-[10px] text-[#993C1D] font-semibold ml-1">PREVIEW</span></p>
+            <p className="text-xs text-[#6b5a4a] mt-0.5">提供パッケージの内容確認・ダウンロード（送信はしません）</p>
+          </div>
+          <span className="text-[#6b5a4a] text-sm ml-3">→</span>
+        </button>
       </section>
 
       {/* データ管理 */}

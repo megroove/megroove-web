@@ -2,7 +2,7 @@ import type { Bean, Equipment, Recipe, Brew, CafeVisit } from './types'
 import {
   getAllBeans, getAllEquipment, getAllRecipes, getAllBrews, getAllCafeVisits,
   putBean, putEquipment, putRecipe, putBrew, putCafeVisit,
-  clearAllData,
+  clearAllData, getMeta, setMeta, getOrCreateUserSecret,
 } from './client'
 import { saveLastExportAt } from './helpers'
 
@@ -14,6 +14,7 @@ interface BackupData {
   recipes: Recipe[]
   brews: Brew[]
   cafeVisits?: CafeVisit[]  // version 1 のファイルには存在しない（後方互換）
+  userSecret?: string       // version 3 から。データ提供の仮名ID継続用（機種変更対応）
 }
 
 const MAX_IMPORT_FILE_SIZE = 100 * 1024 * 1024 // 100MB
@@ -26,13 +27,14 @@ function isSafePhotoDataUrl(url: unknown): boolean {
 }
 
 export async function exportBackup(): Promise<void> {
-  const [beans, equipment, recipes, brews, cafeVisits] = await Promise.all([
+  const [beans, equipment, recipes, brews, cafeVisits, userSecret] = await Promise.all([
     getAllBeans(), getAllEquipment(), getAllRecipes(), getAllBrews(), getAllCafeVisits(),
+    getOrCreateUserSecret(),
   ])
   const data: BackupData = {
-    version: 2,
+    version: 3,
     exportedAt: new Date().toISOString(),
-    beans, equipment, recipes, brews, cafeVisits,
+    beans, equipment, recipes, brews, cafeVisits, userSecret,
   }
   const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' })
   const url  = URL.createObjectURL(blob)
@@ -103,6 +105,13 @@ export async function importBackup(
     ...(data.brews      ?? []).map(b => putBrew(safeBrew(b))),
     ...(data.cafeVisits ?? []).map(v => putCafeVisit(safeVisit(v))),
   ])
+
+  // userSecret の復元: 完全置換はバックアップ側を採用、追加インポートは既存を優先
+  if (typeof data.userSecret === 'string' && /^[0-9a-f]{64}$/.test(data.userSecret)) {
+    if (mode === 'replace' || !(await getMeta('userSecret'))) {
+      await setMeta('userSecret', data.userSecret)
+    }
+  }
 
   return summarizeBackup(data)
 }

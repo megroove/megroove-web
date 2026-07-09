@@ -61,6 +61,10 @@ competing する要求が出たら、必ずこの順位で判断する。
 - 産地入力のオートコンプリート: 国名＋代表的な地域名のマスター（`src/db/origins.ts`）とユーザー入力履歴から
   候補を提示（`src/components/OriginInput.tsx`、ひらがな→カタカナ正規化でマッチ）。
   豆フォーム（ストック/その場追加）とカフェ記録の3箇所で使用
+- データ提供の土台（Phase D 完了 = docs/data-rewards-design.md の Phase 0）:
+  匿名化エンジン（`src/provision/`、`megroove-provision/v1`）・仮名ID（HMAC-SHA256、`userSecret` は meta ストア＋
+  バックアップに含めて機種変更対応）・設定→「データ提供の準備」でスコープ選択→プレビュー→JSONダウンロード
+  （**送信機能はまだ無い**。写真/メモ/正確な時刻/豆名/カフェ名/器具名は常に除外）
 
 ### 後続フェーズで追加
 
@@ -82,8 +86,9 @@ competing する要求が出たら、必ずこの順位で判断する。
 - **フレームワーク**: React 19 + TypeScript + Vite 8
 - **スタイリング**: Tailwind CSS v4（`@tailwindcss/vite` プラグイン）
 - **永続化**: IndexedDB via `idb` ライブラリ
-  - DB名: `megroove`、バージョン: `2`
-  - ストア: `beans` / `equipment` / `recipes` / `brews`（byBrewedAt インデックス）/ `cafeVisits`（byVisitedAt インデックス）
+  - DB名: `megroove`、バージョン: `3`
+  - ストア: `beans` / `equipment` / `recipes` / `brews`（byBrewedAt インデックス）/ `cafeVisits`（byVisitedAt インデックス）/
+    `meta`（内部値。データ提供の仮名ID導出に使う `userSecret` 等。`clearAllData` の対象外）
   - iOS版 SwiftData の「ローカル完結」と同じ思想。データは端末・ブラウザ内のみに保持
   - 各エンティティは **UUID** を持つ（iOS版と揃える）
 - **ルーティング**: `react-router-dom` + `HashRouter`（GitHub Pages 対応。base: `/megroove-web/`）
@@ -236,6 +241,7 @@ Bean / Equipment / Recipe は **記録画面からもその場で生成できる
 | `/stock` | ストック | 豆・器具・レシピの管理（3タブ） |
 | `/settings` | 設定 | 記録画面カスタマイズへのナビ + データ管理（エクスポート/インポート） |
 | `/settings/brew-layout` | 記録画面カスタマイズ | ブロックのゾーン振り分け・並び順変更 |
+| `/settings/data-provision` | データ提供の準備 | 提供スコープ選択・匿名化プレビュー・JSONダウンロード（送信なし） |
 
 ### ライブラリ 表示モード（libary-view）
 | モード | 表示形式 |

@@ -14,6 +14,7 @@ import CafeVisitPage from './pages/CafeVisitPage'
 import CafeVisitDetailPage from './pages/CafeVisitDetailPage'
 import SettingsPage from './pages/SettingsPage'
 import BrewLayoutPage from './pages/BrewLayoutPage'
+import DataProvisionPage from './pages/DataProvisionPage'
 import PassportPage from './pages/PassportPage'
 import OnboardingTour, { hasCompletedOnboarding } from './components/OnboardingTour'
 
@@ -37,7 +38,8 @@ function AppRoutes() {
         <Route path="/cafe/edit/:id"   element={<CafeVisitPage />} />
         <Route path="/cafe/:id"        element={<CafeVisitDetailPage />} />
         <Route path="/settings"             element={<SettingsPage />} />
-        <Route path="/settings/brew-layout" element={<BrewLayoutPage />} />
+        <Route path="/settings/brew-layout"    element={<BrewLayoutPage />} />
+        <Route path="/settings/data-provision" element={<DataProvisionPage />} />
         <Route path="/passport"             element={<PassportPage />} />
       </Routes>
     </div>

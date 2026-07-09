@@ -1,16 +1,22 @@
 import { openDB, type DBSchema, type IDBPDatabase } from 'idb'
 import type { Bean, Equipment, Recipe, Brew, CafeVisit } from './types'
 
+interface MetaEntry {
+  key: string
+  value: string
+}
+
 interface MegrooveDB extends DBSchema {
   beans:      { key: string; value: Bean }
   equipment:  { key: string; value: Equipment }
   recipes:    { key: string; value: Recipe }
   brews:      { key: string; value: Brew;      indexes: { byBrewedAt:  string } }
   cafeVisits: { key: string; value: CafeVisit; indexes: { byVisitedAt: string } }
+  meta:       { key: string; value: MetaEntry }
 }
 
 const DB_NAME = 'megroove'
-const DB_VERSION = 2
+const DB_VERSION = 3
 
 let dbPromise: Promise<IDBPDatabase<MegrooveDB>> | null = null
 
@@ -28,6 +34,10 @@ function getDB() {
         if (oldVersion < 2) {
           db.createObjectStore('cafeVisits', { keyPath: 'id' })
             .createIndex('byVisitedAt', 'visitedAt')
+        }
+        if (oldVersion < 3) {
+          // アプリ内部の設定値（userSecret 等）。ユーザーデータのストアとは分離する
+          db.createObjectStore('meta', { keyPath: 'key' })
         }
       },
     })
@@ -111,6 +121,27 @@ export async function putCafeVisit(visit: CafeVisit): Promise<void> {
 }
 export async function deleteCafeVisit(id: string): Promise<void> {
   await (await getDB()).delete('cafeVisits', id)
+}
+
+// ─── Meta（userSecret 等の内部値） ────────────────────────────────────────────
+
+export async function getMeta(key: string): Promise<string | undefined> {
+  return (await (await getDB()).get('meta', key))?.value
+}
+
+export async function setMeta(key: string, value: string): Promise<void> {
+  await (await getDB()).put('meta', { key, value })
+}
+
+// データ提供の仮名ID導出に使う端末固有の秘密値（32バイト hex）。
+// バックアップに含めて機種変更後もポイント継続できるようにする。
+export async function getOrCreateUserSecret(): Promise<string> {
+  const existing = await getMeta('userSecret')
+  if (existing) return existing
+  const bytes = crypto.getRandomValues(new Uint8Array(32))
+  const hex = [...bytes].map(b => b.toString(16).padStart(2, '0')).join('')
+  await setMeta('userSecret', hex)
+  return hex
 }
 
 // ─── Clear all ───────────────────────────────────────────────────────────────
