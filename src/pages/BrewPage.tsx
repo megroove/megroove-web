@@ -527,7 +527,7 @@ export default function BrewPage() {
           <div className="bg-amber-900/40 border border-amber-600/40 rounded-xl p-3 flex gap-2.5 items-start">
             <span className="text-amber-400 mt-0.5"><CaffeineIcon size={16} /></span>
             <div>
-              <p className="text-amber-300 text-sm font-medium">就寝時の残留量が目標を超える見込みです</p>
+              <p className="text-amber-300 text-sm font-medium">就寝時の推定残留量が目標を超える見込みです</p>
               <p className="text-amber-400/70 text-xs mt-0.5">
                 目標 {caffeineSettings.bedtimeTargetMg}mg・就寝 {caffeineSettings.bedtimeHour.toString().padStart(2,'0')}:{caffeineSettings.bedtimeMinute.toString().padStart(2,'0')}
               </p>

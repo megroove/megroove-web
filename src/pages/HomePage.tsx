@@ -341,7 +341,7 @@ export default function HomePage() {
             className="bg-[#2E2018] rounded-xl px-2 py-3 text-center active:opacity-80"
           >
             <p className="text-xl font-bold text-[#F7EFE6] tabular-nums">{todayStats.residualMg}<span className="text-xs font-normal text-[#CE9C68] ml-0.5">mg</span></p>
-            <p className="text-[10px] text-[#6b5a4a] mt-1">カフェイン残</p>
+            <p className="text-[10px] text-[#6b5a4a] mt-1">カフェイン残(推定)</p>
           </button>
           <div className="bg-[#2E2018] rounded-xl px-2 py-3 text-center">
             <p className="text-xl font-bold text-[#F7EFE6] tabular-nums">{todayStats.streak}<span className="text-xs font-normal text-[#CE9C68] ml-0.5">日</span></p>

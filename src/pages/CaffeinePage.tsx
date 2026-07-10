@@ -74,9 +74,12 @@ export default function CaffeinePage() {
   const pct = Math.min(100, (current / MAX_REF) * 100)
   const barColor = current < 100 ? '#4ade80' : current < 250 ? '#CE9C68' : '#993C1D'
 
-  const exceedsTarget = atBedtime > settings.bedtimeTargetMg
-  const sleepLabel = atBedtime < 25 ? '影響は軽微' : atBedtime < 75 ? '少し影響あり' : '影響あり'
-  const sleepColor = atBedtime < 25 ? 'text-emerald-400' : atBedtime < 75 ? 'text-amber-400' : 'text-red-400'
+  // 就寝時のステータスは、ユーザー自身が設定した目標値との比較のみで表現する
+  // （睡眠への影響を断定しない。CLAUDE.md「健康情報の扱い」参照）
+  const target = settings.bedtimeTargetMg
+  const exceedsTarget = atBedtime > target
+  const bedtimeLabel = !exceedsTarget ? '目標内' : atBedtime <= target * 2 ? '目標超え' : '目標を大きく超え'
+  const bedtimeColor = !exceedsTarget ? 'text-emerald-400' : atBedtime <= target * 2 ? 'text-amber-400' : 'text-[#E07A4F]'
 
   const updateSettings = (patch: Partial<typeof settings>) => {
     const next = { ...settings, ...patch }
@@ -101,7 +104,7 @@ export default function CaffeinePage() {
             style={{ width: `${pct}%`, background: barColor }}
           />
         </div>
-        <p className="text-xs text-[#4a3a2a] mt-1.5">参考: 1日の目安上限 400mg</p>
+        <p className="text-xs text-[#4a3a2a] mt-1.5">参考: 健康な成人では 1日 400mg 程度までが目安とされています（EFSA・食品安全委員会）</p>
       </div>
 
       {/* 推移グラフ */}
@@ -155,10 +158,11 @@ export default function CaffeinePage() {
             <span className="text-sm font-normal text-[#CE9C68] ml-1">mg</span>
           </p>
           {exceedsTarget && (
-            <p className="text-xs text-amber-400 mt-1">目標 {settings.bedtimeTargetMg}mg を超えています</p>
+            <p className="text-xs text-amber-400 mt-1">目標 {settings.bedtimeTargetMg}mg を上回る見込みです（推定）</p>
           )}
+          <p className="text-[10px] text-[#6b5a4a] mt-1">睡眠への感じ方には個人差があります</p>
         </div>
-        <span className={`text-sm font-medium ${sleepColor}`}>{sleepLabel}</span>
+        <span className={`text-sm font-medium ${bedtimeColor}`}>{bedtimeLabel}</span>
       </div>
 
       {/* 過去24時間の摂取ログ */}
@@ -250,14 +254,24 @@ export default function CaffeinePage() {
               ＋
             </button>
           </div>
-          <p className="text-xs text-[#4a3a2a] text-center mt-1">0〜200mg（目安: 50mg以下で睡眠への影響が軽微）</p>
+          <p className="text-xs text-[#4a3a2a] text-center mt-1">0〜200mg。就寝時に残したくない量を、あなたの体感に合わせて設定してください（感じ方には個人差があります）</p>
         </div>
       </div>
 
-      <p className="text-xs text-[#4a3a2a] text-center pb-2">
-        ホームブリューはコーヒー粉1gあたり約12mg、カフェドリンクは種類とサイズから推定。<br />
-        半減期5.5時間のモデルによる概算です。個人差があります。
-      </p>
+      <div className="text-xs text-[#4a3a2a] text-center pb-2 flex flex-col gap-1.5 leading-relaxed">
+        <p>
+          カフェイン量はコーヒー粉 1g あたり約 12mg、カフェドリンクは種類とサイズからの推定値です。
+          残留量は半減期 5.5 時間の一般的なモデルによる概算で、実際の代謝には大きな個人差があります。
+        </p>
+        <p>
+          本画面の数値は生活の参考情報であり、医学的な助言・診断ではありません。
+          体調に不安があるときは医師などの専門家にご相談ください。
+        </p>
+        <p>
+          参考: 食品安全委員会・欧州食品安全機関（EFSA）は、健康な成人で 1日 400mg 程度までを
+          目安とする見解を公表しています。
+        </p>
+      </div>
     </div>
   )
 }
