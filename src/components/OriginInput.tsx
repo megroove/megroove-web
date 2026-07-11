@@ -16,15 +16,20 @@ interface Props {
   value: string
   onChange: (v: string) => void
   placeholder?: string
-  // ユーザーが過去に入力した産地（新しい順）。マスター候補より優先して表示する
+  // ユーザーが過去に入力した値（新しい順）。マスター候補より優先して表示する
   recentOrigins?: string[]
   // 入力欄の見た目。filled: フォーム用の塗り / bare: カード内の透明入力
   variant?: 'filled' | 'bare'
+  // マスター候補。既定は産地マスター。[] を渡すと履歴のみのオートコンプリートになる
+  //（農園・品種など、産地以外の項目でも再利用できる）
+  master?: string[]
+  suggestionIcon?: React.ReactNode
 }
 
 export default function OriginInput({
   value, onChange, placeholder = '例: エチオピア イルガチェフェ',
   recentOrigins = [], variant = 'filled',
+  master = COFFEE_ORIGINS, suggestionIcon = <GlobeIcon size={13} />,
 }: Props) {
   const [open, setOpen] = useState(false)
 
@@ -34,11 +39,11 @@ export default function OriginInput({
     for (const o of recentOrigins) {
       if (o && !seen.has(o)) { seen.add(o); list.push({ name: o, recent: true }) }
     }
-    for (const o of COFFEE_ORIGINS) {
+    for (const o of master) {
       if (!seen.has(o)) { seen.add(o); list.push({ name: o, recent: false }) }
     }
     return list
-  }, [recentOrigins])
+  }, [recentOrigins, master])
 
   const suggestions = useMemo(() => {
     const q = normalize(value)
@@ -72,7 +77,7 @@ export default function OriginInput({
               className="w-full px-4 py-2.5 text-left text-sm text-[#F7EFE6] border-b border-[#2e2018] last:border-0 hover:bg-[#2e2018] active:bg-[#2e2018] flex items-center gap-2"
             >
               <span className={`shrink-0 ${s.recent ? 'text-[#993C1D]' : 'text-[#6b5a4a]'}`}>
-                <GlobeIcon size={13} />
+                {suggestionIcon}
               </span>
               <span className="truncate">{s.name}</span>
               {s.recent && <span className="ml-auto text-[10px] text-[#6b5a4a] shrink-0">履歴</span>}

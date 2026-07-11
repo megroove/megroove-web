@@ -2,11 +2,11 @@ import { useState, useEffect, useRef } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import type { CafeVisit, CafeDrinkType, CafeDrinkSize, CuppingScores } from '../db'
 import {
-  getAllCafeVisits, getCafeVisit, putCafeVisit,
+  getAllCafeVisits, getCafeVisit, putCafeVisit, getAllBrews,
   newId, nowISO,
   CAFE_DRINK_TYPE_LABELS, CAFE_DRINK_SIZE_LABELS, estimateCafeCaffeine,
   calcCuppingAverage, formatBrewDateShort, resizeImage,
-  toDatetimeLocal, fromDatetimeLocal,
+  toDatetimeLocal, fromDatetimeLocal, calcFrequentFlavors,
 } from '../db'
 import StarRating from '../components/brew/StarRating'
 import FlavorChips from '../components/brew/FlavorChips'
@@ -123,6 +123,14 @@ export default function CafeVisitPage() {
   const [showSuggestions, setShowSuggestions] = useState(false)
   const [showPicker,     setShowPicker]     = useState(false)
   const nameInputRef = useRef<HTMLInputElement>(null)
+
+  // 「よく使う」フレーバー（全ブリュー＋カフェ記録から集計）
+  const [frequentFlavors, setFrequentFlavors] = useState<string[]>([])
+  useEffect(() => {
+    Promise.all([getAllBrews(), getAllCafeVisits()])
+      .then(([brews, visits]) => setFrequentFlavors(calcFrequentFlavors([...brews, ...visits])))
+      .catch(() => {})
+  }, [])
 
   useEffect(() => {
     getAllCafeVisits().then(visits => {
@@ -357,7 +365,7 @@ export default function CafeVisitPage() {
         {/* フレーバー */}
         <div className="bg-[#2E2018] rounded-xl p-4">
           <p className="text-xs text-[#CE9C68] mb-3">フレーバー</p>
-          <FlavorChips selected={flavors} onChange={setFlavors} />
+          <FlavorChips selected={flavors} onChange={setFlavors} frequent={frequentFlavors} />
         </div>
 
         {/* 詳細 */}

@@ -275,6 +275,23 @@ export const DEFAULT_FLAVORS = [
   'スモーキー', 'クリーン', 'ワイニー', 'ハーブ', 'バニラ',
 ]
 
+// 「よく使う」フレーバー候補: 3回以上使ったチップを頻度順に最大5件
+export function calcFrequentFlavors(
+  records: { flavors: string[] }[],
+  minCount = 3,
+  max = 5,
+): string[] {
+  const counts = new Map<string, number>()
+  for (const r of records) {
+    for (const f of r.flavors) counts.set(f, (counts.get(f) ?? 0) + 1)
+  }
+  return [...counts.entries()]
+    .filter(([, c]) => c >= minCount)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, max)
+    .map(([f]) => f)
+}
+
 // ─── Brew Layout Settings (localStorage) ─────────────────────────────────────
 
 export type BrewBlockId =

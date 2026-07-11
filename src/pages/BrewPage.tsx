@@ -7,7 +7,7 @@ import {
   newId, nowISO, calcCuppingAverage, calcRatio, estimateCaffeine, calcResidualCaffeine,
   loadSettings, loadBrewLayout, resizeImage,
   ROAST_LEVEL_LABELS, daysSinceRoast,
-  toDatetimeLocal, fromDatetimeLocal, formatBeanRemaining,
+  toDatetimeLocal, fromDatetimeLocal, formatBeanRemaining, calcFrequentFlavors,
 } from '../db'
 import StarRating from '../components/brew/StarRating'
 import FlavorChips from '../components/brew/FlavorChips'
@@ -121,6 +121,14 @@ export default function BrewPage() {
       setPastIntakes([...brewIntakes, ...cafeIntakes])
     }).catch(() => {})
   }, [isEditMode])
+
+  // 「よく使う」フレーバー（全ブリュー＋カフェ記録から集計）
+  const [frequentFlavors, setFrequentFlavors] = useState<string[]>([])
+  useEffect(() => {
+    Promise.all([getAllBrews(), getAllCafeVisits()])
+      .then(([brews, visits]) => setFrequentFlavors(calcFrequentFlavors([...brews, ...visits])))
+      .catch(() => {})
+  }, [])
 
   useEffect(() => {
     if (isEditMode || !doseG) { setCaffeineAlert(false); return }
@@ -333,7 +341,7 @@ export default function BrewPage() {
         return (
           <div key="flavors" className="bg-[#2E2018] rounded-xl p-4">
             <p className="text-xs text-[#CE9C68] mb-3">フレーバー</p>
-            <FlavorChips selected={flavors} onChange={setFlavors} />
+            <FlavorChips selected={flavors} onChange={setFlavors} frequent={frequentFlavors} />
           </div>
         )
 

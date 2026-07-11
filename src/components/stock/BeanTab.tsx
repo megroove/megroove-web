@@ -7,14 +7,19 @@ import {
 import { Field, TextInput, NumberInput, DateInput, ChipSelect, DeleteButton, ModalSheet, SaveButton } from './FormHelpers'
 import { useToast } from '../Toast'
 import OriginInput from '../OriginInput'
+import { ClockIcon } from '../icons'
 
 const ROAST_LEVELS: RoastLevel[] = ['light', 'light-medium', 'medium', 'medium-dark', 'dark']
 
+const PROCESS_PRESETS = ['ウォッシュト', 'ナチュラル', 'ハニー', 'アナエロビック']
+
 function BeanForm({
-  initial, recentOrigins, onSave, onDelete, onCancel,
+  initial, recentOrigins, recentFarms, recentVarieties, onSave, onDelete, onCancel,
 }: {
   initial?: Bean
   recentOrigins: string[]
+  recentFarms: string[]
+  recentVarieties: string[]
   onSave: (b: Bean) => void
   onDelete?: () => void
   onCancel: () => void
@@ -109,15 +114,39 @@ function BeanForm({
 
       <div className="grid grid-cols-2 gap-3">
         <Field label="農園">
-          <TextInput value={farm} onChange={setFarm} placeholder="任意" />
+          <OriginInput
+            value={farm} onChange={setFarm} placeholder="任意"
+            recentOrigins={recentFarms} master={[]} suggestionIcon={<ClockIcon size={13} />}
+          />
         </Field>
         <Field label="品種">
-          <TextInput value={variety} onChange={setVariety} placeholder="任意" />
+          <OriginInput
+            value={variety} onChange={setVariety} placeholder="任意"
+            recentOrigins={recentVarieties} master={[]} suggestionIcon={<ClockIcon size={13} />}
+          />
         </Field>
       </div>
 
       <Field label="精製方法">
-        <TextInput value={process} onChange={setProcess} placeholder="例: ナチュラル" />
+        <div className="flex flex-col gap-2">
+          <div className="flex flex-wrap gap-2">
+            {PROCESS_PRESETS.map(p => (
+              <button
+                key={p}
+                type="button"
+                onClick={() => setProcess(process === p ? '' : p)}
+                className={`px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${
+                  process === p
+                    ? 'bg-[#993C1D] text-[#F7EFE6]'
+                    : 'bg-[#3e3020] text-[#CE9C68]'
+                }`}
+              >
+                {p}
+              </button>
+            ))}
+          </div>
+          <TextInput value={process} onChange={setProcess} placeholder="その他の精製方法は自由入力" />
+        </div>
       </Field>
 
       <Field label="在庫メモ">
@@ -207,10 +236,13 @@ export default function BeanTab() {
 
   const activeBeans   = beans.filter(b => !b.finishedAt)
   const finishedBeans = beans.filter(b => Boolean(b.finishedAt))
-  // 産地候補のユーザー履歴（新しく登録した豆の産地を優先）
-  const recentOrigins = [...beans].reverse()
-    .map(b => b.origin)
-    .filter((o): o is string => Boolean(o))
+  // 産地・農園・品種のユーザー履歴（新しく登録した豆を優先）
+  const newestFirst = [...beans].reverse()
+  const pick = (get: (b: Bean) => string | undefined) =>
+    newestFirst.map(get).filter((v): v is string => Boolean(v))
+  const recentOrigins   = pick(b => b.origin)
+  const recentFarms     = pick(b => b.farm)
+  const recentVarieties = pick(b => b.variety)
 
   return (
     <div className="flex-1 overflow-y-auto px-4 py-4">
@@ -244,6 +276,8 @@ export default function BeanTab() {
         <BeanForm
           initial={editing === 'new' ? undefined : (editing ?? undefined)}
           recentOrigins={recentOrigins}
+          recentFarms={recentFarms}
+          recentVarieties={recentVarieties}
           onSave={handleSave}
           onDelete={editing !== 'new' && editing !== null ? () => handleDelete(editing) : undefined}
           onCancel={() => setEditing(null)}
