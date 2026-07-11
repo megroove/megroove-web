@@ -1,10 +1,21 @@
-import { defineConfig } from 'vite'
+import { defineConfig, type Plugin } from 'vite'
 import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
 import { VitePWA } from 'vite-plugin-pwa'
 
+// 開発サーバーでは Vite が CSS を <style> タグで注入するため、dev のときだけ
+// CSP の style-src に 'unsafe-inline' を足す（本番ビルドの CSP は index.html のまま）
+const relaxCspForDev = (): Plugin => ({
+  name: 'relax-csp-for-dev',
+  apply: 'serve',
+  transformIndexHtml(html) {
+    return html.replace("style-src 'self'", "style-src 'self' 'unsafe-inline'")
+  },
+})
+
 export default defineConfig({
   plugins: [
+    relaxCspForDev(),
     react(),
     tailwindcss(),
     VitePWA({
