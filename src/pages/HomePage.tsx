@@ -1,13 +1,17 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import RecordDisk from '../components/brew/RecordDisk'
-import { getAllBrews, getAllBeans, getAllCafeVisits, getAllEquipment } from '../db'
+import StarRating from '../components/brew/StarRating'
+import SaveAnimation from '../components/brew/SaveAnimation'
+import { useToast } from '../components/Toast'
+import { getAllBrews, getAllBeans, getAllCafeVisits, getAllEquipment, putBrew, getBrewCount } from '../db'
 import type { Brew, Bean, CafeVisit, Equipment } from '../db'
 import {
   formatBrewDateShort, ROAST_LEVEL_LABELS, CAFE_DRINK_TYPE_LABELS,
   EQUIPMENT_TYPE_LABELS, daysSinceRoast,
   getBackupReminder, snoozeBackupReminder,
   calcResidualCaffeine, calcStreakDays, isSameLocalDay,
+  newId, nowISO, estimateCaffeine, calcRatio,
 } from '../db'
 import {
   GearIcon, CupIcon, CafeIcon, TrophyIcon, CameraIcon, DownloadIcon,
@@ -214,6 +218,15 @@ export default function HomePage() {
   const [todayStats, setTodayStats] = useState<{ cups: number; residualMg: number; streak: number } | null>(null)
   const [onThisDay, setOnThisDay] = useState<OnThisDayItem | null>(null)
 
+  // 「前回と同じ一杯」クイック記録
+  const showToast = useToast()
+  const [lastBrew, setLastBrew] = useState<{ brew: Brew; bean?: Bean } | null>(null)
+  const [showQuickSheet, setShowQuickSheet] = useState(false)
+  const [quickRating, setQuickRating] = useState(0)
+  const [quickSaving, setQuickSaving] = useState(false)
+  const [showQuickAnim, setShowQuickAnim] = useState(false)
+  const [savedBrewCount, setSavedBrewCount] = useState(0)
+
   // Featured 選択（localStorage から復元）
   const [featuredBeanId, setFeaturedBeanId] = useState<string | null>(loadFeaturedBeanId)
   const [featuredItem, setFeaturedItem] = useState<FeaturedItem | null>(loadFeaturedItem)
@@ -236,13 +249,19 @@ export default function HomePage() {
     setFeaturedItem(item)
   }
 
-  useEffect(() => {
+  const loadHome = useCallback(() => {
     Promise.all([getAllBrews(), getAllBeans(), getAllCafeVisits(), getAllEquipment()]).then(
       ([brews, beansList, visits, eqs]) => {
         setBeans(beansList)
         setEquipment(eqs)
 
         const beanMap = new Map(beansList.map(b => [b.id, b]))
+
+        // クイック記録用の前回ブリュー
+        const last = brews.at(-1)
+        setLastBrew(last
+          ? { brew: last, bean: last.beanId ? beanMap.get(last.beanId) : undefined }
+          : null)
 
         // 最近の記録（ブリュー＋カフェ混合、新しい順5件）
         const brewItems: RecentItem[] = [...brews].reverse().slice(0, 5).map(b => ({
@@ -296,6 +315,48 @@ export default function HomePage() {
       },
     ).catch(() => { setDbError(true); setLoading(false) })
   }, [])
+
+  useEffect(() => { loadHome() }, [loadHome])
+
+  // クイック記録の保存: /brew の前回値プリフィル（fillFromBrew）と同じ範囲をコピーする
+  const handleQuickSave = async () => {
+    if (!lastBrew || quickSaving) return
+    setQuickSaving(true)
+    try {
+      const b = lastBrew.brew
+      const count = await getBrewCount()
+      await putBrew({
+        id: newId(),
+        createdAt: nowISO(),
+        brewedAt: nowISO(),
+        beanId: b.beanId,
+        recipeId: b.recipeId,
+        doseG: b.doseG,
+        waterG: b.waterG,
+        grindSize: b.grindSize,
+        tempC: b.tempC,
+        equipmentId: b.equipmentId,
+        totalTimeSec: b.totalTimeSec,
+        pourCount: b.pourCount,
+        rating: quickRating || undefined,
+        flavors: b.flavors,
+        cupping: {},
+        caffeineAmount: b.doseG ? estimateCaffeine(b.doseG) : undefined,
+      })
+      setSavedBrewCount(count + 1)
+      setQuickSaving(false)
+      setShowQuickSheet(false)
+      setShowQuickAnim(true)
+    } catch {
+      setQuickSaving(false)
+      showToast('保存に失敗しました。ストレージの空き容量を確認してください', { type: 'error' })
+    }
+  }
+
+  const handleQuickAnimDone = useCallback(() => {
+    setShowQuickAnim(false)
+    loadHome()
+  }, [loadHome])
 
   const featuredBean = beans.find(b => b.id === featuredBeanId)
   const featuredEquipment =
@@ -373,6 +434,23 @@ export default function HomePage() {
           <span className="text-sm font-semibold">カフェを記録</span>
         </button>
       </div>
+
+      {/* 前回と同じ一杯（クイック記録） */}
+      {lastBrew && (
+        <button
+          type="button"
+          onClick={() => { setQuickRating(0); setShowQuickSheet(true) }}
+          className="-mt-3 w-full bg-[#2E2018] rounded-xl px-4 py-2.5 flex items-center justify-between gap-3 active:opacity-80"
+        >
+          <span className="text-sm text-[#CE9C68] font-medium shrink-0">前回と同じ一杯</span>
+          <span className="text-xs text-[#6b5a4a] truncate">
+            {lastBrew.bean?.name ?? 'ホームブリュー'}
+            {lastBrew.brew.doseG != null && lastBrew.brew.waterG != null
+              ? ` · ${lastBrew.brew.doseG}g / ${lastBrew.brew.waterG}g`
+              : ''}
+          </span>
+        </button>
+      )}
 
       {/* 今日のサマリ */}
       {loading ? (
@@ -659,6 +737,70 @@ export default function HomePage() {
           </div>
         )}
       </div>
+
+      {/* ─── クイック記録シート ─── */}
+      {showQuickSheet && lastBrew && (
+        <div
+          className="fixed inset-0 bg-black/70 flex items-end justify-center z-50"
+          onClick={() => setShowQuickSheet(false)}
+        >
+          <div
+            className="bg-[#2E2018] rounded-t-2xl w-full max-w-lg p-5 pb-8 flex flex-col gap-4"
+            onClick={e => e.stopPropagation()}
+          >
+            <h3 className="text-[#F7EFE6] font-semibold">前回と同じ一杯</h3>
+
+            {/* 前回条件のサマリ（読み取り専用） */}
+            <div className="bg-[#3e3020] rounded-xl p-4 flex flex-col gap-2">
+              <div className="flex items-baseline justify-between gap-2">
+                <p className="text-sm text-[#F7EFE6] font-medium truncate">
+                  {lastBrew.bean?.name ?? 'ホームブリュー'}
+                </p>
+                {lastBrew.bean && (
+                  <span className="text-[10px] text-[#CE9C68] shrink-0">
+                    {ROAST_LEVEL_LABELS[lastBrew.bean.roastLevel]}
+                    {lastBrew.bean.finishedAt ? ' · 飲み切り済み' : ''}
+                  </span>
+                )}
+              </div>
+              <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-[#CE9C68]">
+                {lastBrew.brew.doseG != null && lastBrew.brew.waterG != null && (
+                  <span>
+                    {lastBrew.brew.doseG}g / {lastBrew.brew.waterG}g
+                    （{calcRatio(lastBrew.brew.doseG, lastBrew.brew.waterG)}）
+                  </span>
+                )}
+                {lastBrew.brew.grindSize != null && <span>挽き目 {lastBrew.brew.grindSize}</span>}
+                {lastBrew.brew.tempC != null && <span>{lastBrew.brew.tempC}°C</span>}
+              </div>
+            </div>
+
+            <div className="flex flex-col items-center gap-2">
+              <p className="text-xs text-[#CE9C68]">今日の一杯はどうでしたか？</p>
+              <StarRating value={quickRating} onChange={setQuickRating} />
+            </div>
+
+            <button
+              type="button"
+              onClick={handleQuickSave}
+              disabled={quickRating === 0 || quickSaving}
+              className="w-full bg-[#993C1D] text-[#F7EFE6] py-3.5 rounded-2xl text-base font-semibold active:opacity-80 disabled:opacity-40"
+            >
+              {quickSaving ? '保存中...' : 'この一杯を記録する'}
+            </button>
+            <button
+              type="button"
+              onClick={() => { setShowQuickSheet(false); navigate('/brew') }}
+              className="text-sm text-[#CE9C68] text-center active:opacity-70"
+            >
+              詳しく記録する →
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* クイック記録の保存アニメーション（節目演出も共通） */}
+      {showQuickAnim && <SaveAnimation brewCount={savedBrewCount} onDone={handleQuickAnimDone} />}
 
       {/* ─── 豆ピッカーモーダル ─── */}
       {showBeanPicker && (
