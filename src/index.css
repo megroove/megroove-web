@@ -8,6 +8,15 @@
   0%   { opacity: 0; transform: scale(0.7) rotate(-15deg); }
   100% { opacity: 1; transform: scale(1)   rotate(0deg); }
 }
+@keyframes arm-drop {
+  0%   { transform: rotate(-22deg); }
+  70%  { transform: rotate(2deg); }
+  100% { transform: rotate(0deg); }
+}
+@keyframes disk-spin {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
 @keyframes confetti-fall {
   0%   { transform: translateY(0)     rotate(0deg);   opacity: 1; }
   100% { transform: translateY(110vh) rotate(540deg); opacity: 0; }

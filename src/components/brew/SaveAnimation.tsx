@@ -49,7 +49,8 @@ export default function SaveAnimation({ brewCount, onDone }: Props) {
   const isMilestone = MILESTONES.has(brewCount)
 
   useEffect(() => {
-    if (navigator.vibrate) navigator.vibrate(isMilestone ? [30, 50, 30] : 30)
+    // 通常保存は「保存直後にコトッ＋針の着地（約0.9s後）にもう一度」の2段パターン
+    if (navigator.vibrate) navigator.vibrate(isMilestone ? [30, 50, 30] : [15, 750, 20])
     if (!isMilestone) {
       const t = setTimeout(onDone, 1400)
       return () => clearTimeout(t)
@@ -85,12 +86,28 @@ export default function SaveAnimation({ brewCount, onDone }: Props) {
           }}
         />
       ))}
-      <div style={{ animation: 'disk-in 0.55s 0.15s ease-out both' }}>
-        <RecordDisk size={120} />
+      <div className="relative" style={{ animation: 'disk-in 0.55s 0.15s ease-out both' }}>
+        {/* 針の着地(0.9s)と同時に盤が回り始める */}
+        <div style={{ animation: 'disk-spin 1.8s linear 0.9s infinite' }}>
+          <RecordDisk size={120} />
+        </div>
+        {/* トーンアーム: 支点(44,12)を軸に持ち上がった状態から盤へ着地 */}
+        <svg
+          width="64"
+          height="88"
+          viewBox="0 0 64 88"
+          className="absolute -top-3 -right-8"
+          style={{ animation: 'arm-drop 0.35s 0.55s ease-in both', transformOrigin: '44px 12px' }}
+        >
+          <circle cx="44" cy="12" r="9" fill="#2E2018" stroke="#CE9C68" strokeWidth="1.5" />
+          <circle cx="44" cy="12" r="3" fill="#CE9C68" />
+          <line x1="44" y1="12" x2="26" y2="58" stroke="#CE9C68" strokeWidth="2.5" strokeLinecap="round" />
+          <line x1="26" y1="58" x2="18" y2="72" stroke="#CE9C68" strokeWidth="4.5" strokeLinecap="round" />
+        </svg>
       </div>
       <p
         className="text-[#F7EFE6] text-base font-medium"
-        style={{ animation: 'disk-in 0.45s 0.45s ease-out both' }}
+        style={{ animation: 'disk-in 0.45s 0.6s ease-out both' }}
       >
         一杯を記録しました
       </p>
