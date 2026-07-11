@@ -88,6 +88,54 @@ function calcTopCafe(
   return topName ? { name: topName, count: topCount } : null
 }
 
+// ─── あの日の一杯（1年前の同日±3日） ─────────────────────────────────────────
+
+type OnThisDayItem = { item: RecentItem; label: string }
+
+function findOnThisDay(
+  brews: Brew[],
+  beanMap: Map<string, Bean>,
+  visits: CafeVisit[],
+  now: Date,
+): OnThisDayItem | null {
+  // 当日を最優先に、近い順で±3日まで探す
+  for (const offset of [0, -1, 1, -2, 2, -3, 3]) {
+    const target = new Date(now)
+    target.setFullYear(target.getFullYear() - 1)
+    target.setDate(target.getDate() + offset)
+
+    const candidates: RecentItem[] = [
+      ...brews
+        .filter(b => isSameLocalDay(b.brewedAt, target))
+        .map(b => ({
+          kind: 'brew' as const,
+          brew: b,
+          bean: b.beanId ? beanMap.get(b.beanId) : undefined,
+        })),
+      ...visits
+        .filter(v => isSameLocalDay(v.visitedAt, target))
+        .map(v => ({ kind: 'cafe' as const, visit: v })),
+    ]
+    if (candidates.length === 0) continue
+
+    // 同日に複数あればランキングと同じ3段ソート（星 → cuppingAverage → 日時）でベストを選ぶ
+    candidates.sort((a, b) => {
+      const ra = a.kind === 'brew' ? a.brew : a.visit
+      const rb = b.kind === 'brew' ? b.brew : b.visit
+      const da = a.kind === 'brew' ? a.brew.brewedAt : a.visit.visitedAt
+      const db = b.kind === 'brew' ? b.brew.brewedAt : b.visit.visitedAt
+      return (rb.rating ?? 0) - (ra.rating ?? 0)
+        || (rb.cuppingAverage ?? 0) - (ra.cuppingAverage ?? 0)
+        || db.localeCompare(da)
+    })
+    return {
+      item: candidates[0],
+      label: offset === 0 ? '1年前の今日' : '1年前のいまごろ',
+    }
+  }
+  return null
+}
+
 // ─── 画像リサイズ ─────────────────────────────────────────────────────────────
 
 async function resizeImage(file: File, maxPx = 480): Promise<string> {
@@ -164,6 +212,7 @@ export default function HomePage() {
   const [loading, setLoading] = useState(true)
   const [backupReminder, setBackupReminder] = useState<string | null>(null)
   const [todayStats, setTodayStats] = useState<{ cups: number; residualMg: number; streak: number } | null>(null)
+  const [onThisDay, setOnThisDay] = useState<OnThisDayItem | null>(null)
 
   // Featured 選択（localStorage から復元）
   const [featuredBeanId, setFeaturedBeanId] = useState<string | null>(loadFeaturedBeanId)
@@ -215,6 +264,9 @@ export default function HomePage() {
         // ランキング計算
         setBestDrink(calcBestDrink(brews, beanMap, visits))
         setTopCafe(calcTopCafe(visits))
+
+        // あの日の一杯
+        setOnThisDay(findOnThisDay(brews, beanMap, visits, new Date()))
 
         // バックアップリマインダー（記録10件以上・未エクスポート or 30日超過）
         setBackupReminder(getBackupReminder(brews.length + visits.length))
@@ -375,6 +427,60 @@ export default function HomePage() {
           </div>
         </div>
       )}
+
+      {/* あの日の一杯（1年前の同日±3日に記録があるときだけ表示） */}
+      {onThisDay && (() => {
+        const it = onThisDay.item
+        const record = it.kind === 'brew'
+          ? {
+              id: it.brew.id,
+              to: `/library/${it.brew.id}`,
+              name: it.bean?.name ?? 'ホームブリュー',
+              sub: it.bean ? ROAST_LEVEL_LABELS[it.bean.roastLevel] : null,
+              date: it.brew.brewedAt,
+              rating: it.brew.rating,
+              photo: it.brew.photoDataUrl,
+              Icon: CupIcon,
+            }
+          : {
+              id: it.visit.id,
+              to: `/cafe/${it.visit.id}`,
+              name: it.visit.cafeName,
+              sub: it.visit.drinkName
+                ?? (it.visit.drinkType ? CAFE_DRINK_TYPE_LABELS[it.visit.drinkType] : null),
+              date: it.visit.visitedAt,
+              rating: it.visit.rating,
+              photo: it.visit.photoDataUrl,
+              Icon: CafeIcon,
+            }
+        return (
+          <div className="flex flex-col gap-2">
+            <p className="text-xs text-[#CE9C68] uppercase tracking-wider">{onThisDay.label}</p>
+            <button
+              type="button"
+              onClick={() => navigate(record.to)}
+              className="w-full bg-[#2E2018] rounded-xl p-3 text-left active:opacity-80 flex items-center gap-3"
+            >
+              {record.photo ? (
+                <img src={record.photo} alt="" className="w-14 h-14 rounded-lg object-cover shrink-0" />
+              ) : (
+                <div className="w-14 h-14 rounded-lg bg-[#3e3020] flex items-center justify-center text-[#CE9C68] shrink-0">
+                  <record.Icon size={22} />
+                </div>
+              )}
+              <div className="flex-1 min-w-0">
+                <p className="text-[#F7EFE6] text-sm font-medium truncate">{record.name}</p>
+                <p className="text-xs text-[#6b5a4a] mt-0.5 flex items-center gap-1">
+                  <record.Icon size={12} className="shrink-0" />
+                  {record.sub ? `${record.sub} · ` : ''}
+                  {formatBrewDateShort(record.date)}
+                </p>
+              </div>
+              <StarDisplay rating={record.rating} />
+            </button>
+          </div>
+        )
+      })()}
 
       {/* 今月のランキング */}
       {hasRanking && (
