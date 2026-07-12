@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from 'react'
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import RecordDisk from '../components/brew/RecordDisk'
 import StarRating from '../components/brew/StarRating'
@@ -11,7 +11,7 @@ import {
   EQUIPMENT_TYPE_LABELS, daysSinceRoast,
   getBackupReminder, snoozeBackupReminder,
   calcResidualCaffeine, calcStreakDays, isSameLocalDay,
-  newId, nowISO, estimateCaffeine, calcRatio,
+  newId, nowISO, estimateCaffeine, calcRatio, loadSettings, getBedtimeDate,
 } from '../db'
 import {
   GearIcon, CupIcon, CafeIcon, TrophyIcon, CameraIcon, DownloadIcon,
@@ -226,6 +226,7 @@ export default function HomePage() {
   const [quickSaving, setQuickSaving] = useState(false)
   const [showQuickAnim, setShowQuickAnim] = useState(false)
   const [savedBrewCount, setSavedBrewCount] = useState(0)
+  const [recentIntakes, setRecentIntakes] = useState<{ caffeineAmount: number; brewedAt: string }[]>([])
 
   // Featured 選択（localStorage から復元）
   const [featuredBeanId, setFeaturedBeanId] = useState<string | null>(loadFeaturedBeanId)
@@ -301,6 +302,7 @@ export default function HomePage() {
             .filter(v => v.caffeineAmount != null && new Date(v.visitedAt).getTime() > cutoff)
             .map(v => ({ caffeineAmount: v.caffeineAmount!, brewedAt: v.visitedAt })),
         ]
+        setRecentIntakes(intakes)
         setTodayStats({
           cups:
             brews.filter(b => isSameLocalDay(b.brewedAt, now)).length +
@@ -357,6 +359,19 @@ export default function HomePage() {
     setShowQuickAnim(false)
     loadHome()
   }, [loadHome])
+
+  // 「いま飲むと就寝時に約◯mg」の事前提示（推定・目安）
+  const quickPrediction = useMemo(() => {
+    if (!showQuickSheet || !lastBrew?.brew.doseG) return null
+    const s = loadSettings()
+    const now = new Date()
+    const bt = getBedtimeDate(s.bedtimeHour, s.bedtimeMinute, now)
+    const mg = calcResidualCaffeine(
+      [...recentIntakes, { caffeineAmount: estimateCaffeine(lastBrew.brew.doseG), brewedAt: now.toISOString() }],
+      bt,
+    )
+    return { mg, hour: s.bedtimeHour, minute: s.bedtimeMinute }
+  }, [showQuickSheet, lastBrew, recentIntakes])
 
   const featuredBean = beans.find(b => b.id === featuredBeanId)
   const featuredEquipment =
@@ -774,6 +789,12 @@ export default function HomePage() {
                 {lastBrew.brew.tempC != null && <span>{lastBrew.brew.tempC}°C</span>}
               </div>
             </div>
+
+            {quickPrediction && quickPrediction.mg >= 5 && (
+              <p className="text-[11px] text-[#6b5a4a] text-center">
+                いま飲むと、就寝時（{quickPrediction.hour.toString().padStart(2, '0')}:{quickPrediction.minute.toString().padStart(2, '0')}）の推定残留量は約{Math.round(quickPrediction.mg)}mg（個人差があります）
+              </p>
+            )}
 
             <div className="flex flex-col items-center gap-2">
               <p className="text-xs text-[#CE9C68]">今日の一杯はどうでしたか？</p>

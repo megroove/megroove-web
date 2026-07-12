@@ -1,18 +1,11 @@
 import { useState, useEffect } from 'react'
 import { getAllBrews, getAllCafeVisits } from '../db'
-import { calcResidualCaffeine, loadSettings, saveSettings } from '../db'
+import { calcResidualCaffeine, loadSettings, saveSettings, getBedtimeDate, isSameLocalDay } from '../db'
 import CaffeineGraph from '../components/caffeine/CaffeineGraph'
 import { CupIcon, CafeIcon } from '../components/icons'
 
 function pad(n: number) {
   return n.toString().padStart(2, '0')
-}
-
-function getBedtimeDate(hour: number, minute: number, now: Date): Date {
-  const bt = new Date(now)
-  bt.setHours(hour, minute, 0, 0)
-  if (bt <= now) bt.setDate(bt.getDate() + 1)
-  return bt
 }
 
 type IntakeEntry = {
@@ -74,6 +67,14 @@ export default function CaffeinePage() {
   const pct = Math.min(100, (current / MAX_REF) * 100)
   const barColor = current < 100 ? '#4ade80' : current < 250 ? '#CE9C68' : '#993C1D'
 
+  // 今日（0時〜現在）の摂取合計。バーは 500mg スケールに 400mg の目安ラインを重ねる
+  const todayIntake = intakeEntries
+    .filter(e => isSameLocalDay(e.brewedAt, now))
+    .reduce((sum, e) => sum + e.caffeineAmount, 0)
+  const intakeScale = Math.max(500, todayIntake)
+  const intakePct = (todayIntake / intakeScale) * 100
+  const guidePct = (400 / intakeScale) * 100
+
   // 就寝時のステータスは、ユーザー自身が設定した目標値との比較のみで表現する
   // （睡眠への影響を断定しない。CLAUDE.md「健康情報の扱い」参照）
   const target = settings.bedtimeTargetMg
@@ -104,7 +105,32 @@ export default function CaffeinePage() {
             style={{ width: `${pct}%`, background: barColor }}
           />
         </div>
-        <p className="text-xs text-[#4a3a2a] mt-1.5">参考: 健康な成人では 1日 400mg 程度までが目安とされています（EFSA・食品安全委員会）</p>
+      </div>
+
+      {/* 今日の摂取量（1日の目安 400mg は摂取量に対する基準なのでこちらに表示） */}
+      <div className="bg-[#2E2018] rounded-xl p-5">
+        <p className="text-xs text-[#CE9C68]">今日の摂取量（推定）</p>
+        <p className="text-4xl font-bold text-[#F7EFE6] tabular-nums mt-2">
+          {Math.round(todayIntake)}
+          <span className="text-lg font-normal text-[#CE9C68] ml-1">mg</span>
+        </p>
+        <div className="mt-3 relative h-2 bg-[#3e3020] rounded-full">
+          <div
+            className="h-full rounded-full bg-[#CE9C68] transition-all duration-500"
+            style={{ width: `${intakePct}%` }}
+          />
+          {/* 400mg 目安ライン */}
+          <div
+            className="absolute -top-1 -bottom-1 w-px bg-[#F7EFE6]/40"
+            style={{ left: `${guidePct}%` }}
+          />
+        </div>
+        <p className="text-xs text-[#4a3a2a] mt-1.5">
+          参考: 健康な成人では 1日 400mg 程度までが目安とされています（EFSA・食品安全委員会）
+        </p>
+        {todayIntake > 400 && (
+          <p className="text-xs text-[#CE9C68] mt-1">一般的な目安を上回っています（目安には個人差があります）</p>
+        )}
       </div>
 
       {/* 推移グラフ */}

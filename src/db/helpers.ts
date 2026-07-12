@@ -275,6 +275,14 @@ export const DEFAULT_FLAVORS = [
   'スモーキー', 'クリーン', 'ワイニー', 'ハーブ', 'バニラ',
 ]
 
+// 次の就寝時刻（今日の就寝時刻を過ぎていれば翌日）
+export function getBedtimeDate(hour: number, minute: number, now: Date): Date {
+  const bt = new Date(now)
+  bt.setHours(hour, minute, 0, 0)
+  if (bt <= now) bt.setDate(bt.getDate() + 1)
+  return bt
+}
+
 // 「よく使う」フレーバー候補: 3回以上使ったチップを頻度順に最大5件
 export function calcFrequentFlavors(
   records: { flavors: string[] }[],

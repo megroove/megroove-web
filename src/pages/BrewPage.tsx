@@ -7,7 +7,7 @@ import {
   newId, nowISO, calcCuppingAverage, calcRatio, estimateCaffeine, calcResidualCaffeine,
   loadSettings, loadBrewLayout, resizeImage,
   ROAST_LEVEL_LABELS, daysSinceRoast,
-  toDatetimeLocal, fromDatetimeLocal, formatBeanRemaining, calcFrequentFlavors,
+  toDatetimeLocal, fromDatetimeLocal, formatBeanRemaining, calcFrequentFlavors, getBedtimeDate,
 } from '../db'
 import StarRating from '../components/brew/StarRating'
 import FlavorChips from '../components/brew/FlavorChips'
@@ -103,10 +103,10 @@ export default function BrewPage() {
 
   const layout = useMemo(() => loadBrewLayout(), [])
 
-  // カフェインアラート用
+  // カフェインの就寝時予測用
   const caffeineSettings = useMemo(() => loadSettings(), [])
   const [pastIntakes, setPastIntakes] = useState<{ caffeineAmount: number; brewedAt: string }[]>([])
-  const [caffeineAlert, setCaffeineAlert] = useState(false)
+  const [bedtimePrediction, setBedtimePrediction] = useState<number | null>(null)
 
   useEffect(() => {
     if (isEditMode) return
@@ -131,15 +131,14 @@ export default function BrewPage() {
   }, [])
 
   useEffect(() => {
-    if (isEditMode || !doseG) { setCaffeineAlert(false); return }
-    const bt = new Date()
-    bt.setHours(caffeineSettings.bedtimeHour, caffeineSettings.bedtimeMinute, 0, 0)
-    if (bt <= new Date()) bt.setDate(bt.getDate() + 1)
+    if (isEditMode || !doseG) { setBedtimePrediction(null); return }
+    const now = new Date()
+    const bt = getBedtimeDate(caffeineSettings.bedtimeHour, caffeineSettings.bedtimeMinute, now)
     const allIntakes = [
       ...pastIntakes,
-      { caffeineAmount: estimateCaffeine(doseG), brewedAt: new Date().toISOString() },
+      { caffeineAmount: estimateCaffeine(doseG), brewedAt: now.toISOString() },
     ]
-    setCaffeineAlert(calcResidualCaffeine(allIntakes, bt) > caffeineSettings.bedtimeTargetMg)
+    setBedtimePrediction(calcResidualCaffeine(allIntakes, bt))
   }, [doseG, pastIntakes, isEditMode, caffeineSettings])
 
   const fillFromBrew = useCallback((b: Brew, copyEval: boolean) => {
@@ -530,17 +529,23 @@ export default function BrewPage() {
           </div>
         )}
 
-        {/* カフェインアラート */}
-        {caffeineAlert && (
-          <div className="bg-amber-900/40 border border-amber-600/40 rounded-xl p-3 flex gap-2.5 items-start">
-            <span className="text-amber-400 mt-0.5"><CaffeineIcon size={16} /></span>
-            <div>
-              <p className="text-amber-300 text-sm font-medium">就寝時の推定残留量が目標を超える見込みです</p>
-              <p className="text-amber-400/70 text-xs mt-0.5">
-                目標 {caffeineSettings.bedtimeTargetMg}mg・就寝 {caffeineSettings.bedtimeHour.toString().padStart(2,'0')}:{caffeineSettings.bedtimeMinute.toString().padStart(2,'0')}
-              </p>
+        {/* 就寝時の残留予測（推定・目安。5mg 未満は表示しない） */}
+        {bedtimePrediction !== null && bedtimePrediction >= 5 && (
+          bedtimePrediction > caffeineSettings.bedtimeTargetMg ? (
+            <div className="bg-amber-900/40 border border-amber-600/40 rounded-xl p-3 flex gap-2.5 items-start">
+              <span className="text-amber-400 mt-0.5"><CaffeineIcon size={16} /></span>
+              <div>
+                <p className="text-amber-300 text-sm font-medium">就寝時の推定残留量が目標を超える見込みです</p>
+                <p className="text-amber-400/70 text-xs mt-0.5">
+                  約{Math.round(bedtimePrediction)}mg・目標 {caffeineSettings.bedtimeTargetMg}mg・就寝 {caffeineSettings.bedtimeHour.toString().padStart(2,'0')}:{caffeineSettings.bedtimeMinute.toString().padStart(2,'0')}
+                </p>
+              </div>
             </div>
-          </div>
+          ) : (
+            <p className="text-xs text-[#6b5a4a] text-center">
+              いま保存すると、就寝時（{caffeineSettings.bedtimeHour.toString().padStart(2,'0')}:{caffeineSettings.bedtimeMinute.toString().padStart(2,'0')}）の推定残留量は約{Math.round(bedtimePrediction)}mg（個人差があります）
+            </p>
+          )
         )}
 
         {/* 保存ボタン */}
