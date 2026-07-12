@@ -191,6 +191,24 @@ export default function BrewDetailPage() {
           </Section>
         )}
 
+        {/* シーン・飲み方 */}
+        {(brew.scene || (brew.drinkStyle?.length ?? 0) > 0) && (
+          <Section title="シーン・飲み方">
+            <div className="flex flex-wrap gap-2">
+              {brew.scene && (
+                <span className="bg-[#993C1D]/25 text-[#CE9C68] text-sm px-3 py-1 rounded-full">
+                  {brew.scene}
+                </span>
+              )}
+              {brew.drinkStyle?.map(s => (
+                <span key={s} className="bg-[#3e3020] text-[#CE9C68] text-sm px-3 py-1 rounded-full">
+                  {s}
+                </span>
+              ))}
+            </div>
+          </Section>
+        )}
+
         {/* カッピング */}
         {hasCupping && (
           <Section title="カッピング">

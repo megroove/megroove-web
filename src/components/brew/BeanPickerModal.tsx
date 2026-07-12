@@ -24,6 +24,7 @@ function AddBeanForm({ onAdd, onCancel, recentOrigins }: {
   const [roastedAt, setRoastedAt] = useState('')
   const [origin, setOrigin] = useState('')
   const [amountG, setAmountG] = useState<number | undefined>()
+  const [decaf, setDecaf] = useState(false)
   const [submitting, setSubmitting] = useState(false)
 
   const handleSubmit = async () => {
@@ -36,6 +37,7 @@ function AddBeanForm({ onAdd, onCancel, recentOrigins }: {
       roastedAt: roastedAt || undefined,
       origin: origin.trim() || undefined,
       initialAmountG: amountG,
+      decaf: decaf || undefined,
       createdAt: nowISO(),
     }
     await putBean(bean)
@@ -91,6 +93,19 @@ function AddBeanForm({ onAdd, onCancel, recentOrigins }: {
       <div>
         <label className="text-xs text-[#CE9C68] mb-1.5 block">産地（任意）</label>
         <OriginInput value={origin} onChange={setOrigin} recentOrigins={recentOrigins} />
+      </div>
+
+      <div className="flex items-center gap-2">
+        <button
+          type="button"
+          onClick={() => setDecaf(v => !v)}
+          className={`px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${
+            decaf ? 'bg-[#993C1D] text-[#F7EFE6]' : 'bg-[#3e3020] text-[#CE9C68]'
+          }`}
+        >
+          デカフェ
+        </button>
+        <span className="text-[10px] text-[#6b5a4a]">カフェイン推定を約1/10にします</span>
       </div>
 
       <div>

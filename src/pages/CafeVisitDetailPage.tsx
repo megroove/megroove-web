@@ -133,6 +133,11 @@ export default function CafeVisitDetailPage() {
       <Section title="ドリンク情報">
         {visit.drinkType && <Row label="種類" value={CAFE_DRINK_TYPE_LABELS[visit.drinkType]} />}
         {visit.size && <Row label="サイズ" value={CAFE_DRINK_SIZE_LABELS[visit.size]} />}
+        {visit.decaf && <Row label="デカフェ" value="はい" />}
+        {visit.scene && <Row label="シーン" value={visit.scene} />}
+        {(visit.drinkStyle?.length ?? 0) > 0 && (
+          <Row label="飲み方" value={visit.drinkStyle!.join('・')} />
+        )}
         {visit.beanOrigin && <Row label="豆の産地" value={visit.beanOrigin} />}
         {visit.price != null && <Row label="価格" value={`¥${visit.price.toLocaleString()}`} />}
         {visit.caffeineAmount != null && (

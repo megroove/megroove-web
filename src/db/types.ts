@@ -19,6 +19,7 @@ export interface Bean {
   purchasedAt?: string // ISO date string
   initialAmountG?: number // 内容量 (g)。記録の粉量から残量を自動計算する
   finishedAt?: string     // 飲み切った日時 (ISO)。設定されるとアーカイブ扱い
+  decaf?: boolean         // デカフェ豆。カフェイン推定を通常の10%にする
   stockNote?: string
   createdAt: string    // ISO datetime
 }
@@ -91,7 +92,10 @@ export interface CafeVisit {
   flavors: string[]
   cupping?: CuppingScores  // 既存レコードとの後方互換のため optional
   cuppingAverage?: number
-  caffeineAmount?: number  // ドリンク種別＋サイズから推定
+  caffeineAmount?: number  // ドリンク種別＋サイズから推定（デカフェは10%）
+  decaf?: boolean          // デカフェドリンク
+  scene?: string           // シーン（朝の一杯 / 仕事のおとも 等）
+  drinkStyle?: string[]    // 飲み方（ブラック / ミルク 等、複数可）
   price?: number           // 円
   photoDataUrl?: string    // 写真（base64 JPEG）
   note?: string
@@ -114,6 +118,8 @@ export interface Brew {
   pourCount?: number         // 注湯回数
   rating?: number            // 星評価 1–5
   flavors: string[]          // フレーバーチップ
+  scene?: string             // シーン（朝の一杯 / 仕事のおとも 等）
+  drinkStyle?: string[]      // 飲み方（ブラック / ミルク 等、複数可）
   cupping: CuppingScores
   cuppingAverage?: number    // カッピング5軸の平均（保存時に計算）
   caffeineAmount?: number    // カフェイン量 (mg)。粉量から自動推定

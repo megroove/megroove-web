@@ -62,11 +62,13 @@ const CAFE_CAFFEINE_TABLE: Record<string, Record<string, number>> = {
 export function estimateCafeCaffeine(
   drinkType: string | undefined,
   size: string | undefined,
+  decaf = false,
 ): number | undefined {
   if (!drinkType) return undefined
   const table = CAFE_CAFFEINE_TABLE[drinkType]
   if (!table) return undefined
-  return table[size ?? 'M'] ?? table['M']
+  const mg = table[size ?? 'M'] ?? table['M']
+  return decaf ? Math.round(mg * DECAF_FACTOR) : mg
 }
 
 export const CAFE_DRINK_TYPE_LABELS: Record<string, string> = {
@@ -228,8 +230,11 @@ export function getBackupReminder(recordCount: number): string | null {
 // ─── Caffeine ────────────────────────────────────────────────────────────────
 
 // コーヒー粉 1g あたり約12mg (ドリップの一般的な推定値)
-export function estimateCaffeine(doseG: number): number {
-  return Math.round(doseG * 12)
+// デカフェは「カフェイン90%以上除去」の表示基準に基づき、控えめな上限として10%で推定
+const DECAF_FACTOR = 0.1
+
+export function estimateCaffeine(doseG: number, decaf = false): number {
+  return Math.round(doseG * 12 * (decaf ? DECAF_FACTOR : 1))
 }
 
 // 半減期モデル: 5.5時間で半分になる
@@ -308,6 +313,7 @@ export type BrewBlockId =
   | 'grind_temp'
   | 'rating'
   | 'flavors'
+  | 'scene'
   | 'cupping'
   | 'equipment'
   | 'extraction'
@@ -320,12 +326,17 @@ export const BREW_BLOCK_LABELS: Record<BrewBlockId, string> = {
   grind_temp: '挽き目 / 湯温',
   rating:     '評価（星）',
   flavors:    'フレーバー',
+  scene:      'シーン・飲み方',
   cupping:    'カッピング',
   equipment:  '器具',
   extraction: '抽出',
   note:       'メモ',
   photo:      '写真',
 }
+
+// シーン（単一選択）と飲み方（複数選択）の定番チップ
+export const SCENE_OPTIONS = ['朝の一杯', '仕事のおとも', '食後', 'リラックス', '来客', '外で']
+export const DRINK_STYLE_OPTIONS = ['ブラック', 'ミルク', '砂糖', 'アイス']
 
 export interface BrewLayoutSettings {
   main:          BrewBlockId[]
@@ -341,7 +352,7 @@ export const DEFAULT_BREW_LAYOUT: BrewLayoutSettings = {
 }
 
 const ALL_BREW_BLOCKS: BrewBlockId[] = [
-  'recipe', 'dose_water', 'grind_temp', 'rating', 'flavors',
+  'recipe', 'dose_water', 'grind_temp', 'rating', 'flavors', 'scene',
   'cupping', 'equipment', 'extraction', 'note', 'photo',
 ]
 

@@ -8,6 +8,7 @@ import {
   loadSettings, loadBrewLayout, resizeImage,
   ROAST_LEVEL_LABELS, daysSinceRoast,
   toDatetimeLocal, fromDatetimeLocal, formatBeanRemaining, calcFrequentFlavors, getBedtimeDate,
+  SCENE_OPTIONS, DRINK_STYLE_OPTIONS,
 } from '../db'
 import StarRating from '../components/brew/StarRating'
 import FlavorChips from '../components/brew/FlavorChips'
@@ -85,6 +86,8 @@ export default function BrewPage() {
   const [tempC, setTempC] = useState(90)
   const [rating, setRating] = useState(0)
   const [flavors, setFlavors] = useState<string[]>([])
+  const [scene, setScene] = useState('')
+  const [drinkStyle, setDrinkStyle] = useState<string[]>([])
   const [showDetail, setShowDetail] = useState(false)
   const [cupping, setCupping] = useState<CuppingScores>({})
   const [equipmentId, setEquipmentId] = useState<string | undefined>()
@@ -132,14 +135,15 @@ export default function BrewPage() {
 
   useEffect(() => {
     if (isEditMode || !doseG) { setBedtimePrediction(null); return }
+    const decaf = beans.find(b => b.id === beanId)?.decaf
     const now = new Date()
     const bt = getBedtimeDate(caffeineSettings.bedtimeHour, caffeineSettings.bedtimeMinute, now)
     const allIntakes = [
       ...pastIntakes,
-      { caffeineAmount: estimateCaffeine(doseG), brewedAt: now.toISOString() },
+      { caffeineAmount: estimateCaffeine(doseG, decaf), brewedAt: now.toISOString() },
     ]
     setBedtimePrediction(calcResidualCaffeine(allIntakes, bt))
-  }, [doseG, pastIntakes, isEditMode, caffeineSettings])
+  }, [doseG, pastIntakes, isEditMode, caffeineSettings, beanId, beans])
 
   const fillFromBrew = useCallback((b: Brew, copyEval: boolean) => {
     setBeanId(b.beanId)
@@ -152,11 +156,14 @@ export default function BrewPage() {
     setTotalTimeSec(b.totalTimeSec)
     setPourCount(b.pourCount)
     setFlavors(b.flavors)
+    // 飲み方は習慣なので引き継ぐ。シーンはその瞬間の文脈なのでコピーしない
+    setDrinkStyle(b.drinkStyle ?? [])
     if (copyEval) {
       setRating(b.rating ?? 0)
       setCupping(b.cupping)
       setNote(b.note ?? '')
       setPhotoDataUrl(b.photoDataUrl)
+      setScene(b.scene ?? '')
     }
   }, [])
 
@@ -205,9 +212,11 @@ export default function BrewPage() {
     pourCount,
     rating: rating || undefined,
     flavors,
+    scene: scene || undefined,
+    drinkStyle: drinkStyle.length > 0 ? drinkStyle : undefined,
     cupping,
     cuppingAverage: calcCuppingAverage(cupping),
-    caffeineAmount: doseG ? estimateCaffeine(doseG) : undefined,
+    caffeineAmount: doseG ? estimateCaffeine(doseG, selectedBean?.decaf) : undefined,
     photoDataUrl,
     note: note.trim() || undefined,
   })
@@ -341,6 +350,48 @@ export default function BrewPage() {
           <div key="flavors" className="bg-[#2E2018] rounded-xl p-4">
             <p className="text-xs text-[#CE9C68] mb-3">フレーバー</p>
             <FlavorChips selected={flavors} onChange={setFlavors} frequent={frequentFlavors} />
+          </div>
+        )
+
+      case 'scene':
+        return (
+          <div key="scene" className="bg-[#2E2018] rounded-xl p-4 flex flex-col gap-4">
+            <div>
+              <p className="text-xs text-[#CE9C68] mb-3">シーン</p>
+              <div className="flex flex-wrap gap-2">
+                {SCENE_OPTIONS.map(s => (
+                  <button
+                    key={s}
+                    type="button"
+                    onClick={() => setScene(scene === s ? '' : s)}
+                    className={`px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${
+                      scene === s ? 'bg-[#993C1D] text-[#F7EFE6]' : 'bg-[#3e3020] text-[#CE9C68]'
+                    }`}
+                  >
+                    {s}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div>
+              <p className="text-xs text-[#CE9C68] mb-3">飲み方</p>
+              <div className="flex flex-wrap gap-2">
+                {DRINK_STYLE_OPTIONS.map(s => (
+                  <button
+                    key={s}
+                    type="button"
+                    onClick={() => setDrinkStyle(
+                      drinkStyle.includes(s) ? drinkStyle.filter(x => x !== s) : [...drinkStyle, s],
+                    )}
+                    className={`px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${
+                      drinkStyle.includes(s) ? 'bg-[#993C1D] text-[#F7EFE6]' : 'bg-[#3e3020] text-[#CE9C68]'
+                    }`}
+                  >
+                    {s}
+                  </button>
+                ))}
+              </div>
+            </div>
           </div>
         )
 

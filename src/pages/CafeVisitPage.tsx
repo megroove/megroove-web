@@ -7,6 +7,7 @@ import {
   CAFE_DRINK_TYPE_LABELS, CAFE_DRINK_SIZE_LABELS, estimateCafeCaffeine,
   calcCuppingAverage, formatBrewDateShort, resizeImage,
   toDatetimeLocal, fromDatetimeLocal, calcFrequentFlavors,
+  SCENE_OPTIONS, DRINK_STYLE_OPTIONS,
 } from '../db'
 import StarRating from '../components/brew/StarRating'
 import FlavorChips from '../components/brew/FlavorChips'
@@ -109,6 +110,9 @@ export default function CafeVisitPage() {
   const [beanOrigin,     setBeanOrigin]     = useState('')
   const [rating,         setRating]         = useState(0)
   const [flavors,        setFlavors]        = useState<string[]>([])
+  const [decaf,          setDecaf]          = useState(false)
+  const [scene,          setScene]          = useState('')
+  const [drinkStyle,     setDrinkStyle]     = useState<string[]>([])
   const [cupping,        setCupping]        = useState<CuppingScores>({})
   const [price,          setPrice]          = useState<number | undefined>()
   const [note,           setNote]           = useState('')
@@ -159,6 +163,9 @@ export default function CafeVisitPage() {
       setBeanOrigin(v.beanOrigin ?? '')
       setRating(v.rating ?? 0)
       setFlavors(v.flavors)
+      setDecaf(v.decaf ?? false)
+      setScene(v.scene ?? '')
+      setDrinkStyle(v.drinkStyle ?? [])
       setCupping(v.cupping ?? {})
       setPrice(v.price)
       setNote(v.note ?? '')
@@ -174,11 +181,14 @@ export default function CafeVisitPage() {
     setSize(v.size)
     setBeanOrigin(v.beanOrigin ?? '')
     setFlavors(v.flavors)
+    setDecaf(v.decaf ?? false)
+    setDrinkStyle(v.drinkStyle ?? [])
     setPrice(v.price)
-    // 評価・カッピング・メモはこの訪問固有のためリセット
+    // 評価・カッピング・メモ・シーンはこの訪問固有のためリセット
     setRating(0)
     setCupping({})
     setNote('')
+    setScene('')
   }
 
   // カフェ名候補（入力に一致・未選択）
@@ -195,7 +205,7 @@ export default function CafeVisitPage() {
     if (latest) fillFromVisit(latest)
   }
 
-  const estimatedCaffeine = estimateCafeCaffeine(drinkType, size)
+  const estimatedCaffeine = estimateCafeCaffeine(drinkType, size, decaf)
 
   const handleSave = async () => {
     if (!cafeName.trim() || saving) return
@@ -210,9 +220,12 @@ export default function CafeVisitPage() {
       beanOrigin:     beanOrigin.trim() || undefined,
       rating:         rating || undefined,
       flavors,
+      decaf:          decaf || undefined,
+      scene:          scene || undefined,
+      drinkStyle:     drinkStyle.length > 0 ? drinkStyle : undefined,
       cupping,
       cuppingAverage: calcCuppingAverage(cupping),
-      caffeineAmount: estimateCafeCaffeine(drinkType, size),
+      caffeineAmount: estimateCafeCaffeine(drinkType, size, decaf),
       price,
       photoDataUrl,
       note:           note.trim() || undefined,
@@ -330,6 +343,17 @@ export default function CafeVisitPage() {
               </button>
             ))}
           </div>
+          <div className="flex items-center gap-2 mt-3">
+            <button type="button"
+              onClick={() => setDecaf(v => !v)}
+              className={`px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${
+                decaf ? 'bg-[#993C1D] text-[#F7EFE6]' : 'bg-[#3e3020] text-[#CE9C68]'
+              }`}
+            >
+              デカフェ
+            </button>
+            <span className="text-[10px] text-[#6b5a4a]">推定カフェインを約1/10にします</span>
+          </div>
         </div>
 
         {/* サイズ */}
@@ -366,6 +390,42 @@ export default function CafeVisitPage() {
         <div className="bg-[#2E2018] rounded-xl p-4">
           <p className="text-xs text-[#CE9C68] mb-3">フレーバー</p>
           <FlavorChips selected={flavors} onChange={setFlavors} frequent={frequentFlavors} />
+        </div>
+
+        {/* シーン・飲み方 */}
+        <div className="bg-[#2E2018] rounded-xl p-4 flex flex-col gap-4">
+          <div>
+            <p className="text-xs text-[#CE9C68] mb-3">シーン</p>
+            <div className="flex flex-wrap gap-2">
+              {SCENE_OPTIONS.map(s => (
+                <button key={s} type="button"
+                  onClick={() => setScene(scene === s ? '' : s)}
+                  className={`px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${
+                    scene === s ? 'bg-[#993C1D] text-[#F7EFE6]' : 'bg-[#3e3020] text-[#CE9C68]'
+                  }`}
+                >
+                  {s}
+                </button>
+              ))}
+            </div>
+          </div>
+          <div>
+            <p className="text-xs text-[#CE9C68] mb-3">飲み方</p>
+            <div className="flex flex-wrap gap-2">
+              {DRINK_STYLE_OPTIONS.map(s => (
+                <button key={s} type="button"
+                  onClick={() => setDrinkStyle(
+                    drinkStyle.includes(s) ? drinkStyle.filter(x => x !== s) : [...drinkStyle, s],
+                  )}
+                  className={`px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${
+                    drinkStyle.includes(s) ? 'bg-[#993C1D] text-[#F7EFE6]' : 'bg-[#3e3020] text-[#CE9C68]'
+                  }`}
+                >
+                  {s}
+                </button>
+              ))}
+            </div>
+          </div>
         </div>
 
         {/* 詳細 */}

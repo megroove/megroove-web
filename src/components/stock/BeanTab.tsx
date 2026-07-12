@@ -34,6 +34,7 @@ function BeanForm({
   const [farm,        setFarm]        = useState(initial?.farm        ?? '')
   const [variety,     setVariety]     = useState(initial?.variety     ?? '')
   const [process,     setProcess]     = useState(initial?.process     ?? '')
+  const [decaf,       setDecaf]       = useState(initial?.decaf       ?? false)
   const [stockNote,   setStockNote]   = useState(initial?.stockNote   ?? '')
   const [saving,      setSaving]      = useState(false)
   const showToast = useToast()
@@ -53,6 +54,7 @@ function BeanForm({
       farm:        farm.trim()      || undefined,
       variety:     variety.trim()   || undefined,
       process:     process.trim()   || undefined,
+      decaf:       decaf            || undefined,
       stockNote:   stockNote.trim() || undefined,
       createdAt:  initial?.createdAt ?? nowISO(),
     }
@@ -93,6 +95,19 @@ function BeanForm({
       <Field label="内容量（g）— 入力すると記録から残量を自動計算">
         <NumberInput value={amountG} onChange={setAmountG} placeholder="例: 200" min={1} />
       </Field>
+
+      <div className="flex items-center gap-2">
+        <button
+          type="button"
+          onClick={() => setDecaf(v => !v)}
+          className={`px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${
+            decaf ? 'bg-[#993C1D] text-[#F7EFE6]' : 'bg-[#3e3020] text-[#CE9C68]'
+          }`}
+        >
+          デカフェ
+        </button>
+        <span className="text-[10px] text-[#6b5a4a]">カフェイン推定を約1/10にします</span>
+      </div>
 
       {initial && (
         <button

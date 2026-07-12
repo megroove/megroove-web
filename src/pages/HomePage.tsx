@@ -342,8 +342,9 @@ export default function HomePage() {
         pourCount: b.pourCount,
         rating: quickRating || undefined,
         flavors: b.flavors,
+        drinkStyle: b.drinkStyle,
         cupping: {},
-        caffeineAmount: b.doseG ? estimateCaffeine(b.doseG) : undefined,
+        caffeineAmount: b.doseG ? estimateCaffeine(b.doseG, lastBrew.bean?.decaf) : undefined,
       })
       setSavedBrewCount(count + 1)
       setQuickSaving(false)
@@ -367,7 +368,7 @@ export default function HomePage() {
     const now = new Date()
     const bt = getBedtimeDate(s.bedtimeHour, s.bedtimeMinute, now)
     const mg = calcResidualCaffeine(
-      [...recentIntakes, { caffeineAmount: estimateCaffeine(lastBrew.brew.doseG), brewedAt: now.toISOString() }],
+      [...recentIntakes, { caffeineAmount: estimateCaffeine(lastBrew.brew.doseG, lastBrew.bean?.decaf), brewedAt: now.toISOString() }],
       bt,
     )
     return { mg, hour: s.bedtimeHour, minute: s.bedtimeMinute }
