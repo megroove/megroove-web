@@ -1,5 +1,11 @@
 @import "tailwindcss";
 
+/* アプリは常時ダークテーマ。ネイティブUI（日付ピッカーのアイコン・select・スクロールバー等）も
+   ダークで描画させる。datetime-local のカレンダーアイコンが黒く沈む問題の修正 */
+:root {
+  color-scheme: dark;
+}
+
 @keyframes ripple-out {
   0%   { transform: scale(0.3); opacity: 0.7; }
   100% { transform: scale(3.5); opacity: 0; }
