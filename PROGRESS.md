@@ -40,7 +40,9 @@
 
 ## 開発環境のメモ
 
-- dev サーバーは **ポート 5175**（5173=Hitofude、5174=totonoe-proxy は**別プロジェクト**。混同注意）
+- dev サーバーのポートは**起動ごとに変わる**（他プロジェクトの Vite が 5173〜 を先に使っていることがある）。
+  **`npm run dev` 起動時に Vite が表示する `Local:` の URL を正とする**こと。
+  開いた先が Megroove か不安なら `<title>Megroove</title>` で確認（過去に別ポートの別プロジェクトを開いて混乱した実績あり）
 - **dev で CSS が消えたら CSP を疑う**: 本番 CSP は `style-src 'self'`。Vite dev は CSS を `<style>` 注入
   するため、`vite.config.ts` の `relaxCspForDev` プラグインが dev 限定で `'unsafe-inline'` を足している
 - localhost と本番は別オリジン = **IndexedDB は共有されない**。dev での動作確認にはテストデータを作るか
