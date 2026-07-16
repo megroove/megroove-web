@@ -124,6 +124,16 @@ export default function AnalysisPage() {
   const hasEnoughData     = count >= 3
 
   const bestConditions = useMemo(() => calcBestConditions(brews), [brews])
+  // ゴールデンレシピ = 生涯ベストの一杯（★4以上が3杯以上あるときのみ）
+  // bestConditions ≠ null なら ★4以上が3杯以上あるので、rankBrews の先頭は必ず ★4以上
+  const goldenBrew = useMemo(
+    () => (bestConditions ? rankBrews(brews)[0] : null),
+    [brews, bestConditions],
+  )
+  const highRatedCount = useMemo(
+    () => brews.filter(b => (b.rating ?? 0) >= 4).length,
+    [brews],
+  )
   const trend          = useMemo(() => calcMonthlyTrend(brews, visits, trendMonths), [brews, visits, trendMonths])
   const hasTrendData   = useMemo(() => trend.some(m => m.cups > 0), [trend])
   const beanStats      = useMemo(() => calcBeanStats(brews).slice(0, 5), [brews])
@@ -215,46 +225,92 @@ export default function AnalysisPage() {
         )}
       </section>
 
-      {/* あなたのベスト条件 */}
-      {bestConditions && (
+      {/* あなたのゴールデンレシピ（生涯ベストの一杯 + ★4以上の傾向） */}
+      {goldenBrew && bestConditions ? (
         <section className="bg-[#2E2018] rounded-xl p-5 flex flex-col gap-3">
           <div className="flex items-center justify-between">
             <h3 className="text-sm font-semibold text-[#CE9C68] uppercase tracking-wider">
-              あなたのベスト条件
+              あなたのゴールデンレシピ
             </h3>
-            <span className="text-xs text-[#6b5a4a]">★4以上 {bestConditions.count}杯の平均</span>
+            <span className="text-xs text-[#6b5a4a]">{formatBrewDateShort(goldenBrew.brewedAt)}</span>
           </div>
+
+          {/* 生涯ベストの一杯 */}
+          <div className="flex items-baseline justify-between gap-2">
+            <p className="text-base text-[#F7EFE6] font-semibold truncate">
+              {(goldenBrew.beanId && beanMap.get(goldenBrew.beanId)?.name) ?? 'ホームブリュー'}
+            </p>
+            <span className="text-sm text-[#CE9C68] tracking-tight shrink-0">
+              {'★'.repeat(goldenBrew.rating ?? 0)}
+              {goldenBrew.doseG != null && goldenBrew.waterG != null && (
+                <span className="text-xs text-[#6b5a4a] ml-2">{goldenBrew.doseG}g / {goldenBrew.waterG}g</span>
+              )}
+            </span>
+          </div>
+
+          {/* その一杯の実条件（未記録の項目は出さない） */}
           <div className="grid grid-cols-2 gap-3">
-            {bestConditions.ratio !== undefined && (
+            {goldenBrew.doseG != null && goldenBrew.waterG != null && goldenBrew.doseG > 0 && (
               <div className="bg-[#3e3020] rounded-xl p-3 text-center">
-                <p className="text-lg font-bold text-[#F7EFE6] tabular-nums">1:{bestConditions.ratio.toFixed(1)}</p>
+                <p className="text-lg font-bold text-[#F7EFE6] tabular-nums">
+                  1:{(goldenBrew.waterG / goldenBrew.doseG).toFixed(1)}
+                </p>
                 <p className="text-[10px] text-[#6b5a4a] mt-0.5">比率</p>
               </div>
             )}
-            {bestConditions.tempC !== undefined && (
+            {goldenBrew.tempC != null && (
               <div className="bg-[#3e3020] rounded-xl p-3 text-center">
-                <p className="text-lg font-bold text-[#F7EFE6] tabular-nums">{Math.round(bestConditions.tempC)}°C</p>
+                <p className="text-lg font-bold text-[#F7EFE6] tabular-nums">{goldenBrew.tempC}°C</p>
                 <p className="text-[10px] text-[#6b5a4a] mt-0.5">湯温</p>
               </div>
             )}
-            {bestConditions.grindSize !== undefined && (
+            {goldenBrew.grindSize != null && (
               <div className="bg-[#3e3020] rounded-xl p-3 text-center">
-                <p className="text-lg font-bold text-[#F7EFE6] tabular-nums">{bestConditions.grindSize.toFixed(1)}</p>
+                <p className="text-lg font-bold text-[#F7EFE6] tabular-nums">{goldenBrew.grindSize}</p>
                 <p className="text-[10px] text-[#6b5a4a] mt-0.5">挽き目</p>
               </div>
             )}
-            {bestConditions.timeSec !== undefined && (
+            {goldenBrew.totalTimeSec != null && (
               <div className="bg-[#3e3020] rounded-xl p-3 text-center">
-                <p className="text-lg font-bold text-[#F7EFE6] tabular-nums">{formatSecToMmSs(Math.round(bestConditions.timeSec))}</p>
+                <p className="text-lg font-bold text-[#F7EFE6] tabular-nums">
+                  {formatSecToMmSs(goldenBrew.totalTimeSec)}
+                </p>
                 <p className="text-[10px] text-[#6b5a4a] mt-0.5">抽出時間</p>
               </div>
             )}
           </div>
+
+          {/* ★4以上の傾向（集計平均。副次表示） */}
           <p className="text-xs text-[#6b5a4a] leading-relaxed">
-            高評価の一杯はこの条件帯に集中しています。迷ったらここに戻りましょう。
+            ★4以上 {bestConditions.count}杯の傾向 —{' '}
+            {[
+              bestConditions.ratio !== undefined && `1:${bestConditions.ratio.toFixed(1)}`,
+              bestConditions.tempC !== undefined && `${Math.round(bestConditions.tempC)}°C`,
+              bestConditions.grindSize !== undefined && `挽き目 ${bestConditions.grindSize.toFixed(1)}`,
+              bestConditions.timeSec !== undefined && formatSecToMmSs(Math.round(bestConditions.timeSec)),
+            ].filter(Boolean).join('・')}
+          </p>
+
+          <button
+            type="button"
+            onClick={() => navigate('/brew', { state: { fromBrewId: goldenBrew.id } })}
+            className="w-full bg-[#993C1D] text-[#F7EFE6] py-3.5 rounded-xl font-semibold text-sm active:opacity-80 flex items-center justify-center gap-2"
+          >
+            <CupIcon size={18} />
+            この条件で淹れる
+          </button>
+        </section>
+      ) : brews.length > 0 ? (
+        // 空状態: 記録はあるが ★4以上が3杯未満
+        <section className="bg-[#2E2018] rounded-xl p-5 flex flex-col gap-2">
+          <h3 className="text-sm font-semibold text-[#CE9C68] uppercase tracking-wider">
+            あなたのゴールデンレシピ
+          </h3>
+          <p className="text-sm text-[#6b5a4a] leading-relaxed">
+            ★4以上の記録が3杯たまると、あなたのゴールデンレシピが現れます（いま {highRatedCount}杯）
           </p>
         </section>
-      )}
+      ) : null}
 
       {/* トレンド */}
       {hasTrendData && (
