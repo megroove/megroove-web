@@ -4,14 +4,14 @@ import RecordDisk from '../components/brew/RecordDisk'
 import StarRating from '../components/brew/StarRating'
 import SaveAnimation from '../components/brew/SaveAnimation'
 import { useToast } from '../components/Toast'
-import { getAllBrews, getAllBeans, getAllCafeVisits, getAllEquipment, putBrew, getBrewCount } from '../db'
+import { getAllBrews, getAllBeans, getAllCafeVisits, getAllEquipment, putBrew, putCafeVisit, getBrewCount } from '../db'
 import type { Brew, Bean, CafeVisit, Equipment } from '../db'
 import {
-  formatBrewDateShort, ROAST_LEVEL_LABELS, CAFE_DRINK_TYPE_LABELS,
+  formatBrewDateShort, ROAST_LEVEL_LABELS, CAFE_DRINK_TYPE_LABELS, CAFE_DRINK_SIZE_LABELS,
   EQUIPMENT_TYPE_LABELS, daysSinceRoast,
   getBackupReminder, snoozeBackupReminder,
   calcResidualCaffeine, calcStreakDays, isSameLocalDay,
-  newId, nowISO, estimateCaffeine, calcRatio, loadSettings, getBedtimeDate,
+  newId, nowISO, estimateCaffeine, estimateCafeCaffeine, calcRatio, loadSettings, getBedtimeDate,
 } from '../db'
 import {
   GearIcon, CupIcon, CafeIcon, TrophyIcon, CameraIcon, DownloadIcon,
@@ -228,6 +228,12 @@ export default function HomePage() {
   const [savedBrewCount, setSavedBrewCount] = useState(0)
   const [recentIntakes, setRecentIntakes] = useState<{ caffeineAmount: number; brewedAt: string }[]>([])
 
+  // 「また、あのカフェの一杯」クイック記録（カフェ版）
+  const [lastVisit, setLastVisit] = useState<CafeVisit | null>(null)
+  const [showCafeQuickSheet, setShowCafeQuickSheet] = useState(false)
+  const [cafeQuickRating, setCafeQuickRating] = useState(0)
+  const [cafeQuickSaving, setCafeQuickSaving] = useState(false)
+
   // Featured 選択（localStorage から復元）
   const [featuredBeanId, setFeaturedBeanId] = useState<string | null>(loadFeaturedBeanId)
   const [featuredItem, setFeaturedItem] = useState<FeaturedItem | null>(loadFeaturedItem)
@@ -263,6 +269,9 @@ export default function HomePage() {
         setLastBrew(last
           ? { brew: last, bean: last.beanId ? beanMap.get(last.beanId) : undefined }
           : null)
+
+        // カフェ版クイック記録用の前回来店（ブリュー版と同じ「最後の1件」）
+        setLastVisit(visits.at(-1) ?? null)
 
         // 最近の記録（ブリュー＋カフェ混合、新しい順5件）
         const brewItems: RecentItem[] = [...brews].reverse().slice(0, 5).map(b => ({
@@ -361,6 +370,40 @@ export default function HomePage() {
     loadHome()
   }, [loadHome])
 
+  // カフェ版クイック保存: 「過去の記録から始める」（fillFromVisit）と同じ範囲をコピーする
+  // （評価・カッピング・メモ・シーン・写真はこの一杯固有のためコピーしない）
+  const handleCafeQuickSave = async () => {
+    if (!lastVisit || cafeQuickSaving) return
+    setCafeQuickSaving(true)
+    try {
+      const v = lastVisit
+      await putCafeVisit({
+        id: newId(),
+        createdAt: nowISO(),
+        visitedAt: nowISO(),
+        cafeName: v.cafeName,
+        drinkName: v.drinkName,
+        drinkType: v.drinkType,
+        size: v.size,
+        beanOrigin: v.beanOrigin,
+        rating: cafeQuickRating || undefined,
+        flavors: v.flavors,
+        decaf: v.decaf,
+        drinkStyle: v.drinkStyle,
+        cupping: {},
+        caffeineAmount: estimateCafeCaffeine(v.drinkType, v.size, v.decaf),
+        price: v.price,
+      })
+      setCafeQuickSaving(false)
+      setShowCafeQuickSheet(false)
+      showToast('カフェの一杯を記録しました', { type: 'success' })
+      loadHome()
+    } catch {
+      setCafeQuickSaving(false)
+      showToast('保存に失敗しました。ストレージの空き容量を確認してください', { type: 'error' })
+    }
+  }
+
   // 「いま飲むと就寝時に約◯mg」の事前提示（推定・目安）
   const quickPrediction = useMemo(() => {
     if (!showQuickSheet || !lastBrew?.brew.doseG) return null
@@ -373,6 +416,21 @@ export default function HomePage() {
     )
     return { mg, hour: s.bedtimeHour, minute: s.bedtimeMinute }
   }, [showQuickSheet, lastBrew, recentIntakes])
+
+  // カフェ版の就寝時予測（ドリンク種別×サイズの推定カフェインで計算）
+  const cafeQuickPrediction = useMemo(() => {
+    if (!showCafeQuickSheet || !lastVisit) return null
+    const mg0 = estimateCafeCaffeine(lastVisit.drinkType, lastVisit.size, lastVisit.decaf)
+    if (mg0 == null) return null
+    const s = loadSettings()
+    const now = new Date()
+    const bt = getBedtimeDate(s.bedtimeHour, s.bedtimeMinute, now)
+    const mg = calcResidualCaffeine(
+      [...recentIntakes, { caffeineAmount: mg0, brewedAt: now.toISOString() }],
+      bt,
+    )
+    return { mg, hour: s.bedtimeHour, minute: s.bedtimeMinute }
+  }, [showCafeQuickSheet, lastVisit, recentIntakes])
 
   const featuredBean = beans.find(b => b.id === featuredBeanId)
   const featuredEquipment =
@@ -464,6 +522,25 @@ export default function HomePage() {
             {lastBrew.brew.doseG != null && lastBrew.brew.waterG != null
               ? ` · ${lastBrew.brew.doseG}g / ${lastBrew.brew.waterG}g`
               : ''}
+          </span>
+        </button>
+      )}
+
+      {/* また、あのカフェの一杯（カフェ版クイック記録） */}
+      {lastVisit && (
+        <button
+          type="button"
+          onClick={() => { setCafeQuickRating(0); setShowCafeQuickSheet(true) }}
+          className={`${lastBrew ? '-mt-4' : '-mt-3'} w-full bg-[#2E2018] rounded-xl px-4 py-2.5 flex items-center justify-between gap-3 active:opacity-80`}
+        >
+          <span className="text-sm text-[#CE9C68] font-medium shrink-0">また、あのカフェの一杯</span>
+          <span className="text-xs text-[#6b5a4a] truncate">
+            {lastVisit.cafeName}
+            {lastVisit.drinkName
+              ? ` · ${lastVisit.drinkName}`
+              : lastVisit.drinkType
+                ? ` · ${CAFE_DRINK_TYPE_LABELS[lastVisit.drinkType]}`
+                : ''}
           </span>
         </button>
       )}
@@ -813,6 +890,67 @@ export default function HomePage() {
             <button
               type="button"
               onClick={() => { setShowQuickSheet(false); navigate('/brew') }}
+              className="text-sm text-[#CE9C68] text-center active:opacity-70"
+            >
+              詳しく記録する →
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* ─── カフェ版クイック記録シート ─── */}
+      {showCafeQuickSheet && lastVisit && (
+        <div
+          className="fixed inset-0 bg-black/70 flex items-end justify-center z-50"
+          onClick={() => setShowCafeQuickSheet(false)}
+        >
+          <div
+            className="bg-[#2E2018] rounded-t-2xl w-full max-w-lg p-5 pb-8 flex flex-col gap-4"
+            onClick={e => e.stopPropagation()}
+          >
+            <h3 className="text-[#F7EFE6] font-semibold">また、あのカフェの一杯</h3>
+
+            {/* 前回の一杯のサマリ（読み取り専用） */}
+            <div className="bg-[#3e3020] rounded-xl p-4 flex flex-col gap-2">
+              <div className="flex items-baseline justify-between gap-2">
+                <p className="text-sm text-[#F7EFE6] font-medium truncate">{lastVisit.cafeName}</p>
+                {lastVisit.decaf && (
+                  <span className="text-[10px] text-[#CE9C68] shrink-0">デカフェ</span>
+                )}
+              </div>
+              <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-[#CE9C68]">
+                {(lastVisit.drinkName || lastVisit.drinkType) && (
+                  <span>
+                    {lastVisit.drinkName ?? CAFE_DRINK_TYPE_LABELS[lastVisit.drinkType!]}
+                    {lastVisit.size ? `（${CAFE_DRINK_SIZE_LABELS[lastVisit.size]}）` : ''}
+                  </span>
+                )}
+                {lastVisit.price != null && <span>¥{lastVisit.price.toLocaleString()}</span>}
+              </div>
+            </div>
+
+            {cafeQuickPrediction && cafeQuickPrediction.mg >= 5 && (
+              <p className="text-[11px] text-[#6b5a4a] text-center">
+                いま飲むと、就寝時（{cafeQuickPrediction.hour.toString().padStart(2, '0')}:{cafeQuickPrediction.minute.toString().padStart(2, '0')}）の推定残留量は約{Math.round(cafeQuickPrediction.mg)}mg（個人差があります）
+              </p>
+            )}
+
+            <div className="flex flex-col items-center gap-2">
+              <p className="text-xs text-[#CE9C68]">今日の一杯はどうでしたか？</p>
+              <StarRating value={cafeQuickRating} onChange={setCafeQuickRating} />
+            </div>
+
+            <button
+              type="button"
+              onClick={handleCafeQuickSave}
+              disabled={cafeQuickRating === 0 || cafeQuickSaving}
+              className="w-full bg-[#993C1D] text-[#F7EFE6] py-3.5 rounded-2xl text-base font-semibold active:opacity-80 disabled:opacity-40"
+            >
+              {cafeQuickSaving ? '保存中...' : 'この一杯を記録する'}
+            </button>
+            <button
+              type="button"
+              onClick={() => { setShowCafeQuickSheet(false); navigate('/cafe') }}
               className="text-sm text-[#CE9C68] text-center active:opacity-70"
             >
               詳しく記録する →
