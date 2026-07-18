@@ -7,9 +7,10 @@ import {
 } from '../db'
 import RadarChart from '../components/analysis/RadarChart'
 import TrendChart from '../components/analysis/TrendChart'
+import AgingWindowCard from '../components/analysis/AgingWindowCard'
 import {
   calcWeightedScores, generateInsight, rankBrews,
-  calcMonthlyTrend, calcBestConditions, calcBeanStats,
+  calcMonthlyTrend, calcBestConditions, calcBeanStats, calcAgingWindow,
 } from '../components/analysis/stats'
 import { RankBadge, GlobeIcon, CupIcon } from '../components/icons'
 
@@ -137,6 +138,7 @@ export default function AnalysisPage() {
   const trend          = useMemo(() => calcMonthlyTrend(brews, visits, trendMonths), [brews, visits, trendMonths])
   const hasTrendData   = useMemo(() => trend.some(m => m.cups > 0), [trend])
   const beanStats      = useMemo(() => calcBeanStats(brews).slice(0, 5), [brews])
+  const agingWindow    = useMemo(() => calcAgingWindow(brews, [...beanMap.values()]), [brews, beanMap])
 
   const monthlyBrews = useMemo(() => brews.filter(isThisMonth), [brews])
   const yearlyBrews  = useMemo(() => brews.filter(isThisYear),  [brews])
@@ -311,6 +313,9 @@ export default function AnalysisPage() {
           </p>
         </section>
       ) : null}
+
+      {/* 飲み頃の傾向（焙煎日齢 × 評価） */}
+      {brews.length > 0 && <AgingWindowCard result={agingWindow} context="global" />}
 
       {/* トレンド */}
       {hasTrendData && (

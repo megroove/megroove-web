@@ -7,7 +7,8 @@ import {
   ROAST_LEVEL_LABELS, daysSinceRoast,
 } from '../db'
 import RadarChart from '../components/analysis/RadarChart'
-import { calcWeightedScores, rankBrews } from '../components/analysis/stats'
+import AgingWindowCard from '../components/analysis/AgingWindowCard'
+import { calcWeightedScores, rankBrews, calcAgingWindow } from '../components/analysis/stats'
 import { CupIcon } from '../components/icons'
 
 export default function BeanAnalysisPage() {
@@ -56,6 +57,11 @@ export default function BeanAnalysisPage() {
   const recent = useMemo(
     () => [...beanBrews].reverse().slice(0, 10),
     [beanBrews],
+  )
+
+  const agingWindow = useMemo(
+    () => (bean ? calcAgingWindow(beanBrews, [bean]) : { buckets: [], total: 0 }),
+    [beanBrews, bean],
   )
 
   if (loading || !bean) {
@@ -170,6 +176,9 @@ export default function BeanAnalysisPage() {
           </button>
         </section>
       )}
+
+      {/* この豆の飲み頃（焙煎日齢 × 評価） */}
+      <AgingWindowCard result={agingWindow} context="bean" />
 
       {/* 記録一覧 */}
       <section className="flex flex-col gap-3">

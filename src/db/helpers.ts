@@ -33,6 +33,13 @@ export function daysSinceRoast(roastedAt: string): number {
   return Math.floor((now.getTime() - roasted.getTime()) / (1000 * 60 * 60 * 24))
 }
 
+// 淹れた時点の焙煎日齢（飲み頃分析用）。daysSinceRoast と違い「今」ではなく brewedAt 基準
+export function roastAgeAtBrew(roastedAt: string, brewedAt: string): number {
+  const roasted = new Date(roastedAt).getTime()
+  const brewed = new Date(brewedAt).getTime()
+  return Math.floor((brewed - roasted) / (1000 * 60 * 60 * 24))
+}
+
 export const ROAST_LEVEL_LABELS: Record<string, string> = {
   light: '浅煎り',
   'light-medium': '浅〜中煎り',

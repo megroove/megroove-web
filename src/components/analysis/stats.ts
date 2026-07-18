@@ -1,4 +1,5 @@
-import type { Brew, CafeVisit } from '../../db'
+import type { Brew, Bean, CafeVisit } from '../../db'
+import { roastAgeAtBrew } from '../../db'
 import type { RadarScores } from './RadarChart'
 
 // ─── カッピング加重平均（レーダー用） ─────────────────────────────────────────
@@ -154,4 +155,73 @@ export function calcBeanStats(brews: Brew[]): BeanStat[] {
         : undefined,
     }))
     .sort((a, b) => b.count - a.count)
+}
+
+// ─── 飲み頃分析（焙煎日齢 × 評価） ─────────────────────────────────────────────
+// 1データ点 = 1杯（Brew）。淹れた時点の焙煎日齢を帯に振り分け、帯ごとの平均評価を集計する。
+// 対象は beanId + 豆の roastedAt + rating がそろった Brew のみ（roastedAt 未登録は分析対象外）。
+
+export const AGING_MIN_TOTAL = 5   // 帯全体でこの杯数以上たまるとカードを出す
+const AGING_MIN_PEAK = 2           // ピーク帯として名指しするのに必要な杯数
+
+const AGING_BUCKET_DEFS: { min: number; max: number }[] = [
+  { min: 0,  max: 3 },
+  { min: 4,  max: 6 },
+  { min: 7,  max: 13 },
+  { min: 14, max: 20 },
+  { min: 21, max: 29 },
+  { min: 30, max: Infinity },
+]
+
+export interface AgingBucket {
+  min: number
+  max: number          // Infinity = 上限なし（30日〜）
+  count: number
+  avgRating: number
+}
+
+export interface AgingWindow {
+  buckets: AgingBucket[]  // count>0 の帯のみ、日齢の昇順
+  total: number           // 有効データ点の総数
+  peak?: AgingBucket      // 高評価が集中する帯（該当なしなら undefined）
+}
+
+export function bucketLabel(b: { min: number; max: number }): string {
+  return b.max === Infinity ? `${b.min}日〜` : `${b.min}〜${b.max}日`
+}
+
+export function calcAgingWindow(brews: Brew[], beans: Bean[]): AgingWindow {
+  const roastMap = new Map(beans.map(b => [b.id, b.roastedAt]))
+  const acc = AGING_BUCKET_DEFS.map(d => ({ ...d, ratings: [] as number[] }))
+
+  for (const brew of brews) {
+    if (!brew.beanId || !brew.rating) continue
+    const roastedAt = roastMap.get(brew.beanId)
+    if (!roastedAt) continue
+    const age = roastAgeAtBrew(roastedAt, brew.brewedAt)
+    if (age < 0) continue
+    const bucket = acc.find(d => age >= d.min && age <= d.max)
+    if (bucket) bucket.ratings.push(brew.rating)
+  }
+
+  const buckets: AgingBucket[] = acc
+    .filter(d => d.ratings.length > 0)
+    .map(d => ({
+      min: d.min,
+      max: d.max,
+      count: d.ratings.length,
+      avgRating: d.ratings.reduce((a, b) => a + b, 0) / d.ratings.length,
+    }))
+
+  const total = buckets.reduce((s, b) => s + b.count, 0)
+
+  const candidates = buckets.filter(b => b.count >= AGING_MIN_PEAK)
+  const peak = candidates.reduce<AgingBucket | undefined>((best, b) => {
+    if (!best) return b
+    if (b.avgRating > best.avgRating) return b
+    if (b.avgRating === best.avgRating && b.count > best.count) return b
+    return best
+  }, undefined)
+
+  return { buckets, total, peak }
 }
