@@ -223,15 +223,38 @@ export function snoozeBackupReminder(): void {
   localStorage.setItem(BACKUP_SNOOZE_KEY, until.toISOString())
 }
 
-// 記録が10件以上あり、未エクスポート or 30日超過ならリマインド文言を返す
-export function getBackupReminder(recordCount: number): string | null {
+// 前回エクスポート以降に増えた記録数（未エクスポートなら全件）。
+// createdAt 基準 = 「バックアップに含まれていない記録」の数
+export function countUnbackedRecords(records: { createdAt: string }[]): number {
+  const last = loadLastExportAt()
+  if (!last) return records.length
+  return records.filter(r => r.createdAt > last).length
+}
+
+// 記録が10件以上あり、未エクスポート or 30日超過 or 未バックアップ20件以上ならリマインド文言を返す。
+// 発火条件に応じた文言にする（何が失われ得るかが具体的に伝わるように。急かす表現はしない）
+export function getBackupReminder(recordCount: number, unbackedCount: number): string | null {
   if (recordCount < 10) return null
   const snooze = localStorage.getItem(BACKUP_SNOOZE_KEY)
   if (snooze && new Date(snooze).getTime() > Date.now()) return null
   const days = daysSinceLastExport()
   if (days === null) return 'まだバックアップがありません。ブラウザのデータ消去に備えてエクスポートを推奨します。'
-  if (days > 30) return `最後のバックアップから${days}日経過しています。エクスポートを推奨します。`
+  if (unbackedCount === 0) return null // 前回から記録が増えていなければ促す意味がない
+  if (unbackedCount >= 20) return `バックアップされていない記録が${unbackedCount}件あります。エクスポートを推奨します。`
+  if (days > 30) return `最後のバックアップから${days}日経過しています（未バックアップ${unbackedCount}件）。エクスポートを推奨します。`
   return null
+}
+
+// ─── Backup intro card（初回の仕組み周知。一度閉じたら二度と出さない） ────────────
+
+const BACKUP_INTRO_KEY = 'megroove-backup-intro'
+
+export function hasSeenBackupIntro(): boolean {
+  return localStorage.getItem(BACKUP_INTRO_KEY) === '1'
+}
+
+export function markBackupIntroSeen(): void {
+  localStorage.setItem(BACKUP_INTRO_KEY, '1')
 }
 
 // ─── Caffeine ────────────────────────────────────────────────────────────────

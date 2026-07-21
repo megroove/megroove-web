@@ -9,7 +9,8 @@ import type { Brew, Bean, CafeVisit, Equipment } from '../db'
 import {
   formatBrewDateShort, ROAST_LEVEL_LABELS, CAFE_DRINK_TYPE_LABELS, CAFE_DRINK_SIZE_LABELS,
   EQUIPMENT_TYPE_LABELS, daysSinceRoast,
-  getBackupReminder, snoozeBackupReminder,
+  getBackupReminder, snoozeBackupReminder, countUnbackedRecords,
+  hasSeenBackupIntro, markBackupIntroSeen, loadLastExportAt, exportBackup,
   calcResidualCaffeine, calcStreakDays, isSameLocalDay,
   newId, nowISO, estimateCaffeine, estimateCafeCaffeine, calcRatio, loadSettings, getBedtimeDate,
 } from '../db'
@@ -215,6 +216,8 @@ export default function HomePage() {
   const [dbError, setDbError] = useState(false)
   const [loading, setLoading] = useState(true)
   const [backupReminder, setBackupReminder] = useState<string | null>(null)
+  const [showBackupIntro, setShowBackupIntro] = useState(false)
+  const [quickExporting, setQuickExporting] = useState(false)
   const [todayStats, setTodayStats] = useState<{ cups: number; residualMg: number; streak: number } | null>(null)
   const [onThisDay, setOnThisDay] = useState<OnThisDayItem | null>(null)
 
@@ -297,8 +300,18 @@ export default function HomePage() {
         // あの日の一杯
         setOnThisDay(findOnThisDay(brews, beanMap, visits, new Date()))
 
-        // バックアップリマインダー（記録10件以上・未エクスポート or 30日超過）
-        setBackupReminder(getBackupReminder(brews.length + visits.length))
+        // バックアップリマインダー（記録10件以上・未エクスポート or 30日超過 or 未バックアップ20件以上）
+        const totalCount = brews.length + visits.length
+        const unbacked = countUnbackedRecords([...brews, ...visits])
+        const reminder = getBackupReminder(totalCount, unbacked)
+        setBackupReminder(reminder)
+
+        // バックアップの仕組み周知カード（最初の記録〜9件の間に一度だけ。
+        // リマインダーが出るときは重ねない。エクスポート済みの人は仕組みを知っている）
+        setShowBackupIntro(
+          !reminder && totalCount >= 1 && totalCount < 10 &&
+          !loadLastExportAt() && !hasSeenBackupIntro()
+        )
 
         // 今日のサマリ（杯数・カフェイン残留量・連続記録日数）
         const now = new Date()
@@ -583,10 +596,23 @@ export default function HomePage() {
           <div className="flex gap-3">
             <button
               type="button"
-              onClick={() => navigate('/settings')}
-              className="flex-1 py-2 rounded-xl bg-[#993C1D] text-[#F7EFE6] text-sm font-semibold active:opacity-80"
+              disabled={quickExporting}
+              onClick={async () => {
+                // その場で即エクスポート（設定へ遷移しない。バックアップを1タップで完了させる）
+                setQuickExporting(true)
+                try {
+                  await exportBackup()
+                  setBackupReminder(null)
+                  showToast('バックアップを書き出しました', { type: 'success' })
+                } catch {
+                  showToast('エクスポートに失敗しました', { type: 'error' })
+                } finally {
+                  setQuickExporting(false)
+                }
+              }}
+              className="flex-1 py-2 rounded-xl bg-[#993C1D] text-[#F7EFE6] text-sm font-semibold active:opacity-80 disabled:opacity-40"
             >
-              エクスポートする
+              {quickExporting ? '書き出し中...' : 'エクスポートする'}
             </button>
             <button
               type="button"
@@ -596,6 +622,27 @@ export default function HomePage() {
               あとで（7日間非表示）
             </button>
           </div>
+        </div>
+      )}
+
+      {/* バックアップの仕組み周知（最初の記録後に一度だけ。「わかった」で二度と出ない） */}
+      {showBackupIntro && (
+        <div className="bg-[#2E2018] rounded-xl p-4 flex flex-col gap-2">
+          <p className="text-sm text-[#CE9C68] leading-relaxed flex items-start gap-2">
+            <DownloadIcon size={16} className="shrink-0 mt-0.5" />
+            <span>記録はこの端末のブラウザ内だけに保存されます</span>
+          </p>
+          <p className="text-xs text-[#6b5a4a] leading-relaxed">
+            ブラウザのデータ消去や端末の変更で記録が失われることがあります。
+            設定の「データ管理」から、いつでもJSONファイルにバックアップできます。
+          </p>
+          <button
+            type="button"
+            onClick={() => { markBackupIntroSeen(); setShowBackupIntro(false) }}
+            className="self-end px-4 py-1.5 rounded-xl bg-[#3e3020] text-[#CE9C68] text-sm active:opacity-80"
+          >
+            わかった
+          </button>
         </div>
       )}
 

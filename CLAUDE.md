@@ -118,6 +118,8 @@ competing する要求が出たら、必ずこの順位で判断する。
 | `megroove-featured-item` | ホーム画面のお気に入りアイテム（器具 or 写真） |
 | `megroove-last-export` | 最終エクスポート日時（ISO）。バックアップリマインダーに使用 |
 | `megroove-backup-snooze` | バックアップリマインダーの非表示期限（ISO） |
+| `megroove-backup-intro` | バックアップの仕組み周知カードを閉じたフラグ（一度閉じたら再表示しない） |
+| `megroove-onboarded` | 初回起動フィーチャーツアーの完了フラグ |
 
 ### Web特有の注意点（iOS版との違い）
 

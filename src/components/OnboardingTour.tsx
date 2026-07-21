@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import RecordDisk from './brew/RecordDisk'
-import { CupIcon, CafeIcon, AnalysisIcon } from './icons'
+import { CupIcon, CafeIcon, AnalysisIcon, DownloadIcon } from './icons'
 
 const ONBOARDING_KEY = 'megroove-onboarded'
 
@@ -32,6 +32,11 @@ const STEPS = [
     visual: <span className="text-[#CE9C68]"><AnalysisIcon size={64} strokeWidth={1.4} /></span>,
     title: '記録が積み重なるほど深まる',
     body: '分析画面では、あなたの好みをレーダーチャートで可視化。今月の一杯ランキングも確認できます。',
+  },
+  {
+    visual: <span className="text-[#CE9C68]"><DownloadIcon size={64} strokeWidth={1.4} /></span>,
+    title: '記録はこの端末の中だけに',
+    body: 'Megroove はサーバーを持たず、記録はこの端末のブラウザ内にだけ保存されます。設定の「データ管理」から、いつでもJSONファイルにバックアップできます。',
   },
 ]
 
