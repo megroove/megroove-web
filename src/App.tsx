@@ -60,7 +60,14 @@ export default function App() {
     <HashRouter>
       <ToastProvider>
       {showTour && <OnboardingTour onDone={() => setShowTour(false)} />}
-      <div className="flex flex-col min-h-svh pb-[calc(4rem+env(safe-area-inset-bottom))] w-full max-w-lg mx-auto">
+      <div
+        className="flex flex-col min-h-svh pb-[calc(4rem+env(safe-area-inset-bottom))] w-full max-w-lg mx-auto"
+        style={{
+          paddingTop: 'env(safe-area-inset-top)',
+          paddingLeft: 'env(safe-area-inset-left)',
+          paddingRight: 'env(safe-area-inset-right)',
+        }}
+      >
         <AppRoutes />
       </div>
       <BottomNav />
