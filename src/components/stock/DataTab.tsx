@@ -145,6 +145,7 @@ export default function DataTab() {
                 ['レシピ',     preview.recipes],
                 ['ブリュー',   preview.brews],
                 ['カフェ記録', preview.cafeVisits],
+                ['その他のカフェイン', preview.caffeineIntakes],
               ].map(([label, count]) => (
                 <div key={label as string} className="flex justify-between py-1 border-b border-[#2e2018] last:border-0">
                   <span className="text-sm text-[#6b5a4a]">{label}</span>
@@ -212,7 +213,7 @@ export default function DataTab() {
             <div className="bg-[#3e3020] rounded-xl p-4 text-center">
               <p className="text-[#F7EFE6] font-semibold mb-1">インポート完了</p>
               <p className="text-xs text-[#CE9C68]">
-                豆{result.beans}・器具{result.equipment}・レシピ{result.recipes}・ブリュー{result.brews}・カフェ{result.cafeVisits}件
+                豆{result.beans}・器具{result.equipment}・レシピ{result.recipes}・ブリュー{result.brews}・カフェ{result.cafeVisits}・その他カフェイン{result.caffeineIntakes}件
               </p>
             </div>
             <button

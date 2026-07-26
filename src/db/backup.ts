@@ -1,7 +1,7 @@
-import type { Bean, Equipment, Recipe, Brew, CafeVisit } from './types'
+import type { Bean, Equipment, Recipe, Brew, CafeVisit, CaffeineIntake } from './types'
 import {
-  getAllBeans, getAllEquipment, getAllRecipes, getAllBrews, getAllCafeVisits,
-  putBean, putEquipment, putRecipe, putBrew, putCafeVisit,
+  getAllBeans, getAllEquipment, getAllRecipes, getAllBrews, getAllCafeVisits, getAllCaffeineIntakes,
+  putBean, putEquipment, putRecipe, putBrew, putCafeVisit, putCaffeineIntake,
   clearAllData, getMeta, setMeta, getOrCreateUserSecret,
 } from './client'
 import { saveLastExportAt } from './helpers'
@@ -13,8 +13,9 @@ interface BackupData {
   equipment: Equipment[]
   recipes: Recipe[]
   brews: Brew[]
-  cafeVisits?: CafeVisit[]  // version 1 のファイルには存在しない（後方互換）
-  userSecret?: string       // version 3 から。データ提供の仮名ID継続用（機種変更対応）
+  cafeVisits?: CafeVisit[]           // version 1 のファイルには存在しない（後方互換）
+  caffeineIntakes?: CaffeineIntake[] // 後から追加（配列追加＝後方互換。version は据え置き）
+  userSecret?: string                // version 3 から。データ提供の仮名ID継続用（機種変更対応）
 }
 
 const MAX_IMPORT_FILE_SIZE = 100 * 1024 * 1024 // 100MB
@@ -27,14 +28,14 @@ function isSafePhotoDataUrl(url: unknown): boolean {
 }
 
 export async function exportBackup(): Promise<void> {
-  const [beans, equipment, recipes, brews, cafeVisits, userSecret] = await Promise.all([
+  const [beans, equipment, recipes, brews, cafeVisits, caffeineIntakes, userSecret] = await Promise.all([
     getAllBeans(), getAllEquipment(), getAllRecipes(), getAllBrews(), getAllCafeVisits(),
-    getOrCreateUserSecret(),
+    getAllCaffeineIntakes(), getOrCreateUserSecret(),
   ])
   const data: BackupData = {
     version: 3,
     exportedAt: new Date().toISOString(),
-    beans, equipment, recipes, brews, cafeVisits, userSecret,
+    beans, equipment, recipes, brews, cafeVisits, caffeineIntakes, userSecret,
   }
   const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' })
   const url  = URL.createObjectURL(blob)
@@ -54,6 +55,7 @@ export interface ImportResult {
   recipes: number
   brews: number
   cafeVisits: number
+  caffeineIntakes: number
 }
 
 export async function parseBackupFile(file: File): Promise<BackupData> {
@@ -80,6 +82,7 @@ export function summarizeBackup(data: BackupData): ImportResult {
     recipes:    data.recipes?.length ?? 0,
     brews:      data.brews?.length ?? 0,
     cafeVisits: data.cafeVisits?.length ?? 0,
+    caffeineIntakes: data.caffeineIntakes?.length ?? 0,
   }
 }
 
@@ -104,6 +107,7 @@ export async function importBackup(
     ...(data.recipes    ?? []).map(putRecipe),
     ...(data.brews      ?? []).map(b => putBrew(safeBrew(b))),
     ...(data.cafeVisits ?? []).map(v => putCafeVisit(safeVisit(v))),
+    ...(data.caffeineIntakes ?? []).map(putCaffeineIntake),
   ])
 
   // userSecret の復元: 完全置換はバックアップ側を採用、追加インポートは既存を優先

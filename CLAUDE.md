@@ -46,6 +46,10 @@ competing する要求が出たら、必ずこの順位で判断する。
 - 豆・器具・レシピの管理（ストック）＋ 記録画面からのその場追加
 - 保存完了アニメーション（波紋＋レコード盤フェードイン、節目演出）
 - カフェイン管理（摂取量記録・残留量推定・就寝時の残留予測。表現は §12 の健康情報方針に従う）
+  - コーヒー以外のカフェイン飲料（エナジードリンク/紅茶/緑茶/ウーロン茶/コーラ/その他）も
+    カフェインタブから選択式で記録し、残留量・就寝時予測・今日の摂取量に合流（`CaffeineIntake`）。
+    代表値は食品安全委員会の目安に基づく参考値で、UIに出典と「商品・サイズで変動」を明示（§12厳守）。
+    コーヒー記録（ライブラリ/分析/ランキング）には一切混ぜない
 - ホーム画面：今月のベスト記録・よく行くカフェランキング・推し豆・お気に入りアイテム枠
 - 設定画面（/settings）：記録画面カスタマイズ + データ管理（エクスポート/インポート）
 - ローカル完結のデータ管理（IndexedDB）＋ JSON エクスポート/インポート（カフェ記録含む・version 2）
@@ -97,8 +101,9 @@ competing する要求が出たら、必ずこの順位で判断する。
 - **フレームワーク**: React 19 + TypeScript + Vite 8
 - **スタイリング**: Tailwind CSS v4（`@tailwindcss/vite` プラグイン）
 - **永続化**: IndexedDB via `idb` ライブラリ
-  - DB名: `megroove`、バージョン: `3`
+  - DB名: `megroove`、バージョン: `4`
   - ストア: `beans` / `equipment` / `recipes` / `brews`（byBrewedAt インデックス）/ `cafeVisits`（byVisitedAt インデックス）/
+    `caffeineIntakes`（byConsumedAt インデックス。コーヒー以外のカフェイン飲料の摂取ログ）/
     `meta`（内部値。データ提供の仮名ID導出に使う `userSecret` 等。`clearAllData` の対象外）
   - iOS版 SwiftData の「ローカル完結」と同じ思想。データは端末・ブラウザ内のみに保持
   - 各エンティティは **UUID** を持つ（iOS版と揃える）
@@ -171,6 +176,12 @@ Brew（抽出ログ）が Bean と Recipe を参照し、そこから条件を�
 - decaf / scene / drinkStyle（いずれも任意。Brew と同じチップ）
 - **photoDataUrl（base64 JPEG、任意）**
 - メモ
+
+### CaffeineIntake（コーヒー以外のカフェイン飲料の摂取ログ）
+- id (UUID), 摂取日時 (consumedAt), category（energy/black_tea/green_tea/oolong_tea/cola/other）
+- quantity（本数/杯数・既定1）, caffeineAmount（1本あたりの目安×quantity。目安は参考値を初期表示し調整可）, note（任意・銘柄など）
+- Brew/CafeVisit とは独立ストア。**カフェイン管理の集計にのみ合流**し、ライブラリ・分析・ランキングには混ぜない
+- 代表値は `src/db/helpers.ts` の参考テーブル（食品安全委員会の目安に基づく）。§12 を厳守し UI に出典と参考値注記を明示
 
 ### 評価（Brew / CafeVisit に内包）
 - 星評価（総合, 数値 1〜5）

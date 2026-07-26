@@ -102,6 +102,28 @@ export interface CafeVisit {
   createdAt: string
 }
 
+// ─── CaffeineIntake（コーヒー以外のカフェイン飲料の摂取ログ） ─────────────────
+// コーヒー記録（Brew/CafeVisit）とは独立。カフェイン管理の集計にのみ合流させ、
+// ライブラリ・分析・ランキングには一切混ぜない（コーヒー記録の世界観を保つ）。
+
+export type CaffeineCategory =
+  | 'energy'      // エナジードリンク
+  | 'black_tea'   // 紅茶
+  | 'green_tea'   // 緑茶（せん茶）
+  | 'oolong_tea'  // ウーロン茶
+  | 'cola'        // コーラ
+  | 'other'       // その他
+
+export interface CaffeineIntake {
+  id: string
+  consumedAt: string       // ISO datetime（既定は現在時刻・編集可）
+  category: CaffeineCategory
+  quantity: number         // 本数/杯数（既定 1）
+  caffeineAmount: number   // 推定カフェイン量 (mg) = 代表値 × quantity。参考値
+  note?: string            // 任意メモ（銘柄など・自由入力）
+  createdAt: string
+}
+
 // ─── Brew ───────────────────────────────────────────────────────────────────
 
 export interface Brew {

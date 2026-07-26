@@ -86,6 +86,17 @@ export function CupIcon(props: IconProps) {
   )
 }
 
+// コーヒー以外のカフェイン飲料（缶・ボトル）
+export function DrinkIcon(props: IconProps) {
+  return (
+    <Svg {...props}>
+      <path d="M8 3.5h8" />
+      <path d="M7.5 6.5c0-1.5.8-3 4.5-3s4.5 1.5 4.5 3v12a2 2 0 0 1-2 2h-5a2 2 0 0 1-2-2Z" />
+      <path d="M7.5 10h9" />
+    </Svg>
+  )
+}
+
 export function CafeIcon(props: IconProps) {
   return (
     <Svg {...props}>

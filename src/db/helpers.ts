@@ -98,6 +98,40 @@ export const EQUIPMENT_TYPE_LABELS: Record<string, string> = {
   other: 'その他',
 }
 
+// ─── コーヒー以外のカフェイン飲料（参考値） ───────────────────────────────────
+// 出典: 食品安全委員会「食品中のカフェイン」ファクトシート（浸出液100mLあたり
+// 紅茶≒30 / せん茶≒20 / ウーロン茶≒20mg。1杯=150mL 前提で算出）。
+// エナジードリンクは製品により約36〜150mg/本と幅が大きいため、控えめの代表値に留める。
+// コーラは公的表に個別掲載がないため一般的な参考値（350mL缶相当）。
+// いずれも商品・淹れ方・サイズで変動する「一般的な目安・参考値」。断定しない（§12）。
+
+export const CAFFEINE_CATEGORY_LABELS: Record<string, string> = {
+  energy:     'エナジードリンク',
+  black_tea:  '紅茶',
+  green_tea:  '緑茶',
+  oolong_tea: 'ウーロン茶',
+  cola:       'コーラ',
+  other:      'その他',
+}
+
+// 1杯/1本あたりの代表カフェイン量 (mg)。参考値。
+const CAFFEINE_CATEGORY_MG: Record<string, number> = {
+  energy:     80,  // 控えめの代表値（製品により約36〜150mg/本）
+  black_tea:  45,  // 30mg/100mL × 150mL
+  green_tea:  30,  // 20mg/100mL × 150mL
+  oolong_tea: 30,  // 20mg/100mL × 150mL
+  cola:       35,  // 350mL缶相当の一般的な参考値
+  other:      50,  // おおまかな目安
+}
+
+// 1杯/1本あたりの参考量（UI の目安表示用）
+export const CAFFEINE_CATEGORY_UNIT_MG = CAFFEINE_CATEGORY_MG
+
+export function estimateOtherCaffeine(category: string, quantity: number): number {
+  const per = CAFFEINE_CATEGORY_MG[category] ?? CAFFEINE_CATEGORY_MG.other
+  return Math.round(per * Math.max(1, quantity))
+}
+
 const WEEKDAYS = ['日', '月', '火', '水', '木', '金', '土']
 
 export function formatBrewDate(isoString: string): string {

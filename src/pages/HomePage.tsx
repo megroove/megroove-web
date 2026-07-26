@@ -4,7 +4,7 @@ import RecordDisk from '../components/brew/RecordDisk'
 import StarRating from '../components/brew/StarRating'
 import SaveAnimation from '../components/brew/SaveAnimation'
 import { useToast } from '../components/Toast'
-import { getAllBrews, getAllBeans, getAllCafeVisits, getAllEquipment, putBrew, putCafeVisit, getBrewCount } from '../db'
+import { getAllBrews, getAllBeans, getAllCafeVisits, getAllEquipment, getAllCaffeineIntakes, putBrew, putCafeVisit, getBrewCount } from '../db'
 import type { Brew, Bean, CafeVisit, Equipment } from '../db'
 import {
   formatBrewDateShort, ROAST_LEVEL_LABELS, CAFE_DRINK_TYPE_LABELS, CAFE_DRINK_SIZE_LABELS,
@@ -260,8 +260,8 @@ export default function HomePage() {
   }
 
   const loadHome = useCallback(() => {
-    Promise.all([getAllBrews(), getAllBeans(), getAllCafeVisits(), getAllEquipment()]).then(
-      ([brews, beansList, visits, eqs]) => {
+    Promise.all([getAllBrews(), getAllBeans(), getAllCafeVisits(), getAllEquipment(), getAllCaffeineIntakes()]).then(
+      ([brews, beansList, visits, eqs, otherIntakes]) => {
         setBeans(beansList)
         setEquipment(eqs)
 
@@ -323,6 +323,10 @@ export default function HomePage() {
           ...visits
             .filter(v => v.caffeineAmount != null && new Date(v.visitedAt).getTime() > cutoff)
             .map(v => ({ caffeineAmount: v.caffeineAmount!, brewedAt: v.visitedAt })),
+          // コーヒー以外のカフェイン飲料も残留量・就寝時予測に合算（杯数・連続記録には含めない）
+          ...otherIntakes
+            .filter(o => new Date(o.consumedAt).getTime() > cutoff)
+            .map(o => ({ caffeineAmount: o.caffeineAmount, brewedAt: o.consumedAt })),
         ]
         setRecentIntakes(intakes)
         setTodayStats({

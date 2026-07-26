@@ -1,24 +1,44 @@
 import { useState, useEffect } from 'react'
-import { getAllBrews, getAllCafeVisits } from '../db'
-import { calcResidualCaffeine, loadSettings, saveSettings, getBedtimeDate, isSameLocalDay } from '../db'
+import { getAllBrews, getAllCafeVisits, getAllCaffeineIntakes, putCaffeineIntake, deleteCaffeineIntake } from '../db'
+import {
+  calcResidualCaffeine, loadSettings, saveSettings, getBedtimeDate, isSameLocalDay,
+  CAFFEINE_CATEGORY_LABELS, CAFFEINE_CATEGORY_UNIT_MG,
+  newId, nowISO, toDatetimeLocal, fromDatetimeLocal,
+} from '../db'
+import type { CaffeineCategory } from '../db'
 import CaffeineGraph from '../components/caffeine/CaffeineGraph'
-import { CupIcon, CafeIcon } from '../components/icons'
+import { CupIcon, CafeIcon, DrinkIcon } from '../components/icons'
+import { useToast } from '../components/Toast'
 
 function pad(n: number) {
   return n.toString().padStart(2, '0')
 }
 
+const CATEGORY_ORDER: CaffeineCategory[] = ['energy', 'black_tea', 'green_tea', 'oolong_tea', 'cola', 'other']
+
 type IntakeEntry = {
+  id?: string          // 'other' のみ（削除用）
   caffeineAmount: number
-  brewedAt: string
-  label: string   // 表示用ラベル
-  kind: 'brew' | 'cafe'
+  brewedAt: string     // 摂取時刻（brew/cafe/other 共通キー）
+  label: string        // 表示用ラベル
+  kind: 'brew' | 'cafe' | 'other'
 }
 
 export default function CaffeinePage() {
+  const showToast = useToast()
   const [intakeEntries, setIntakeEntries] = useState<IntakeEntry[]>([])
   const [settings, setSettings] = useState(loadSettings)
   const [now, setNow] = useState(() => new Date())
+  const [reloadKey, setReloadKey] = useState(0)
+
+  // その他の飲み物 追加シート
+  const [showAddSheet, setShowAddSheet] = useState(false)
+  const [addCategory, setAddCategory] = useState<CaffeineCategory>('energy')
+  const [addPerUnitMg, setAddPerUnitMg] = useState(CAFFEINE_CATEGORY_UNIT_MG.energy) // 1本/1杯あたりの目安（調整可）
+  const [addQuantity, setAddQuantity] = useState(1)
+  const [addAt, setAddAt] = useState('')
+  const [addNote, setAddNote] = useState('')
+  const [addSaving, setAddSaving] = useState(false)
 
   useEffect(() => {
     const id = setInterval(() => setNow(new Date()), 60_000)
@@ -28,7 +48,7 @@ export default function CaffeinePage() {
   useEffect(() => {
     const cutoff = Date.now() - 24 * 60 * 60 * 1000
 
-    Promise.all([getAllBrews(), getAllCafeVisits()]).then(([brews, visits]) => {
+    Promise.all([getAllBrews(), getAllCafeVisits(), getAllCaffeineIntakes()]).then(([brews, visits, others]) => {
       const brewEntries: IntakeEntry[] = brews
         .filter(b => b.caffeineAmount != null && new Date(b.brewedAt).getTime() > cutoff)
         .map(b => ({
@@ -47,12 +67,79 @@ export default function CaffeinePage() {
           kind: 'cafe' as const,
         }))
 
-      const merged = [...brewEntries, ...cafeEntries]
+      const otherEntries: IntakeEntry[] = others
+        .filter(o => new Date(o.consumedAt).getTime() > cutoff)
+        .map(o => ({
+          id: o.id,
+          caffeineAmount: o.caffeineAmount,
+          brewedAt: o.consumedAt,
+          label: o.note
+            ? `${CAFFEINE_CATEGORY_LABELS[o.category]}（${o.note}）`
+            : CAFFEINE_CATEGORY_LABELS[o.category],
+          kind: 'other' as const,
+        }))
+
+      const merged = [...brewEntries, ...cafeEntries, ...otherEntries]
         .sort((a, b) => b.brewedAt.localeCompare(a.brewedAt))
 
       setIntakeEntries(merged)
     }).catch(() => {/* カフェイン履歴の読込失敗時はグラフを空で表示 */})
-  }, [])
+  }, [reloadKey])
+
+  const openAddSheet = () => {
+    setAddCategory('energy')
+    setAddPerUnitMg(CAFFEINE_CATEGORY_UNIT_MG.energy)
+    setAddQuantity(1)
+    setAddAt(toDatetimeLocal(nowISO()))
+    setAddNote('')
+    setShowAddSheet(true)
+  }
+
+  // カテゴリを別のものに変えたら、その参考値に戻す（同じチップの再タップは無変更）
+  const selectAddCategory = (cat: CaffeineCategory) => {
+    if (cat === addCategory) return
+    setAddCategory(cat)
+    setAddPerUnitMg(CAFFEINE_CATEGORY_UNIT_MG[cat])
+  }
+
+  // 1本/1杯あたりの目安を 0〜1000mg・整数にクランプ
+  const setPerUnitClamped = (v: number) =>
+    setAddPerUnitMg(Number.isFinite(v) ? Math.min(1000, Math.max(0, Math.round(v))) : 0)
+
+  const addEstimate = Math.round(addPerUnitMg * addQuantity)
+
+  const handleAddSave = async () => {
+    if (addSaving) return
+    setAddSaving(true)
+    try {
+      await putCaffeineIntake({
+        id: newId(),
+        createdAt: nowISO(),
+        consumedAt: addAt ? fromDatetimeLocal(addAt) : nowISO(),
+        category: addCategory,
+        quantity: addQuantity,
+        caffeineAmount: addEstimate,
+        note: addNote.trim() || undefined,
+      })
+      setShowAddSheet(false)
+      setReloadKey(k => k + 1)
+      showToast('摂取を記録しました', { type: 'success' })
+    } catch {
+      showToast('保存に失敗しました', { type: 'error' })
+    } finally {
+      setAddSaving(false)
+    }
+  }
+
+  const handleDeleteOther = async (id: string) => {
+    try {
+      await deleteCaffeineIntake(id)
+      setReloadKey(k => k + 1)
+      showToast('削除しました', { type: 'success' })
+    } catch {
+      showToast('削除に失敗しました', { type: 'error' })
+    }
+  }
 
   const intakes = intakeEntries.map(e => ({
     caffeineAmount: e.caffeineAmount,
@@ -191,6 +278,16 @@ export default function CaffeinePage() {
         <span className={`text-sm font-medium ${bedtimeColor}`}>{bedtimeLabel}</span>
       </div>
 
+      {/* その他の飲み物を追加（コーヒー以外のカフェイン） */}
+      <button
+        type="button"
+        onClick={openAddSheet}
+        className="bg-[#2E2018] rounded-xl px-4 py-3 flex items-center justify-center gap-2 text-sm text-[#CE9C68] font-medium active:opacity-80"
+      >
+        <DrinkIcon size={16} />
+        その他の飲み物を追加
+      </button>
+
       {/* 過去24時間の摂取ログ */}
       <div className="bg-[#2E2018] rounded-xl p-4">
         <p className="text-xs text-[#CE9C68] mb-3">過去24時間の摂取</p>
@@ -217,14 +314,28 @@ export default function CaffeinePage() {
                       <p className="text-xs text-[#6b5a4a] flex items-center gap-1">
                         {entry.kind === 'brew'
                           ? <CupIcon size={11} className="shrink-0" />
-                          : <CafeIcon size={11} className="shrink-0" />}
+                          : entry.kind === 'cafe'
+                            ? <CafeIcon size={11} className="shrink-0" />
+                            : <DrinkIcon size={11} className="shrink-0" />}
                         {entry.label}
                       </p>
                     </div>
                   </div>
-                  <span className="text-xs text-[#CE9C68] tabular-nums shrink-0">
-                    残 {Math.round(residual)}mg
-                  </span>
+                  <div className="flex items-center gap-3 shrink-0">
+                    <span className="text-xs text-[#CE9C68] tabular-nums">
+                      残 {Math.round(residual)}mg
+                    </span>
+                    {entry.kind === 'other' && entry.id && (
+                      <button
+                        type="button"
+                        onClick={() => handleDeleteOther(entry.id!)}
+                        className="text-xs text-[#6b5a4a] active:opacity-60 px-1"
+                        aria-label="削除"
+                      >
+                        削除
+                      </button>
+                    )}
+                  </div>
                 </div>
               )
             })}
@@ -290,6 +401,12 @@ export default function CaffeinePage() {
           残留量は半減期 5.5 時間の一般的なモデルによる概算で、実際の代謝には大きな個人差があります。
         </p>
         <p>
+          コーヒー以外の飲料（紅茶・緑茶・ウーロン茶等）の値は、食品安全委員会「食品中のカフェイン」の
+          浸出液100mLあたりの目安（紅茶約30mg・せん茶約20mg・ウーロン茶約20mg）を1杯150mL換算した参考値です。
+          エナジードリンクは製品により約36〜150mg/本と幅が大きいため控えめの目安、コーラは一般的な参考値です。
+          いずれも商品・淹れ方・サイズで変動します。
+        </p>
+        <p>
           本画面の数値は生活の参考情報であり、医学的な助言・診断ではありません。
           体調に不安があるときは医師などの専門家にご相談ください。
         </p>
@@ -298,6 +415,127 @@ export default function CaffeinePage() {
           目安とする見解を公表しています。
         </p>
       </div>
+
+      {/* その他の飲み物 追加シート */}
+      {showAddSheet && (
+        <div
+          className="fixed inset-0 bg-black/70 flex items-end justify-center z-50"
+          onClick={() => setShowAddSheet(false)}
+        >
+          <div
+            className="bg-[#2E2018] rounded-t-2xl w-full max-w-lg p-5 pb-8 flex flex-col gap-4"
+            onClick={e => e.stopPropagation()}
+          >
+            <h3 className="text-[#F7EFE6] font-semibold">その他の飲み物を追加</h3>
+
+            {/* カテゴリ選択 */}
+            <div>
+              <p className="text-xs text-[#CE9C68] mb-2">種類</p>
+              <div className="flex flex-wrap gap-2">
+                {CATEGORY_ORDER.map(cat => (
+                  <button
+                    key={cat}
+                    type="button"
+                    onClick={() => selectAddCategory(cat)}
+                    className={`px-3 py-1.5 rounded-full text-sm active:opacity-80 ${
+                      addCategory === cat
+                        ? 'bg-[#993C1D] text-[#F7EFE6]'
+                        : 'bg-[#3e3020] text-[#CE9C68]'
+                    }`}
+                  >
+                    {CAFFEINE_CATEGORY_LABELS[cat]}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* 1本/1杯あたりの目安（参考値を初期表示。缶の表示などが分かれば調整できる） */}
+            <div>
+              <div className="flex items-center justify-between">
+                <p className="text-xs text-[#CE9C68]">1本/1杯あたりの目安（調整できます）</p>
+                <div className="flex items-center gap-2">
+                  <button type="button"
+                    onClick={() => setPerUnitClamped(addPerUnitMg - 5)}
+                    className="w-9 h-9 rounded-full bg-[#3e3020] text-[#F7EFE6] text-xl flex items-center justify-center active:opacity-70"
+                  >−</button>
+                  <div className="flex items-baseline">
+                    <input
+                      type="number"
+                      inputMode="numeric"
+                      min={0}
+                      max={1000}
+                      value={addPerUnitMg}
+                      onChange={e => setPerUnitClamped(e.target.value === '' ? 0 : Number(e.target.value))}
+                      className="w-14 bg-transparent text-[#F7EFE6] text-lg font-semibold outline-none tabular-nums text-right"
+                    />
+                    <span className="text-xs text-[#CE9C68] ml-1">mg</span>
+                  </div>
+                  <button type="button"
+                    onClick={() => setPerUnitClamped(addPerUnitMg + 5)}
+                    className="w-9 h-9 rounded-full bg-[#3e3020] text-[#F7EFE6] text-xl flex items-center justify-center active:opacity-70"
+                  >＋</button>
+                </div>
+              </div>
+              <p className="text-[11px] text-[#6b5a4a] mt-2">
+                商品・サイズで変動する参考値です。分かる場合は缶やパッケージの表示に合わせて調整できます。
+              </p>
+            </div>
+
+            {/* 数量 */}
+            <div className="flex items-center justify-between">
+              <p className="text-xs text-[#CE9C68]">杯数 / 本数</p>
+              <div className="flex items-center gap-2">
+                <button type="button"
+                  onClick={() => setAddQuantity(q => Math.max(1, q - 1))}
+                  className="w-9 h-9 rounded-full bg-[#3e3020] text-[#F7EFE6] text-xl flex items-center justify-center active:opacity-70"
+                >−</button>
+                <span className="w-10 text-center text-[#F7EFE6] text-lg font-semibold tabular-nums">{addQuantity}</span>
+                <button type="button"
+                  onClick={() => setAddQuantity(q => Math.min(20, q + 1))}
+                  className="w-9 h-9 rounded-full bg-[#3e3020] text-[#F7EFE6] text-xl flex items-center justify-center active:opacity-70"
+                >＋</button>
+              </div>
+            </div>
+
+            {/* 時刻 */}
+            <div>
+              <p className="text-xs text-[#CE9C68] mb-2">時刻</p>
+              <input
+                type="datetime-local"
+                value={addAt}
+                onChange={e => setAddAt(e.target.value)}
+                className="w-full bg-[#3e3020] text-[#F7EFE6] rounded-xl px-4 py-3 outline-none text-sm"
+              />
+            </div>
+
+            {/* メモ（任意・銘柄など） */}
+            <div>
+              <p className="text-xs text-[#CE9C68] mb-2">メモ（任意・銘柄など）</p>
+              <input
+                type="text"
+                value={addNote}
+                onChange={e => setAddNote(e.target.value)}
+                placeholder="例: モンスター"
+                className="w-full bg-[#3e3020] text-[#F7EFE6] rounded-xl px-4 py-3 outline-none placeholder-[#6b5a4a] text-sm"
+              />
+            </div>
+
+            <p className="text-sm text-[#CE9C68] text-center">
+              合計の目安 <span className="text-[#F7EFE6] font-semibold text-base tabular-nums">約 {addEstimate}mg</span>
+              <span className="text-[11px] text-[#6b5a4a] ml-1">（{addPerUnitMg} × {addQuantity}）</span>
+            </p>
+
+            <button
+              type="button"
+              onClick={handleAddSave}
+              disabled={addSaving}
+              className="w-full bg-[#993C1D] text-[#F7EFE6] py-3.5 rounded-2xl text-base font-semibold active:opacity-80 disabled:opacity-40"
+            >
+              {addSaving ? '保存中...' : 'この摂取を記録する'}
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

@@ -1,5 +1,5 @@
 import { openDB, type DBSchema, type IDBPDatabase } from 'idb'
-import type { Bean, Equipment, Recipe, Brew, CafeVisit } from './types'
+import type { Bean, Equipment, Recipe, Brew, CafeVisit, CaffeineIntake } from './types'
 
 interface MetaEntry {
   key: string
@@ -12,11 +12,12 @@ interface MegrooveDB extends DBSchema {
   recipes:    { key: string; value: Recipe }
   brews:      { key: string; value: Brew;      indexes: { byBrewedAt:  string } }
   cafeVisits: { key: string; value: CafeVisit; indexes: { byVisitedAt: string } }
+  caffeineIntakes: { key: string; value: CaffeineIntake; indexes: { byConsumedAt: string } }
   meta:       { key: string; value: MetaEntry }
 }
 
 const DB_NAME = 'megroove'
-const DB_VERSION = 3
+const DB_VERSION = 4
 
 let dbPromise: Promise<IDBPDatabase<MegrooveDB>> | null = null
 
@@ -38,6 +39,11 @@ function getDB() {
         if (oldVersion < 3) {
           // アプリ内部の設定値（userSecret 等）。ユーザーデータのストアとは分離する
           db.createObjectStore('meta', { keyPath: 'key' })
+        }
+        if (oldVersion < 4) {
+          // コーヒー以外のカフェイン飲料の摂取ログ。コーヒー記録とは独立
+          db.createObjectStore('caffeineIntakes', { keyPath: 'id' })
+            .createIndex('byConsumedAt', 'consumedAt')
         }
       },
     })
@@ -123,6 +129,18 @@ export async function deleteCafeVisit(id: string): Promise<void> {
   await (await getDB()).delete('cafeVisits', id)
 }
 
+// ─── CaffeineIntake（コーヒー以外のカフェイン飲料） ────────────────────────────
+
+export async function getAllCaffeineIntakes(): Promise<CaffeineIntake[]> {
+  return (await getDB()).getAllFromIndex('caffeineIntakes', 'byConsumedAt')
+}
+export async function putCaffeineIntake(intake: CaffeineIntake): Promise<void> {
+  await (await getDB()).put('caffeineIntakes', intake)
+}
+export async function deleteCaffeineIntake(id: string): Promise<void> {
+  await (await getDB()).delete('caffeineIntakes', id)
+}
+
 // ─── Meta（userSecret 等の内部値） ────────────────────────────────────────────
 
 export async function getMeta(key: string): Promise<string | undefined> {
@@ -149,7 +167,7 @@ export async function getOrCreateUserSecret(): Promise<string> {
 export async function clearAllData(): Promise<void> {
   const db = await getDB()
   const tx = db.transaction(
-    ['beans', 'equipment', 'recipes', 'brews', 'cafeVisits'],
+    ['beans', 'equipment', 'recipes', 'brews', 'cafeVisits', 'caffeineIntakes'],
     'readwrite',
   )
   await Promise.all([
@@ -158,6 +176,7 @@ export async function clearAllData(): Promise<void> {
     tx.objectStore('recipes').clear(),
     tx.objectStore('brews').clear(),
     tx.objectStore('cafeVisits').clear(),
+    tx.objectStore('caffeineIntakes').clear(),
   ])
   await tx.done
 }
