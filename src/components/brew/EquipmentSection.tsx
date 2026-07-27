@@ -60,7 +60,7 @@ export default function EquipmentSection({ equipment, selectedId, onSelect, onNe
         <div className="fixed inset-0 z-50 bg-black/70 flex items-end">
           <div
             className="bg-[#1a0a05] w-full rounded-t-2xl p-6 space-y-4"
-            style={{ animation: 'fade-up 0.2s ease-out' }}
+            style={{ animation: 'fade-up 0.2s ease-out', paddingBottom: 'calc(1.5rem + env(safe-area-inset-bottom))' }}
           >
             <h3 className="text-lg font-semibold text-[#F7EFE6]">器具を追加</h3>
 

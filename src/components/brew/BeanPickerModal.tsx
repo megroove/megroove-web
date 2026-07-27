@@ -166,7 +166,15 @@ export default function BeanPickerModal({ currentBeanId, onSelect, onClose }: Pr
 
   if (showAdd) {
     return (
-      <div className="fixed inset-0 z-50 bg-[#1a0a05] overflow-y-auto">
+      <div
+        className="fixed inset-0 z-50 bg-[#1a0a05] overflow-y-auto"
+        style={{
+          paddingTop: 'env(safe-area-inset-top)',
+          paddingLeft: 'env(safe-area-inset-left)',
+          paddingRight: 'env(safe-area-inset-right)',
+          paddingBottom: 'env(safe-area-inset-bottom)',
+        }}
+      >
         <div className="sticky top-0 flex items-center px-4 py-3 bg-[#1a0a05] border-b border-[#2e2018]">
           <button type="button" onClick={() => setShowAdd(false)} className="text-[#CE9C68] text-sm">
             ← 戻る
@@ -182,7 +190,14 @@ export default function BeanPickerModal({ currentBeanId, onSelect, onClose }: Pr
   }
 
   return (
-    <div className="fixed inset-0 z-50 bg-[#1a0a05] flex flex-col">
+    <div
+      className="fixed inset-0 z-50 bg-[#1a0a05] flex flex-col"
+      style={{
+        paddingTop: 'env(safe-area-inset-top)',
+        paddingLeft: 'env(safe-area-inset-left)',
+        paddingRight: 'env(safe-area-inset-right)',
+      }}
+    >
       <div className="flex items-center justify-between px-4 py-3 border-b border-[#2e2018]">
         <h2 className="text-lg font-semibold text-[#F7EFE6]">豆を選ぶ</h2>
         <button type="button" onClick={onClose} className="text-[#CE9C68] text-sm">
@@ -190,7 +205,7 @@ export default function BeanPickerModal({ currentBeanId, onSelect, onClose }: Pr
         </button>
       </div>
 
-      <div className="flex-1 overflow-y-auto">
+      <div className="flex-1 overflow-y-auto" style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}>
         {beans.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-48 gap-3">
             <p className="text-[#CE9C68] text-sm">まだ豆が登録されていません</p>

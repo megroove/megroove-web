@@ -257,6 +257,59 @@ export function snoozeBackupReminder(): void {
   localStorage.setItem(BACKUP_SNOOZE_KEY, until.toISOString())
 }
 
+// ─── 記録画面の下書き（入力途中の自動退避） ──────────────────────────────────
+// 新規記録の入力途中を localStorage に保存し、画面遷移で失われないようにする。
+
+const BREW_DRAFT_KEY = 'megroove-brew-draft'
+
+export interface BrewDraft {
+  brewedAtLocal: string
+  beanId?: string
+  recipeId?: string
+  doseG: number
+  waterG: number
+  grindSize?: number
+  tempC: number
+  rating: number
+  flavors: string[]
+  scene: string
+  drinkStyle: string[]
+  cupping: CuppingScores
+  equipmentId?: string
+  totalTimeSec?: number
+  pourCount?: number
+  note: string
+  photoDataUrl?: string
+  showDetail: boolean
+}
+
+export function saveBrewDraft(draft: BrewDraft): void {
+  try {
+    localStorage.setItem(BREW_DRAFT_KEY, JSON.stringify(draft))
+  } catch {
+    // 容量超過（写真が大きい等）のときは写真を除いて退避する
+    try {
+      localStorage.setItem(BREW_DRAFT_KEY, JSON.stringify({ ...draft, photoDataUrl: undefined }))
+    } catch {
+      // それでも失敗したら下書き保存は諦める（記録本体には影響しない）
+    }
+  }
+}
+
+export function loadBrewDraft(): BrewDraft | null {
+  const raw = localStorage.getItem(BREW_DRAFT_KEY)
+  if (!raw) return null
+  try {
+    return JSON.parse(raw) as BrewDraft
+  } catch {
+    return null
+  }
+}
+
+export function clearBrewDraft(): void {
+  localStorage.removeItem(BREW_DRAFT_KEY)
+}
+
 // 前回エクスポート以降に増えた記録数（未エクスポートなら全件）。
 // createdAt 基準 = 「バックアップに含まれていない記録」の数
 export function countUnbackedRecords(records: { createdAt: string }[]): number {

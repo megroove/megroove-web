@@ -137,7 +137,7 @@ export function ModalSheet({
         className="bg-[#1a0a05] w-full rounded-t-2xl flex flex-col"
         style={{ animation: 'fade-up 0.2s ease-out', maxHeight: '90svh' }}
       >
-        <div className="overflow-y-auto flex-1">
+        <div className="overflow-y-auto flex-1" style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}>
           {children}
         </div>
       </div>

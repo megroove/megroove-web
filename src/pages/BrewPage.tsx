@@ -9,7 +9,9 @@ import {
   ROAST_LEVEL_LABELS, daysSinceRoast,
   toDatetimeLocal, fromDatetimeLocal, formatBeanRemaining, calcFrequentFlavors, getBedtimeDate,
   SCENE_OPTIONS, DRINK_STYLE_OPTIONS,
+  saveBrewDraft, loadBrewDraft, clearBrewDraft,
 } from '../db'
+import type { BrewDraft } from '../db'
 import StarRating from '../components/brew/StarRating'
 import FlavorChips from '../components/brew/FlavorChips'
 import CuppingSliders from '../components/brew/CuppingSliders'
@@ -104,6 +106,11 @@ export default function BrewPage() {
   const [savedBrewCount, setSavedBrewCount] = useState(0)
   const [saving, setSaving] = useState(false)
 
+  // 入力途中の下書き（新規記録のみ）。復元表示のフラグと自動保存の基準
+  const [draftRestored, setDraftRestored] = useState(false)
+  const draftLoadedRef = useRef(false)
+  const draftBaselineRef = useRef<string | null>(null)
+
   const layout = useMemo(() => loadBrewLayout(), [])
 
   // カフェインの就寝時予測用
@@ -167,6 +174,28 @@ export default function BrewPage() {
     }
   }, [])
 
+  // 下書き（BrewDraft）から入力欄を復元する
+  const applyDraft = useCallback((d: BrewDraft) => {
+    setBrewedAtLocal(d.brewedAtLocal)
+    setBeanId(d.beanId)
+    setRecipeId(d.recipeId)
+    setDoseG(d.doseG)
+    setWaterG(d.waterG)
+    setGrindSize(d.grindSize)
+    setTempC(d.tempC)
+    setRating(d.rating)
+    setFlavors(d.flavors)
+    setScene(d.scene)
+    setDrinkStyle(d.drinkStyle)
+    setCupping(d.cupping)
+    setEquipmentId(d.equipmentId)
+    setTotalTimeSec(d.totalTimeSec)
+    setPourCount(d.pourCount)
+    setNote(d.note)
+    setPhotoDataUrl(d.photoDataUrl)
+    setShowDetail(d.showDetail)
+  }, [])
+
   useEffect(() => {
     Promise.all([getAllBeans(), getAllEquipment(), getAllRecipes(), getAllBrews()])
       .then(([bs, eqs, recs, brews]) => {
@@ -175,9 +204,18 @@ export default function BrewPage() {
         setRecipes(recs)
         setAllBrews(brews)
         if (!editBrewId && !fromBrewId) {
-          // 通常モード: 最後の記録で初期値
-          const last = brews.at(-1)
-          if (last) fillFromBrew(last, false)
+          // 通常モード: 下書きがあれば最優先で復元、なければ最後の記録で初期値
+          const draft = loadBrewDraft()
+          if (draft) {
+            applyDraft(draft)
+            setDraftRestored(true)
+            showToast('入力中だった内容を復元しました', { type: 'success' })
+          } else {
+            const last = brews.at(-1)
+            if (last) fillFromBrew(last, false)
+          }
+          // 初期化完了。以後の変更を自動保存の対象にする
+          draftLoadedRef.current = true
         }
       })
       .catch(() => {/* データ読込失敗時は空のまま続行 */})
@@ -194,7 +232,48 @@ export default function BrewPage() {
       // 再現モード: 技術パラメータのみ転写、評価はリセット
       getBrew(fromBrewId).then(b => { if (b) fillFromBrew(b, false) }).catch(() => {})
     }
-  }, [editBrewId, fromBrewId, fillFromBrew])
+  }, [editBrewId, fromBrewId, fillFromBrew, applyDraft, showToast])
+
+  // 現在の入力を下書きスナップショットにまとめる
+  const buildDraft = useCallback((): BrewDraft => ({
+    brewedAtLocal, beanId, recipeId, doseG, waterG, grindSize, tempC, rating,
+    flavors, scene, drinkStyle, cupping, equipmentId, totalTimeSec, pourCount,
+    note, photoDataUrl, showDetail,
+  }), [
+    brewedAtLocal, beanId, recipeId, doseG, waterG, grindSize, tempC, rating,
+    flavors, scene, drinkStyle, cupping, equipmentId, totalTimeSec, pourCount,
+    note, photoDataUrl, showDetail,
+  ])
+
+  // 入力途中の自動保存（新規記録のみ）。初期化直後の値を基準にし、変化があったら退避する
+  useEffect(() => {
+    if (editBrewId || fromBrewId) return
+    if (!draftLoadedRef.current) return
+    const str = JSON.stringify(buildDraft())
+    if (draftBaselineRef.current === null) {
+      // 初期化後の最初の1回は基準として記録するだけ（保存しない）
+      draftBaselineRef.current = str
+      return
+    }
+    if (str === draftBaselineRef.current) return
+    saveBrewDraft(buildDraft())
+  }, [editBrewId, fromBrewId, buildDraft])
+
+  // 復元した下書きを破棄して、通常の初期状態（前回値）に戻す
+  const discardDraft = () => {
+    clearBrewDraft()
+    draftBaselineRef.current = null // reset 後の状態を新しい基準として捉え直す（保存しない）
+    setDraftRestored(false)
+    // 既定値へリセット
+    setBrewedAtLocal(toDatetimeLocal(nowISO()))
+    setBeanId(undefined); setRecipeId(undefined)
+    setDoseG(15); setWaterG(240); setGrindSize(undefined); setTempC(90)
+    setRating(0); setFlavors([]); setScene(''); setDrinkStyle([])
+    setCupping({}); setEquipmentId(undefined); setTotalTimeSec(undefined)
+    setPourCount(undefined); setNote(''); setPhotoDataUrl(undefined); setShowDetail(false)
+    const last = allBrews.at(-1)
+    if (last) fillFromBrew(last, false)
+  }
 
   const selectedBean = beans.find(b => b.id === beanId)
   const selectedRecipe = recipes.find(r => r.id === recipeId)
@@ -245,6 +324,7 @@ export default function BrewPage() {
         brewedAt: fromDatetimeLocal(brewedAtLocal),
       }
       await putBrew(brew)
+      clearBrewDraft() // 保存できたので下書きは不要
       setSavedBrewCount(count + 1)
       setSaving(false)
       setShowSaveAnim(true)
@@ -521,6 +601,20 @@ export default function BrewPage() {
           {isEditMode ? '記録を編集' : 'この一杯を記録する'}
         </h2>
 
+        {/* 入力途中の復元通知（新規記録のみ） */}
+        {draftRestored && (
+          <div className="w-full bg-[#3e3020] border border-[#CE9C68]/25 rounded-xl px-4 py-2.5 flex items-center justify-between gap-3">
+            <p className="text-xs text-[#CE9C68]">入力中だった内容を復元しました</p>
+            <button
+              type="button"
+              onClick={discardDraft}
+              className="text-xs text-[#6b5a4a] shrink-0 active:opacity-60 px-1"
+            >
+              破棄して最初から
+            </button>
+          </div>
+        )}
+
         {/* 日時（既定は今。過去の一杯もあとから記録できる） */}
         <div className="w-full bg-[#2E2018] rounded-xl px-4 py-3 flex items-center justify-between gap-3">
           <p className="text-xs text-[#CE9C68] shrink-0">日時</p>
@@ -532,31 +626,43 @@ export default function BrewPage() {
           />
         </div>
 
-        {/* 豆カード（固定） */}
-        <button
-          type="button"
-          onClick={() => setShowBeanPicker(true)}
-          className="w-full bg-[#2E2018] rounded-xl p-4 text-left active:opacity-80"
-        >
-          <p className="text-xs text-[#CE9C68] mb-1">豆</p>
-          {selectedBean ? (
-            <>
-              <p className="text-[#F7EFE6] font-medium">{selectedBean.name}</p>
-              <p className="text-xs text-[#CE9C68] mt-0.5">
-                {ROAST_LEVEL_LABELS[selectedBean.roastLevel]}
-                {selectedBean.roastedAt ? ` · 焙煎から${daysSinceRoast(selectedBean.roastedAt)}日` : ''}
-                {selectedBean.origin ? ` · ${selectedBean.origin}` : ''}
-              </p>
-              {formatBeanRemaining(selectedBean, allBrews) && (
-                <p className="text-xs text-[#6b5a4a] mt-0.5">
-                  {formatBeanRemaining(selectedBean, allBrews)}
+        {/* 豆カード（固定）。本体タップで選び直し、右上の✕で未選択に戻す */}
+        <div className="relative w-full bg-[#2E2018] rounded-xl">
+          <button
+            type="button"
+            onClick={() => setShowBeanPicker(true)}
+            className="w-full p-4 text-left active:opacity-80"
+          >
+            <p className="text-xs text-[#CE9C68] mb-1">豆</p>
+            {selectedBean ? (
+              <>
+                <p className="text-[#F7EFE6] font-medium pr-8">{selectedBean.name}</p>
+                <p className="text-xs text-[#CE9C68] mt-0.5">
+                  {ROAST_LEVEL_LABELS[selectedBean.roastLevel]}
+                  {selectedBean.roastedAt ? ` · 焙煎から${daysSinceRoast(selectedBean.roastedAt)}日` : ''}
+                  {selectedBean.origin ? ` · ${selectedBean.origin}` : ''}
                 </p>
-              )}
-            </>
-          ) : (
-            <p className="text-[#6b5a4a]">タップして豆を選ぶ →</p>
+                {formatBeanRemaining(selectedBean, allBrews) && (
+                  <p className="text-xs text-[#6b5a4a] mt-0.5">
+                    {formatBeanRemaining(selectedBean, allBrews)}
+                  </p>
+                )}
+              </>
+            ) : (
+              <p className="text-[#6b5a4a]">タップして豆を選ぶ →</p>
+            )}
+          </button>
+          {selectedBean && (
+            <button
+              type="button"
+              onClick={() => setBeanId(undefined)}
+              aria-label="豆を未選択にする"
+              className="absolute top-2 right-2 w-8 h-8 rounded-full bg-[#3e3020] text-[#CE9C68] flex items-center justify-center text-sm active:opacity-70"
+            >
+              ✕
+            </button>
           )}
-        </button>
+        </div>
 
         {/* メインゾーンのブロック */}
         {layout.main.map(id => renderBlock(id))}
@@ -599,11 +705,14 @@ export default function BrewPage() {
           )
         )}
 
-        {/* 保存ボタン */}
+        {/* 保存ボタン（豆なしのログは構造上ありえないため、未選択では保存不可） */}
+        {!beanId && (
+          <p className="text-xs text-[#6b5a4a] text-center -mb-1">豆を選んでください</p>
+        )}
         <button
           type="button"
           onClick={handleSave}
-          disabled={saving}
+          disabled={saving || !beanId}
           className="w-full bg-[#993C1D] text-[#F7EFE6] py-4 rounded-2xl text-base font-semibold active:opacity-80 disabled:opacity-40 mt-2 mb-2"
         >
           {saving ? '保存中...' : isEditMode ? '変更を保存する' : 'この一杯を記録する'}
