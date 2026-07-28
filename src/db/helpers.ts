@@ -27,6 +27,12 @@ export function calcRatio(doseG: number, waterG: number): string {
   return `1:${ratio.toFixed(1)}`
 }
 
+// 記録に紐づく器具ID一覧。新 equipmentIds を優先し、旧 equipmentId（単一）も吸収する
+export function getBrewEquipmentIds(brew: { equipmentIds?: string[]; equipmentId?: string }): string[] {
+  if (brew.equipmentIds && brew.equipmentIds.length > 0) return brew.equipmentIds
+  return brew.equipmentId ? [brew.equipmentId] : []
+}
+
 export function daysSinceRoast(roastedAt: string): number {
   const roasted = new Date(roastedAt)
   const now = new Date()
@@ -275,7 +281,7 @@ export interface BrewDraft {
   scene: string
   drinkStyle: string[]
   cupping: CuppingScores
-  equipmentId?: string
+  equipmentIds: string[]
   totalTimeSec?: number
   pourCount?: number
   note: string

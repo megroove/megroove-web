@@ -135,7 +135,8 @@ export interface Brew {
   waterG?: number
   grindSize?: number
   tempC?: number
-  equipmentId?: string
+  equipmentId?: string       // 旧: 単一器具。読み取り互換のため残置（新規保存は equipmentIds を使う）
+  equipmentIds?: string[]    // 使用した器具（複数可）
   totalTimeSec?: number      // 総抽出時間 (秒)
   pourCount?: number         // 注湯回数
   rating?: number            // 星評価 1–5

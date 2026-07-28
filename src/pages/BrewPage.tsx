@@ -9,7 +9,7 @@ import {
   ROAST_LEVEL_LABELS, daysSinceRoast,
   toDatetimeLocal, fromDatetimeLocal, formatBeanRemaining, calcFrequentFlavors, getBedtimeDate,
   SCENE_OPTIONS, DRINK_STYLE_OPTIONS,
-  saveBrewDraft, loadBrewDraft, clearBrewDraft,
+  saveBrewDraft, loadBrewDraft, clearBrewDraft, getBrewEquipmentIds,
 } from '../db'
 import type { BrewDraft } from '../db'
 import StarRating from '../components/brew/StarRating'
@@ -92,7 +92,7 @@ export default function BrewPage() {
   const [drinkStyle, setDrinkStyle] = useState<string[]>([])
   const [showDetail, setShowDetail] = useState(false)
   const [cupping, setCupping] = useState<CuppingScores>({})
-  const [equipmentId, setEquipmentId] = useState<string | undefined>()
+  const [equipmentIds, setEquipmentIds] = useState<string[]>([])
   const [totalTimeSec, setTotalTimeSec] = useState<number | undefined>()
   const [pourCount, setPourCount] = useState<number | undefined>()
   const [note, setNote] = useState('')
@@ -159,7 +159,7 @@ export default function BrewPage() {
     if (b.waterG !== undefined) setWaterG(b.waterG)
     setGrindSize(b.grindSize)
     if (b.tempC !== undefined) setTempC(b.tempC)
-    setEquipmentId(b.equipmentId)
+    setEquipmentIds(getBrewEquipmentIds(b))
     setTotalTimeSec(b.totalTimeSec)
     setPourCount(b.pourCount)
     setFlavors(b.flavors)
@@ -184,11 +184,12 @@ export default function BrewPage() {
     setGrindSize(d.grindSize)
     setTempC(d.tempC)
     setRating(d.rating)
-    setFlavors(d.flavors)
-    setScene(d.scene)
-    setDrinkStyle(d.drinkStyle)
-    setCupping(d.cupping)
-    setEquipmentId(d.equipmentId)
+    // 配列・オブジェクト系は、旧バージョンの下書き（フィールド欠落）でも壊れないよう既定値で補う
+    setFlavors(d.flavors ?? [])
+    setScene(d.scene ?? '')
+    setDrinkStyle(d.drinkStyle ?? [])
+    setCupping(d.cupping ?? {})
+    setEquipmentIds(getBrewEquipmentIds(d)) // 旧下書きの equipmentId も吸収し、常に配列にする
     setTotalTimeSec(d.totalTimeSec)
     setPourCount(d.pourCount)
     setNote(d.note)
@@ -237,11 +238,11 @@ export default function BrewPage() {
   // 現在の入力を下書きスナップショットにまとめる
   const buildDraft = useCallback((): BrewDraft => ({
     brewedAtLocal, beanId, recipeId, doseG, waterG, grindSize, tempC, rating,
-    flavors, scene, drinkStyle, cupping, equipmentId, totalTimeSec, pourCount,
+    flavors, scene, drinkStyle, cupping, equipmentIds, totalTimeSec, pourCount,
     note, photoDataUrl, showDetail,
   }), [
     brewedAtLocal, beanId, recipeId, doseG, waterG, grindSize, tempC, rating,
-    flavors, scene, drinkStyle, cupping, equipmentId, totalTimeSec, pourCount,
+    flavors, scene, drinkStyle, cupping, equipmentIds, totalTimeSec, pourCount,
     note, photoDataUrl, showDetail,
   ])
 
@@ -269,7 +270,7 @@ export default function BrewPage() {
     setBeanId(undefined); setRecipeId(undefined)
     setDoseG(15); setWaterG(240); setGrindSize(undefined); setTempC(90)
     setRating(0); setFlavors([]); setScene(''); setDrinkStyle([])
-    setCupping({}); setEquipmentId(undefined); setTotalTimeSec(undefined)
+    setCupping({}); setEquipmentIds([]); setTotalTimeSec(undefined)
     setPourCount(undefined); setNote(''); setPhotoDataUrl(undefined); setShowDetail(false)
     const last = allBrews.at(-1)
     if (last) fillFromBrew(last, false)
@@ -286,7 +287,8 @@ export default function BrewPage() {
     waterG,
     grindSize,
     tempC,
-    equipmentId,
+    equipmentIds: equipmentIds.length > 0 ? equipmentIds : undefined,
+    equipmentId: undefined, // 新規保存は equipmentIds を使う（旧フィールドは残さない）
     totalTimeSec,
     pourCount,
     rating: rating || undefined,
@@ -489,8 +491,8 @@ export default function BrewPage() {
             <p className="text-xs text-[#CE9C68] mb-3">器具</p>
             <EquipmentSection
               equipment={equipment}
-              selectedId={equipmentId}
-              onSelect={setEquipmentId}
+              selectedIds={equipmentIds}
+              onToggle={id => setEquipmentIds(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id])}
               onNewEquipment={e => setEquipment(prev => [...prev, e])}
             />
           </div>

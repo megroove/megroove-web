@@ -5,6 +5,7 @@
 //   豆の名前・カフェ名・器具の名前/メーカー・カフェイン/就寝設定
 
 import type { Brew, Bean, Equipment, CafeVisit, CuppingScores } from '../db'
+import { getBrewEquipmentIds } from '../db'
 import type {
   DataScope, ProvisionRecord, ProvisionBrewRecord, ProvisionCafeRecord, MonthlyStat,
 } from './types'
@@ -63,7 +64,14 @@ export function anonymizeBrew(
       tempC: brew.tempC,
       totalTimeSec: brew.totalTimeSec,
       pourCount: brew.pourCount,
-      equipmentType: brew.equipmentId ? equipmentMap.get(brew.equipmentId)?.type : undefined,
+      equipmentTypes: (() => {
+        const types = [...new Set(
+          getBrewEquipmentIds(brew)
+            .map(id => equipmentMap.get(id)?.type)
+            .filter((t): t is NonNullable<typeof t> => Boolean(t)),
+        )]
+        return types.length > 0 ? (types as string[]) : undefined
+      })(),
     }
   }
 

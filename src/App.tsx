@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { HashRouter, Routes, Route, useLocation } from 'react-router-dom'
 import BottomNav from './components/BottomNav'
 import { ToastProvider } from './components/Toast'
+import ErrorBoundary from './components/ErrorBoundary'
 import HomePage from './pages/HomePage'
 import BrewPage from './pages/BrewPage'
 import LibraryPage from './pages/LibraryPage'
@@ -23,8 +24,10 @@ function AppRoutes() {
   const location = useLocation()
 
   return (
-    // pathname を key にして遷移ごとにフェードインさせる
+    // pathname を key にして遷移ごとにフェードインさせる。
+    // ErrorBoundary も内側に置くことで、ある画面が落ちても別タブに移れば自動復帰する。
     <div key={location.pathname} className="page-enter flex flex-col flex-1">
+      <ErrorBoundary>
       <Routes>
         <Route path="/"                element={<HomePage />} />
         <Route path="/brew"            element={<BrewPage />} />
@@ -44,6 +47,7 @@ function AppRoutes() {
         <Route path="/settings/privacy"        element={<PrivacyPage />} />
         <Route path="/passport"             element={<PassportPage />} />
       </Routes>
+      </ErrorBoundary>
     </div>
   )
 }

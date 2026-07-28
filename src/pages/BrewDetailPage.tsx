@@ -1,9 +1,9 @@
 import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import type { Brew, Bean, Equipment, Recipe } from '../db'
+import type { Brew, Bean, Recipe } from '../db'
 import {
-  getBrew, getBean, getEquipment, getRecipe, deleteBrew, putBrew,
-  calcRatio, formatBrewDate, ROAST_LEVEL_LABELS, daysSinceRoast,
+  getBrew, getBean, getAllEquipment, getRecipe, deleteBrew, putBrew,
+  calcRatio, formatBrewDate, ROAST_LEVEL_LABELS, daysSinceRoast, getBrewEquipmentIds,
 } from '../db'
 import PhotoLightbox from '../components/PhotoLightbox'
 import { useToast, notifyDataRestored } from '../components/Toast'
@@ -39,7 +39,7 @@ export default function BrewDetailPage() {
 
   const [brew, setBrew] = useState<Brew | null>(null)
   const [bean, setBean] = useState<Bean | undefined>()
-  const [equipment, setEquipment] = useState<Equipment | undefined>()
+  const [equipmentNames, setEquipmentNames] = useState<string[]>([])
   const [recipe, setRecipe] = useState<Recipe | undefined>()
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const [lightboxOpen, setLightboxOpen] = useState(false)
@@ -50,7 +50,13 @@ export default function BrewDetailPage() {
       if (!b) { navigate('/library', { replace: true }); return }
       setBrew(b)
       if (b.beanId) getBean(b.beanId).then(setBean)
-      if (b.equipmentId) getEquipment(b.equipmentId).then(setEquipment)
+      const eqIds = getBrewEquipmentIds(b)
+      if (eqIds.length > 0) {
+        getAllEquipment().then(all => {
+          const byId = new Map(all.map(e => [e.id, e]))
+          setEquipmentNames(eqIds.map(x => byId.get(x)?.name).filter((n): n is string => Boolean(n)))
+        })
+      }
       if (b.recipeId) getRecipe(b.recipeId).then(setRecipe)
     })
   }, [id, navigate])
@@ -168,7 +174,7 @@ export default function BrewDetailPage() {
           {brew.grindSize !== undefined && <Row label="挽き目" value={brew.grindSize} />}
           {brew.tempC !== undefined && <Row label="湯温" value={`${brew.tempC}°C`} />}
           {recipe && <Row label="レシピ" value={recipe.name} />}
-          {equipment && <Row label="器具" value={equipment.name} />}
+          {equipmentNames.length > 0 && <Row label="器具" value={equipmentNames.join('・')} />}
           {brew.totalTimeSec !== undefined && (
             <Row
               label="総抽出時間"

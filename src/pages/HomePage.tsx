@@ -8,7 +8,7 @@ import { getAllBrews, getAllBeans, getAllCafeVisits, getAllEquipment, getAllCaff
 import type { Brew, Bean, CafeVisit, Equipment } from '../db'
 import {
   formatBrewDateShort, ROAST_LEVEL_LABELS, CAFE_DRINK_TYPE_LABELS, CAFE_DRINK_SIZE_LABELS,
-  EQUIPMENT_TYPE_LABELS, daysSinceRoast,
+  EQUIPMENT_TYPE_LABELS, daysSinceRoast, getBrewEquipmentIds,
   getBackupReminder, snoozeBackupReminder, countUnbackedRecords,
   hasSeenBackupIntro, markBackupIntroSeen, loadLastExportAt, exportBackup,
   calcResidualCaffeine, calcStreakDays, isSameLocalDay,
@@ -363,7 +363,7 @@ export default function HomePage() {
         waterG: b.waterG,
         grindSize: b.grindSize,
         tempC: b.tempC,
-        equipmentId: b.equipmentId,
+        equipmentIds: getBrewEquipmentIds(b),
         totalTimeSec: b.totalTimeSec,
         pourCount: b.pourCount,
         rating: quickRating || undefined,

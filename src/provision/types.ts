@@ -41,7 +41,7 @@ export interface ProvisionBrewRecord {
     tempC?: number
     totalTimeSec?: number
     pourCount?: number
-    equipmentType?: string // dripper 等のタイプのみ。名前・メーカーは含まない
+    equipmentTypes?: string[] // dripper 等のタイプのみ（複数可）。名前・メーカーは含まない
   }
   rating?: {
     stars?: number

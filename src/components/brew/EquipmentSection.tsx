@@ -4,14 +4,15 @@ import { putEquipment, newId, nowISO, EQUIPMENT_TYPE_LABELS } from '../../db'
 
 interface Props {
   equipment: Equipment[]
-  selectedId?: string
-  onSelect: (id: string | undefined) => void
+  selectedIds: string[]
+  onToggle: (id: string) => void
   onNewEquipment: (e: Equipment) => void
 }
 
 const EQUIPMENT_TYPES: EquipmentType[] = ['dripper', 'server', 'grinder', 'kettle', 'scale', 'other']
 
-export default function EquipmentSection({ equipment, selectedId, onSelect, onNewEquipment }: Props) {
+export default function EquipmentSection({ equipment, selectedIds, onToggle, onNewEquipment }: Props) {
+  const selected = selectedIds ?? [] // 念のため（undefined でも落ちないように）
   const [showAdd, setShowAdd] = useState(false)
   const [name, setName] = useState('')
   const [type, setType] = useState<EquipmentType>('dripper')
@@ -23,7 +24,7 @@ export default function EquipmentSection({ equipment, selectedId, onSelect, onNe
     const item: Equipment = { id: newId(), name: name.trim(), type, createdAt: nowISO() }
     await putEquipment(item)
     onNewEquipment(item)
-    onSelect(item.id)
+    onToggle(item.id)
     setName('')
     setType('dripper')
     setShowAdd(false)
@@ -32,25 +33,37 @@ export default function EquipmentSection({ equipment, selectedId, onSelect, onNe
 
   return (
     <>
-      <div className="flex flex-wrap gap-2">
-        {equipment.map(e => (
-          <button
-            key={e.id}
-            type="button"
-            onClick={() => onSelect(e.id === selectedId ? undefined : e.id)}
-            className={`px-3 py-1.5 rounded-full text-sm transition-colors ${
-              e.id === selectedId
-                ? 'bg-[#993C1D] text-[#F7EFE6]'
-                : 'bg-[#3e3020] text-[#CE9C68]'
-            }`}
-          >
-            {e.name}
-          </button>
-        ))}
+      {/* 種類ごとにグループ表示（複数選択可）。空の種類は出さない */}
+      <div className="flex flex-col gap-3">
+        {EQUIPMENT_TYPES.map(t => {
+          const items = equipment.filter(e => e.type === t)
+          if (items.length === 0) return null
+          return (
+            <div key={t}>
+              <p className="text-[11px] text-[#6b5a4a] mb-1.5">{EQUIPMENT_TYPE_LABELS[t]}</p>
+              <div className="flex flex-wrap gap-2">
+                {items.map(e => (
+                  <button
+                    key={e.id}
+                    type="button"
+                    onClick={() => onToggle(e.id)}
+                    className={`px-3 py-1.5 rounded-full text-sm transition-colors ${
+                      selected.includes(e.id)
+                        ? 'bg-[#993C1D] text-[#F7EFE6]'
+                        : 'bg-[#3e3020] text-[#CE9C68]'
+                    }`}
+                  >
+                    {e.name}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )
+        })}
         <button
           type="button"
           onClick={() => setShowAdd(true)}
-          className="px-3 py-1.5 rounded-full text-sm text-[#993C1D] border border-dashed border-[#993C1D]/50"
+          className="self-start px-3 py-1.5 rounded-full text-sm text-[#993C1D] border border-dashed border-[#993C1D]/50"
         >
           ＋ 追加
         </button>
