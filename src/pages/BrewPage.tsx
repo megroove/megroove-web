@@ -40,6 +40,13 @@ function Stepper({
   step?: number
   min?: number
 }) {
+  // 数値の直接入力（小数入力を壊さないため文字列バッファを持ち、フォーカス中は外部同期を止める）
+  const [text, setText] = useState(() => String(value))
+  const [focused, setFocused] = useState(false)
+  useEffect(() => {
+    if (!focused) setText(String(value))
+  }, [value, focused])
+
   return (
     <div className="bg-[#2E2018] rounded-xl p-4 flex flex-col gap-2">
       <p className="text-xs text-[#CE9C68]">{label}</p>
@@ -51,9 +58,26 @@ function Stepper({
         >
           −
         </button>
-        <span className="flex-1 text-center text-[#F7EFE6] text-xl font-semibold tabular-nums">
-          {value}{unit}
-        </span>
+        <div className="flex-1 flex items-baseline justify-center">
+          <input
+            type="text"
+            inputMode="decimal"
+            value={text}
+            onFocus={() => setFocused(true)}
+            onChange={e => {
+              setText(e.target.value)
+              const n = parseFloat(e.target.value)
+              if (!Number.isNaN(n)) onChange(Math.max(min, n))
+            }}
+            onBlur={() => {
+              setFocused(false)
+              const n = parseFloat(text)
+              setText(String(Number.isNaN(n) ? value : Math.max(min, +n.toFixed(1))))
+            }}
+            className="w-14 bg-transparent text-[#F7EFE6] text-xl font-semibold outline-none tabular-nums text-right"
+          />
+          <span className="text-xs text-[#CE9C68] ml-1">{unit}</span>
+        </div>
         <button
           type="button"
           onClick={() => onChange(+(value + step).toFixed(1))}
