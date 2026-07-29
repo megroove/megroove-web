@@ -205,7 +205,7 @@ function BrewCard({ brew, bean, onClick }: { brew: Brew; bean?: Bean; onClick: (
         <StarDisplay rating={brew.rating} />
       </div>
       <p className="text-[#F7EFE6] font-medium mb-1">
-        {bean?.name ?? <span className="text-[#6b5a4a]">豆の記録なし</span>}
+        {bean?.name ?? <span className="text-[#6b5a4a]">{brew.method === 'drip_bag' ? '銘柄なし' : '豆の記録なし'}</span>}
       </p>
       <p className="text-xs text-[#CE9C68] mb-2">
         {bean ? ROAST_LEVEL_LABELS[bean.roastLevel] : ''}
@@ -404,7 +404,7 @@ function BrewTab({ displayMode }: { displayMode: DisplayMode }) {
                         <PhotoGridCard
                           key={brew.id}
                           photoUrl={brew.photoDataUrl}
-                          name={bean?.name ?? '豆なし'}
+                          name={bean?.name ?? (brew.method === 'drip_bag' ? '銘柄なし' : '豆なし')}
                           sub={sub}
                           date={formatBrewDateShort(brew.brewedAt)}
                           rating={brew.rating}
@@ -421,7 +421,7 @@ function BrewTab({ displayMode }: { displayMode: DisplayMode }) {
                         <VinylCard
                           key={brew.id}
                           photoUrl={brew.photoDataUrl}
-                          name={bean?.name ?? '豆なし'}
+                          name={bean?.name ?? (brew.method === 'drip_bag' ? '銘柄なし' : '豆なし')}
                           sub={formatBrewDateShort(brew.brewedAt)}
                           rating={brew.rating}
                           onClick={() => navigate(`/library/${brew.id}`)}

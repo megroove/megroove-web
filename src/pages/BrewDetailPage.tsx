@@ -4,6 +4,7 @@ import type { Brew, Bean, Recipe } from '../db'
 import {
   getBrew, getBean, getAllEquipment, getRecipe, deleteBrew, putBrew,
   calcRatio, formatBrewDate, ROAST_LEVEL_LABELS, daysSinceRoast, getBrewEquipmentIds,
+  BREW_METHOD_LABELS,
 } from '../db'
 import PhotoLightbox from '../components/PhotoLightbox'
 import { useToast, notifyDataRestored } from '../components/Toast'
@@ -151,25 +152,34 @@ export default function BrewDetailPage() {
           </>
         )}
 
-        {/* 豆 */}
+        {/* 豆（ドリップバッグは「銘柄」として名前のみ表示） */}
         {bean && (
-          <Section title="豆">
-            <p className="text-[#F7EFE6] font-semibold mb-1">{bean.name}</p>
-            <p className="text-sm text-[#CE9C68]">
-              {ROAST_LEVEL_LABELS[bean.roastLevel]}
-              {bean.roastedAt ? ` · 焙煎から${daysSinceRoast(bean.roastedAt)}日` : ''}
-              {bean.origin ? ` · ${bean.origin}` : ''}
-            </p>
-          </Section>
+          brew.method === 'drip_bag' ? (
+            <Section title="銘柄">
+              <p className="text-[#F7EFE6] font-semibold">{bean.name}</p>
+            </Section>
+          ) : (
+            <Section title="豆">
+              <p className="text-[#F7EFE6] font-semibold mb-1">{bean.name}</p>
+              <p className="text-sm text-[#CE9C68]">
+                {ROAST_LEVEL_LABELS[bean.roastLevel]}
+                {bean.roastedAt ? ` · 焙煎から${daysSinceRoast(bean.roastedAt)}日` : ''}
+                {bean.origin ? ` · ${bean.origin}` : ''}
+              </p>
+            </Section>
+          )
         )}
 
         {/* 抽出条件 */}
         <Section title="抽出条件">
-          {brew.doseG !== undefined && brew.waterG !== undefined && (
+          {brew.method === 'drip_bag' && <Row label="抽出方法" value={BREW_METHOD_LABELS.drip_bag} />}
+          {brew.doseG !== undefined && brew.waterG !== undefined ? (
             <Row
               label="粉量 / 湯量 / 比率"
               value={`${brew.doseG}g / ${brew.waterG}g / ${calcRatio(brew.doseG, brew.waterG)}`}
             />
+          ) : (
+            brew.waterG !== undefined && <Row label="湯量" value={`${brew.waterG}g`} />
           )}
           {brew.grindSize !== undefined && <Row label="挽き目" value={brew.grindSize} />}
           {brew.tempC !== undefined && <Row label="湯温" value={`${brew.tempC}°C`} />}

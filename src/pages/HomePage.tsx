@@ -357,6 +357,7 @@ export default function HomePage() {
         id: newId(),
         createdAt: nowISO(),
         brewedAt: nowISO(),
+        method: b.method,
         beanId: b.beanId,
         recipeId: b.recipeId,
         doseG: b.doseG,
@@ -370,7 +371,8 @@ export default function HomePage() {
         flavors: b.flavors,
         drinkStyle: b.drinkStyle,
         cupping: {},
-        caffeineAmount: b.doseG ? estimateCaffeine(b.doseG, lastBrew.bean?.decaf) : undefined,
+        // 前回の推定カフェイン量を踏襲（ドリップバッグは代表量ぶんが既に入っている）
+        caffeineAmount: b.caffeineAmount ?? (b.doseG ? estimateCaffeine(b.doseG, lastBrew.bean?.decaf) : undefined),
       })
       setSavedBrewCount(count + 1)
       setQuickSaving(false)
@@ -846,7 +848,7 @@ export default function HomePage() {
                 >
                   <div>
                     <p className="text-[#F7EFE6] text-sm font-medium">
-                      {item.bean?.name ?? <span className="text-[#6b5a4a]">豆の記録なし</span>}
+                      {item.bean?.name ?? <span className="text-[#6b5a4a]">{item.brew.method === 'drip_bag' ? '銘柄なし' : '豆の記録なし'}</span>}
                     </p>
                     <p className="text-xs text-[#6b5a4a] mt-0.5 flex items-center gap-1">
                       <CupIcon size={12} className="shrink-0" />

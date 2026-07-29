@@ -6,19 +6,25 @@ import {
 } from '../../db'
 import OriginInput from '../OriginInput'
 
+// 'bean' = 通常の豆、'brand' = ドリップバッグの銘柄（ラベルを変え、入力を最小化）
+type PickerMode = 'bean' | 'brand'
+
 interface Props {
   currentBeanId?: string
+  mode?: PickerMode
   onSelect: (bean: Bean) => void
   onClose: () => void
 }
 
 const ROAST_LEVELS: RoastLevel[] = ['light', 'light-medium', 'medium', 'medium-dark', 'dark']
 
-function AddBeanForm({ onAdd, onCancel, recentOrigins }: {
+function AddBeanForm({ mode, onAdd, onCancel, recentOrigins }: {
+  mode: PickerMode
   onAdd: (b: Bean) => void
   onCancel: () => void
   recentOrigins: string[]
 }) {
+  const isBrand = mode === 'brand'
   const [name, setName] = useState('')
   const [roastLevel, setRoastLevel] = useState<RoastLevel>('medium')
   const [roastedAt, setRoastedAt] = useState('')
@@ -46,54 +52,59 @@ function AddBeanForm({ onAdd, onCancel, recentOrigins }: {
 
   return (
     <div className="flex flex-col gap-4 px-4 py-4">
-      <h3 className="text-lg font-semibold text-[#F7EFE6]">豆を追加</h3>
+      <h3 className="text-lg font-semibold text-[#F7EFE6]">{isBrand ? '銘柄を追加' : '豆を追加'}</h3>
 
       <div>
-        <label className="text-xs text-[#CE9C68] mb-1.5 block">豆の名前 *</label>
+        <label className="text-xs text-[#CE9C68] mb-1.5 block">{isBrand ? '銘柄名 *' : '豆の名前 *'}</label>
         <input
           type="text"
           value={name}
           onChange={e => setName(e.target.value)}
-          placeholder="例: エチオピア イルガチェフェ"
+          placeholder={isBrand ? '例: ○○ドリップバッグ モカブレンド' : '例: エチオピア イルガチェフェ'}
           className="w-full bg-[#3e3020] text-[#F7EFE6] rounded-xl px-4 py-3 outline-none placeholder-[#6b5a4a]"
           autoFocus
         />
       </div>
 
-      <div>
-        <label className="text-xs text-[#CE9C68] mb-1.5 block">焙煎度</label>
-        <div className="flex flex-wrap gap-2">
-          {ROAST_LEVELS.map(level => (
-            <button
-              key={level}
-              type="button"
-              onClick={() => setRoastLevel(level)}
-              className={`px-3 py-1.5 rounded-full text-sm transition-colors ${
-                roastLevel === level
-                  ? 'bg-[#993C1D] text-[#F7EFE6]'
-                  : 'bg-[#3e3020] text-[#CE9C68]'
-              }`}
-            >
-              {ROAST_LEVEL_LABELS[level]}
-            </button>
-          ))}
-        </div>
-      </div>
+      {/* 銘柄（ドリップバッグ）は焙煎度・焙煎日・産地・内容量を出さず、最小入力にする */}
+      {!isBrand && (
+        <>
+          <div>
+            <label className="text-xs text-[#CE9C68] mb-1.5 block">焙煎度</label>
+            <div className="flex flex-wrap gap-2">
+              {ROAST_LEVELS.map(level => (
+                <button
+                  key={level}
+                  type="button"
+                  onClick={() => setRoastLevel(level)}
+                  className={`px-3 py-1.5 rounded-full text-sm transition-colors ${
+                    roastLevel === level
+                      ? 'bg-[#993C1D] text-[#F7EFE6]'
+                      : 'bg-[#3e3020] text-[#CE9C68]'
+                  }`}
+                >
+                  {ROAST_LEVEL_LABELS[level]}
+                </button>
+              ))}
+            </div>
+          </div>
 
-      <div>
-        <label className="text-xs text-[#CE9C68] mb-1.5 block">焙煎日</label>
-        <input
-          type="date"
-          value={roastedAt}
-          onChange={e => setRoastedAt(e.target.value)}
-          className="w-full bg-[#3e3020] text-[#F7EFE6] rounded-xl px-4 py-3 outline-none"
-        />
-      </div>
+          <div>
+            <label className="text-xs text-[#CE9C68] mb-1.5 block">焙煎日</label>
+            <input
+              type="date"
+              value={roastedAt}
+              onChange={e => setRoastedAt(e.target.value)}
+              className="w-full bg-[#3e3020] text-[#F7EFE6] rounded-xl px-4 py-3 outline-none"
+            />
+          </div>
 
-      <div>
-        <label className="text-xs text-[#CE9C68] mb-1.5 block">産地（任意）</label>
-        <OriginInput value={origin} onChange={setOrigin} recentOrigins={recentOrigins} />
-      </div>
+          <div>
+            <label className="text-xs text-[#CE9C68] mb-1.5 block">産地（任意）</label>
+            <OriginInput value={origin} onChange={setOrigin} recentOrigins={recentOrigins} />
+          </div>
+        </>
+      )}
 
       <div className="flex items-center gap-2">
         <button
@@ -108,18 +119,20 @@ function AddBeanForm({ onAdd, onCancel, recentOrigins }: {
         <span className="text-[10px] text-[#6b5a4a]">カフェイン推定を約1/10にします</span>
       </div>
 
-      <div>
-        <label className="text-xs text-[#CE9C68] mb-1.5 block">内容量 g（任意・残量を自動計算）</label>
-        <input
-          type="number"
-          inputMode="numeric"
-          min={1}
-          value={amountG ?? ''}
-          onChange={e => setAmountG(e.target.value ? Number(e.target.value) : undefined)}
-          placeholder="例: 200"
-          className="w-full bg-[#3e3020] text-[#F7EFE6] rounded-xl px-4 py-3 outline-none placeholder-[#6b5a4a] tabular-nums"
-        />
-      </div>
+      {!isBrand && (
+        <div>
+          <label className="text-xs text-[#CE9C68] mb-1.5 block">内容量 g（任意・残量を自動計算）</label>
+          <input
+            type="number"
+            inputMode="numeric"
+            min={1}
+            value={amountG ?? ''}
+            onChange={e => setAmountG(e.target.value ? Number(e.target.value) : undefined)}
+            placeholder="例: 200"
+            className="w-full bg-[#3e3020] text-[#F7EFE6] rounded-xl px-4 py-3 outline-none placeholder-[#6b5a4a] tabular-nums"
+          />
+        </div>
+      )}
 
       <div className="flex flex-col gap-2 pt-2">
         <button
@@ -142,7 +155,8 @@ function AddBeanForm({ onAdd, onCancel, recentOrigins }: {
   )
 }
 
-export default function BeanPickerModal({ currentBeanId, onSelect, onClose }: Props) {
+export default function BeanPickerModal({ currentBeanId, mode = 'bean', onSelect, onClose }: Props) {
+  const isBrand = mode === 'brand'
   const [beans, setBeans] = useState<Bean[]>([])
   const [brews, setBrews] = useState<Brew[]>([])
   const [showAdd, setShowAdd] = useState(false)
@@ -181,6 +195,7 @@ export default function BeanPickerModal({ currentBeanId, onSelect, onClose }: Pr
           </button>
         </div>
         <AddBeanForm
+          mode={mode}
           onAdd={handleAdd}
           onCancel={() => setShowAdd(false)}
           recentOrigins={[...beans].reverse().map(b => b.origin).filter((o): o is string => Boolean(o))}
@@ -199,7 +214,7 @@ export default function BeanPickerModal({ currentBeanId, onSelect, onClose }: Pr
       }}
     >
       <div className="flex items-center justify-between px-4 py-3 border-b border-[#2e2018]">
-        <h2 className="text-lg font-semibold text-[#F7EFE6]">豆を選ぶ</h2>
+        <h2 className="text-lg font-semibold text-[#F7EFE6]">{isBrand ? '銘柄を選ぶ' : '豆を選ぶ'}</h2>
         <button type="button" onClick={onClose} className="text-[#CE9C68] text-sm">
           閉じる
         </button>
@@ -208,13 +223,13 @@ export default function BeanPickerModal({ currentBeanId, onSelect, onClose }: Pr
       <div className="flex-1 overflow-y-auto" style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}>
         {beans.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-48 gap-3">
-            <p className="text-[#CE9C68] text-sm">まだ豆が登録されていません</p>
+            <p className="text-[#CE9C68] text-sm">{isBrand ? 'まだ銘柄が登録されていません' : 'まだ豆が登録されていません'}</p>
             <button
               type="button"
               onClick={() => setShowAdd(true)}
               className="text-[#993C1D] font-semibold text-sm"
             >
-              ＋ 最初の豆を追加
+              {isBrand ? '＋ 最初の銘柄を追加' : '＋ 最初の豆を追加'}
             </button>
           </div>
         ) : (
@@ -264,7 +279,7 @@ export default function BeanPickerModal({ currentBeanId, onSelect, onClose }: Pr
                 onClick={() => setShowAdd(true)}
                 className="w-full flex items-center gap-2 px-4 py-4 text-[#993C1D] font-semibold text-sm border-b border-dashed border-[#993C1D]/40"
               >
-                ＋ 新しい豆を追加
+                {isBrand ? '＋ 新しい銘柄を追加' : '＋ 新しい豆を追加'}
               </button>
             </li>
           </ul>

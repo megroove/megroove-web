@@ -43,7 +43,7 @@ function RankCard({
       <div className="flex-1 min-w-0">
         <div className="flex items-center justify-between gap-2">
           <p className="text-[#F7EFE6] font-medium truncate">
-            {bean?.name ?? '豆の記録なし'}
+            {bean?.name ?? (brew.method === 'drip_bag' ? '銘柄なし' : '豆の記録なし')}
           </p>
           {brew.rating !== undefined && (
             <span className="text-[#CE9C68] text-sm flex-shrink-0">

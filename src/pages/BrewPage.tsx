@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { useNavigate, useParams, useLocation } from 'react-router-dom'
-import type { Brew, Bean, Equipment, Recipe, CuppingScores, BrewBlockId } from '../db'
+import type { Brew, Bean, Equipment, Recipe, CuppingScores, BrewBlockId, BrewMethod } from '../db'
 import {
   getAllBeans, getAllEquipment, getAllRecipes, getAllBrews, getAllCafeVisits,
   getBrew, putBrew, getBrewCount,
@@ -10,6 +10,7 @@ import {
   toDatetimeLocal, fromDatetimeLocal, formatBeanRemaining, calcFrequentFlavors, getBedtimeDate,
   SCENE_OPTIONS, DRINK_STYLE_OPTIONS,
   saveBrewDraft, loadBrewDraft, clearBrewDraft, getBrewEquipmentIds,
+  DRIP_BAG_DOSE_G, BREW_METHOD_LABELS,
 } from '../db'
 import type { BrewDraft } from '../db'
 import StarRating from '../components/brew/StarRating'
@@ -80,6 +81,7 @@ export default function BrewPage() {
   const [allBrews, setAllBrews] = useState<Brew[]>([])
 
   const [brewedAtLocal, setBrewedAtLocal] = useState(() => toDatetimeLocal(nowISO()))
+  const [method, setMethod] = useState<BrewMethod>('pour_over')
   const [beanId, setBeanId] = useState<string | undefined>()
   const [recipeId, setRecipeId] = useState<string | undefined>()
   const [doseG, setDoseG] = useState(15)
@@ -141,16 +143,20 @@ export default function BrewPage() {
   }, [])
 
   useEffect(() => {
-    if (isEditMode || !doseG) { setBedtimePrediction(null); return }
     const decaf = beans.find(b => b.id === beanId)?.decaf
+    // ドリップバッグは代表量で、通常は粉量で推定。どちらも無ければ予測しない
+    const mg = method === 'drip_bag'
+      ? estimateCaffeine(DRIP_BAG_DOSE_G, decaf)
+      : doseG ? estimateCaffeine(doseG, decaf) : null
+    if (isEditMode || mg === null) { setBedtimePrediction(null); return }
     const now = new Date()
     const bt = getBedtimeDate(caffeineSettings.bedtimeHour, caffeineSettings.bedtimeMinute, now)
     const allIntakes = [
       ...pastIntakes,
-      { caffeineAmount: estimateCaffeine(doseG, decaf), brewedAt: now.toISOString() },
+      { caffeineAmount: mg, brewedAt: now.toISOString() },
     ]
     setBedtimePrediction(calcResidualCaffeine(allIntakes, bt))
-  }, [doseG, pastIntakes, isEditMode, caffeineSettings, beanId, beans])
+  }, [method, doseG, pastIntakes, isEditMode, caffeineSettings, beanId, beans])
 
   const fillFromBrew = useCallback((b: Brew, copyEval: boolean) => {
     setBeanId(b.beanId)
@@ -177,6 +183,7 @@ export default function BrewPage() {
   // 下書き（BrewDraft）から入力欄を復元する
   const applyDraft = useCallback((d: BrewDraft) => {
     setBrewedAtLocal(d.brewedAtLocal)
+    setMethod(d.method ?? 'pour_over')
     setBeanId(d.beanId)
     setRecipeId(d.recipeId)
     setDoseG(d.doseG)
@@ -222,26 +229,28 @@ export default function BrewPage() {
       .catch(() => {/* データ読込失敗時は空のまま続行 */})
 
     if (editBrewId) {
-      // 編集モード: 既存記録を全フィールド（評価・日時含む）で読み込む
+      // 編集モード: 既存記録を全フィールド（評価・日時・抽出方法含む）で読み込む
       getBrew(editBrewId).then(b => {
         if (b) {
           fillFromBrew(b, true)
+          setMethod(b.method ?? 'pour_over')
           setBrewedAtLocal(toDatetimeLocal(b.brewedAt))
         }
       }).catch(() => {})
     } else if (fromBrewId) {
-      // 再現モード: 技術パラメータのみ転写、評価はリセット
-      getBrew(fromBrewId).then(b => { if (b) fillFromBrew(b, false) }).catch(() => {})
+      // 再現モード: 技術パラメータ＋抽出方法を転写、評価はリセット
+      getBrew(fromBrewId).then(b => { if (b) { fillFromBrew(b, false); setMethod(b.method ?? 'pour_over') } }).catch(() => {})
     }
+    // 通常の新規（素の /brew）は method を引き継がず常に pour_over のまま
   }, [editBrewId, fromBrewId, fillFromBrew, applyDraft, showToast])
 
   // 現在の入力を下書きスナップショットにまとめる
   const buildDraft = useCallback((): BrewDraft => ({
-    brewedAtLocal, beanId, recipeId, doseG, waterG, grindSize, tempC, rating,
+    brewedAtLocal, method, beanId, recipeId, doseG, waterG, grindSize, tempC, rating,
     flavors, scene, drinkStyle, cupping, equipmentIds, totalTimeSec, pourCount,
     note, photoDataUrl, showDetail,
   }), [
-    brewedAtLocal, beanId, recipeId, doseG, waterG, grindSize, tempC, rating,
+    brewedAtLocal, method, beanId, recipeId, doseG, waterG, grindSize, tempC, rating,
     flavors, scene, drinkStyle, cupping, equipmentIds, totalTimeSec, pourCount,
     note, photoDataUrl, showDetail,
   ])
@@ -267,6 +276,7 @@ export default function BrewPage() {
     setDraftRestored(false)
     // 既定値へリセット
     setBrewedAtLocal(toDatetimeLocal(nowISO()))
+    setMethod('pour_over')
     setBeanId(undefined); setRecipeId(undefined)
     setDoseG(15); setWaterG(240); setGrindSize(undefined); setTempC(90)
     setRating(0); setFlavors([]); setScene(''); setDrinkStyle([])
@@ -279,13 +289,23 @@ export default function BrewPage() {
   const selectedBean = beans.find(b => b.id === beanId)
   const selectedRecipe = recipes.find(r => r.id === recipeId)
   const ratio = calcRatio(doseG, waterG)
+  const isDripBag = method === 'drip_bag'
+  const beanLabel = isDripBag ? '銘柄' : '豆' // ドリップバッグは実態が「豆」でなく銘柄・商品名
+
+  // 推定カフェイン量。ドリップバッグは粉量を持たないため代表量で推定する（参考値）
+  const estimatedCaffeine =
+    isDripBag ? estimateCaffeine(DRIP_BAG_DOSE_G, selectedBean?.decaf)
+    : doseG ? estimateCaffeine(doseG, selectedBean?.decaf)
+    : undefined
 
   const buildBrewFields = () => ({
+    method: isDripBag ? 'drip_bag' as const : undefined, // 通常ドリップは未設定のまま（後方互換）
     beanId,
-    recipeId,
-    doseG,
+    // ドリップバッグは粉量・挽き目・レシピを自分で決めないため保存しない（豆残量にも加算されない）
+    recipeId:  isDripBag ? undefined : recipeId,
+    doseG:     isDripBag ? undefined : doseG,
     waterG,
-    grindSize,
+    grindSize: isDripBag ? undefined : grindSize,
     tempC,
     equipmentIds: equipmentIds.length > 0 ? equipmentIds : undefined,
     equipmentId: undefined, // 新規保存は equipmentIds を使う（旧フィールドは残さない）
@@ -297,7 +317,7 @@ export default function BrewPage() {
     drinkStyle: drinkStyle.length > 0 ? drinkStyle : undefined,
     cupping,
     cuppingAverage: calcCuppingAverage(cupping),
-    caffeineAmount: doseG ? estimateCaffeine(doseG, selectedBean?.decaf) : undefined,
+    caffeineAmount: estimatedCaffeine,
     photoDataUrl,
     note: note.trim() || undefined,
   })
@@ -358,6 +378,8 @@ export default function BrewPage() {
   const renderBlock = (id: BrewBlockId): React.ReactNode => {
     switch (id) {
       case 'recipe':
+        // ドリップバッグは粉量・挽き目を決めないため、レシピ（それらの雛形）は出さない
+        if (isDripBag) return null
         return (
           <button
             key="recipe"
@@ -374,6 +396,14 @@ export default function BrewPage() {
         )
 
       case 'dose_water':
+        // ドリップバッグは粉量を持たないので湯量のみ（比率も出さない）
+        if (isDripBag) {
+          return (
+            <div key="dose_water">
+              <Stepper label="湯量" value={waterG} onChange={setWaterG} unit="g" step={5} min={10} />
+            </div>
+          )
+        }
         return (
           <div key="dose_water" className="flex flex-col gap-2">
             <div className="grid grid-cols-2 gap-3">
@@ -387,7 +417,26 @@ export default function BrewPage() {
           </div>
         )
 
-      case 'grind_temp':
+      case 'grind_temp': {
+        // ドリップバッグは挽き目を決めないので湯温のみ
+        const tempBox = (
+          <div className="bg-[#2E2018] rounded-xl p-4">
+            <div className="flex justify-between mb-2">
+              <p className="text-xs text-[#CE9C68]">湯温</p>
+              <p className="text-xs text-[#F7EFE6] font-semibold tabular-nums">{tempC}°C</p>
+            </div>
+            <input
+              type="range"
+              min={70}
+              max={100}
+              step={1}
+              value={tempC}
+              onChange={e => setTempC(Number(e.target.value))}
+              className="w-full accent-[#993C1D] mt-1"
+            />
+          </div>
+        )
+        if (isDripBag) return <div key="grind_temp">{tempBox}</div>
         return (
           <div key="grind_temp" className="grid grid-cols-2 gap-3">
             <div className="bg-[#2E2018] rounded-xl p-4">
@@ -401,23 +450,10 @@ export default function BrewPage() {
                 className="w-full bg-transparent text-[#F7EFE6] text-xl font-semibold outline-none placeholder-[#4a3a2a] tabular-nums"
               />
             </div>
-            <div className="bg-[#2E2018] rounded-xl p-4">
-              <div className="flex justify-between mb-2">
-                <p className="text-xs text-[#CE9C68]">湯温</p>
-                <p className="text-xs text-[#F7EFE6] font-semibold tabular-nums">{tempC}°C</p>
-              </div>
-              <input
-                type="range"
-                min={70}
-                max={100}
-                step={1}
-                value={tempC}
-                onChange={e => setTempC(Number(e.target.value))}
-                className="w-full accent-[#993C1D] mt-1"
-              />
-            </div>
+            {tempBox}
           </div>
         )
+      }
 
       case 'rating':
         return (
@@ -628,42 +664,66 @@ export default function BrewPage() {
           />
         </div>
 
-        {/* 豆カード（固定）。本体タップで選び直し、右上の✕で未選択に戻す */}
+        {/* 豆カード（固定）。ドリップバッグでは「銘柄」ラベルに切替。本体タップで選び直し、✕で未選択に戻す */}
         <div className="relative w-full bg-[#2E2018] rounded-xl">
           <button
             type="button"
             onClick={() => setShowBeanPicker(true)}
             className="w-full p-4 text-left active:opacity-80"
           >
-            <p className="text-xs text-[#CE9C68] mb-1">豆</p>
+            <p className="text-xs text-[#CE9C68] mb-1">{beanLabel}</p>
             {selectedBean ? (
               <>
                 <p className="text-[#F7EFE6] font-medium pr-8">{selectedBean.name}</p>
-                <p className="text-xs text-[#CE9C68] mt-0.5">
-                  {ROAST_LEVEL_LABELS[selectedBean.roastLevel]}
-                  {selectedBean.roastedAt ? ` · 焙煎から${daysSinceRoast(selectedBean.roastedAt)}日` : ''}
-                  {selectedBean.origin ? ` · ${selectedBean.origin}` : ''}
-                </p>
-                {formatBeanRemaining(selectedBean, allBrews) && (
-                  <p className="text-xs text-[#6b5a4a] mt-0.5">
-                    {formatBeanRemaining(selectedBean, allBrews)}
-                  </p>
+                {/* 銘柄（ドリップバッグ）は焙煎度・産地・残量が実態に合わないため名前のみ */}
+                {!isDripBag && (
+                  <>
+                    <p className="text-xs text-[#CE9C68] mt-0.5">
+                      {ROAST_LEVEL_LABELS[selectedBean.roastLevel]}
+                      {selectedBean.roastedAt ? ` · 焙煎から${daysSinceRoast(selectedBean.roastedAt)}日` : ''}
+                      {selectedBean.origin ? ` · ${selectedBean.origin}` : ''}
+                    </p>
+                    {formatBeanRemaining(selectedBean, allBrews) && (
+                      <p className="text-xs text-[#6b5a4a] mt-0.5">
+                        {formatBeanRemaining(selectedBean, allBrews)}
+                      </p>
+                    )}
+                  </>
                 )}
               </>
             ) : (
-              <p className="text-[#6b5a4a]">タップして豆を選ぶ →</p>
+              <p className="text-[#6b5a4a]">タップして{beanLabel}を選ぶ{isDripBag ? '（任意）' : ''} →</p>
             )}
           </button>
           {selectedBean && (
             <button
               type="button"
               onClick={() => setBeanId(undefined)}
-              aria-label="豆を未選択にする"
+              aria-label={`${beanLabel}を未選択にする`}
               className="absolute top-2 right-2 w-8 h-8 rounded-full bg-[#3e3020] text-[#CE9C68] flex items-center justify-center text-sm active:opacity-70"
             >
               ✕
             </button>
           )}
+        </div>
+
+        {/* 抽出方法（スリムトグル）。ドリップバッグでは粉量・挽き目などを出し分ける */}
+        <div className="w-full bg-[#2E2018] rounded-xl px-4 py-2.5 flex items-center justify-between gap-3">
+          <p className="text-xs text-[#CE9C68] shrink-0">抽出方法</p>
+          <div className="flex gap-0.5 bg-[#1a0a05] rounded-lg p-0.5">
+            {(['pour_over', 'drip_bag'] as const).map(m => (
+              <button
+                key={m}
+                type="button"
+                onClick={() => setMethod(m)}
+                className={`px-3 py-1 rounded-md text-xs transition-colors ${
+                  method === m ? 'bg-[#993C1D] text-[#F7EFE6]' : 'text-[#6b5a4a]'
+                }`}
+              >
+                {BREW_METHOD_LABELS[m]}
+              </button>
+            ))}
+          </div>
         </div>
 
         {/* メインゾーンのブロック */}
@@ -707,14 +767,14 @@ export default function BrewPage() {
           )
         )}
 
-        {/* 保存ボタン（豆なしのログは構造上ありえないため、未選択では保存不可） */}
-        {!beanId && (
+        {/* 保存ボタン。通常ドリップは豆必須。ドリップバッグは銘柄なしでも保存可 */}
+        {!isDripBag && !beanId && (
           <p className="text-xs text-[#6b5a4a] text-center -mb-1">豆を選んでください</p>
         )}
         <button
           type="button"
           onClick={handleSave}
-          disabled={saving || !beanId}
+          disabled={saving || (!isDripBag && !beanId)}
           className="w-full bg-[#993C1D] text-[#F7EFE6] py-4 rounded-2xl text-base font-semibold active:opacity-80 disabled:opacity-40 mt-2 mb-2"
         >
           {saving ? '保存中...' : isEditMode ? '変更を保存する' : 'この一杯を記録する'}
@@ -724,6 +784,7 @@ export default function BrewPage() {
       {showBeanPicker && (
         <BeanPickerModal
           currentBeanId={beanId}
+          mode={isDripBag ? 'brand' : 'bean'}
           onSelect={handleBeanSelect}
           onClose={() => setShowBeanPicker(false)}
         />

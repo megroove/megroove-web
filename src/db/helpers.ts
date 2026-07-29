@@ -1,4 +1,4 @@
-import type { Bean, Brew, CuppingScores } from './types'
+import type { Bean, Brew, CuppingScores, BrewMethod } from './types'
 
 export function newId(): string {
   return crypto.randomUUID()
@@ -37,6 +37,15 @@ export function daysSinceRoast(roastedAt: string): number {
   const roasted = new Date(roastedAt)
   const now = new Date()
   return Math.floor((now.getTime() - roasted.getTime()) / (1000 * 60 * 60 * 24))
+}
+
+// ドリップバッグ（1杯分の粉が入ったパック）の代表的な粉量。粉量を自分で決めないため、
+// カフェイン推定にだけ用いる参考値（既存の 12mg/g モデルに乗る。免責はカフェイン画面に既存）
+export const DRIP_BAG_DOSE_G = 8
+
+export const BREW_METHOD_LABELS: Record<string, string> = {
+  pour_over: 'ドリップ',
+  drip_bag:  'ドリップバッグ',
 }
 
 // 淹れた時点の焙煎日齢（飲み頃分析用）。daysSinceRoast と違い「今」ではなく brewedAt 基準
@@ -270,6 +279,7 @@ const BREW_DRAFT_KEY = 'megroove-brew-draft'
 
 export interface BrewDraft {
   brewedAtLocal: string
+  method: BrewMethod
   beanId?: string
   recipeId?: string
   doseG: number

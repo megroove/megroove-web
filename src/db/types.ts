@@ -126,9 +126,13 @@ export interface CaffeineIntake {
 
 // ─── Brew ───────────────────────────────────────────────────────────────────
 
+// 抽出方法。未設定＝通常のドリップ（後方互換）。drip_bag はドリップバッグ（1杯分の粉が入ったパック）
+export type BrewMethod = 'pour_over' | 'drip_bag'
+
 export interface Brew {
   id: string
   brewedAt: string           // ISO datetime
+  method?: BrewMethod        // 未設定＝pour_over（通常ドリップ）
   beanId?: string
   recipeId?: string
   doseG?: number
