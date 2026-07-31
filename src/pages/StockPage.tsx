@@ -37,9 +37,11 @@ export default function StockPage() {
         ))}
       </div>
 
-      {tab === 'beans'     && <BeanTab />}
-      {tab === 'equipment' && <EquipmentTab />}
-      {tab === 'recipes'   && <RecipeTab />}
+      <div className="flex-1 min-h-0 overflow-y-auto">
+        {tab === 'beans'     && <BeanTab />}
+        {tab === 'equipment' && <EquipmentTab />}
+        {tab === 'recipes'   && <RecipeTab />}
+      </div>
     </div>
   )
 }

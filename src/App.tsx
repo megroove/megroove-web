@@ -26,7 +26,8 @@ function AppRoutes() {
   return (
     // pathname を key にして遷移ごとにフェードインさせる。
     // ErrorBoundary も内側に置くことで、ある画面が落ちても別タブに移れば自動復帰する。
-    <div key={location.pathname} className="page-enter flex flex-col flex-1">
+    // min-h-0 で、各ページの内部スクロール（overflow-y-auto）が固定高フレックス内で効くようにする。
+    <div key={location.pathname} className="page-enter flex flex-col flex-1 min-h-0">
       <ErrorBoundary>
       <Routes>
         <Route path="/"                element={<HomePage />} />
@@ -64,17 +65,22 @@ export default function App() {
     <HashRouter>
       <ToastProvider>
       {showTour && <OnboardingTour onDone={() => setShowTour(false)} />}
+      {/* app-shell: 高さ100dvh の縦フレックス。中身(flex-1 で内部スクロール) ＋ フッター(通常フロー最下段)。
+          フッターを fixed から外すことで、短いページでも常に画面最下部に接地する。 */}
       <div
-        className="flex flex-col min-h-svh pb-[calc(4rem+env(safe-area-inset-bottom))] w-full max-w-lg mx-auto"
+        className="flex flex-col"
         style={{
+          height: '100dvh',
           paddingTop: 'env(safe-area-inset-top)',
           paddingLeft: 'env(safe-area-inset-left)',
           paddingRight: 'env(safe-area-inset-right)',
         }}
       >
-        <AppRoutes />
+        <div className="flex-1 min-h-0 w-full max-w-lg mx-auto flex flex-col">
+          <AppRoutes />
+        </div>
+        <BottomNav />
       </div>
-      <BottomNav />
       </ToastProvider>
     </HashRouter>
   )
