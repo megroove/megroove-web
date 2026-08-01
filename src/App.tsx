@@ -68,9 +68,8 @@ export default function App() {
       {/* app-shell: 高さ100dvh の縦フレックス。中身(flex-1 で内部スクロール) ＋ フッター(通常フロー最下段)。
           フッターを fixed から外すことで、短いページでも常に画面最下部に接地する。 */}
       <div
-        className="flex flex-col"
+        className="flex flex-col h-full"
         style={{
-          height: '100dvh',
           paddingTop: 'env(safe-area-inset-top)',
           paddingLeft: 'env(safe-area-inset-left)',
           paddingRight: 'env(safe-area-inset-right)',

@@ -84,6 +84,15 @@ button:active {
   :root {
     color-scheme: dark;
   }
+  /* app-shell: 文書自体はスクロールさせず（内部領域だけスクロール）、
+     iOS のオーバースクロール（バウンス）を無効化する。
+     これがないと、スクロール領域外（ヘッダー等）をドラッグしたとき body が
+     引っ張られてヘッダーが浮き、固まる。 */
+  html, body {
+    height: 100%;
+    overflow: hidden;
+    overscroll-behavior: none;
+  }
   body {
     margin: 0;
     background-color: #1a1008;
@@ -92,7 +101,7 @@ button:active {
     -webkit-font-smoothing: antialiased;
   }
   #root {
-    min-height: 100svh;
+    height: 100%;
     display: flex;
     flex-direction: column;
   }
