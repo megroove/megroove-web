@@ -15,7 +15,7 @@ export default function StockPage() {
   const [tab, setTab] = useState<Tab>('beans')
 
   return (
-    <div className="flex flex-col flex-1">
+    <div className="flex flex-col flex-1 min-h-0">
       <div className="px-4 pt-5 pb-3">
         <h2 className="text-xl font-semibold text-[#F7EFE6]">ストック</h2>
       </div>

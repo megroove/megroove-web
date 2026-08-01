@@ -580,7 +580,7 @@ export default function LibraryPage() {
   }
 
   return (
-    <div className="flex flex-col flex-1">
+    <div className="flex flex-col flex-1 min-h-0">
       {/* ヘッダー */}
       <div className="px-4 pt-5 pb-3 flex items-center justify-between">
         <h2 className="text-xl font-semibold text-[#F7EFE6]">ライブラリ</h2>
