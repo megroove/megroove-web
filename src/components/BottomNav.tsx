@@ -12,7 +12,7 @@ const tabs = [
 export default function BottomNav() {
   return (
     <nav
-      className="shrink-0 bg-[#2E2018] border-t border-[#3e3020] flex"
+      className="shrink-0 relative z-20 bg-[#2E2018] border-t border-[#3e3020] flex"
       style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
     >
       {tabs.map(({ to, label, Icon }) => (
@@ -21,12 +21,12 @@ export default function BottomNav() {
           to={to}
           end={to === '/'}
           className={({ isActive }) =>
-            `flex-1 flex flex-col items-center py-2.5 gap-1 text-[10px] transition-colors ${
+            `flex-1 flex flex-col items-center pt-1.5 pb-1 gap-0.5 text-[10px] transition-colors ${
               isActive ? 'text-[#CE9C68]' : 'text-[#6b5a4a]'
             }`
           }
         >
-          <Icon size={22} />
+          <Icon size={20} />
           <span>{label}</span>
         </NavLink>
       ))}

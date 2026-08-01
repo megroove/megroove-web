@@ -6,8 +6,8 @@ export default function SettingsPage() {
 
   return (
     <div className="flex flex-col flex-1 px-4 py-5 gap-6 overflow-y-auto">
-      <div className="flex items-center gap-3">
-        <button type="button" onClick={() => navigate(-1)} className="text-[#CE9C68] text-sm shrink-0">
+      <div className="flex flex-col gap-2">
+        <button type="button" onClick={() => navigate(-1)} className="text-[#CE9C68] text-sm self-start">
           ← 戻る
         </button>
         <h2 className="text-xl font-semibold text-[#F7EFE6]">設定</h2>
