@@ -8,6 +8,36 @@ export function nowISO(): string {
   return new Date().toISOString()
 }
 
+// ─── 保存の安全網 ──────────────────────────────────────────────────────────────
+// 正常な IndexedDB 書き込みは数十ms。これを大きく超えて返らない場合は、DB接続の異常
+// （別タブ／別PWAによるアップグレードのブロック等）で無言のハングに陥っている可能性が高い。
+// 保存処理をこれで包むと、固まったまま待ち続けず、ユーザーにフィードバックを返せる。
+export class SaveTimeoutError extends Error {
+  constructor() {
+    super('保存がタイムアウトしました')
+    this.name = 'SaveTimeoutError'
+  }
+}
+
+export function withSaveTimeout<T>(p: Promise<T>, ms = 8000): Promise<T> {
+  let timer: ReturnType<typeof setTimeout>
+  const timeout = new Promise<never>((_, reject) => {
+    timer = setTimeout(() => reject(new SaveTimeoutError()), ms)
+  })
+  return Promise.race([p, timeout]).finally(() => clearTimeout(timer)) as Promise<T>
+}
+
+// 保存失敗時に表示する、原因に応じた案内文
+export function saveErrorMessage(e: unknown): string {
+  if (e instanceof SaveTimeoutError) {
+    return '保存が完了しませんでした。ページを再読み込みし、他に開いている Megroove のタブ／PWA を閉じてからお試しください'
+  }
+  if (e instanceof DOMException && e.name === 'QuotaExceededError') {
+    return 'ストレージの空き容量が不足しています。設定からバックアップ後、不要な写真つき記録を整理してください'
+  }
+  return '保存に失敗しました。ページを再読み込みしてからお試しください'
+}
+
 export function calcCuppingAverage(cupping: CuppingScores): number | undefined {
   const vals = [
     cupping.acidity,

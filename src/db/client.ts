@@ -46,6 +46,28 @@ function getDB() {
             .createIndex('byConsumedAt', 'consumedAt')
         }
       },
+      // 別タブ／別PWAが古いバージョンで接続していると、こちらのアップグレードが
+      // 恒久的にブロックされ、以後すべての読み書きが無言で止まる。表面化させる。
+      blocked() {
+        console.error('[megroove] DBを開けません（他のMegrooveタブまたはPWAが開いています）。すべてのMegrooveのタブ／PWAを閉じて再読み込みしてください。')
+      },
+      // 逆に、この接続が別タブの新バージョンへのアップグレードを妨げている場合は、
+      // 接続を手放して相手を通す（次回アクセス時に開き直す）。
+      blocking() {
+        console.warn('[megroove] 新しいバージョンのアップグレードを妨げているため、この接続を閉じます。')
+        if (dbPromise) { dbPromise.then(db => db.close()).catch(() => {}); dbPromise = null }
+      },
+      // 接続が予期せず切れたら、次回 getDB で開き直せるようにキャッシュを捨てる。
+      terminated() {
+        console.warn('[megroove] DB接続が終了しました。次のアクセスで開き直します。')
+        dbPromise = null
+      },
+    })
+    // オープン自体が失敗（アップグレード例外など）したら、無言のハングにせず、
+    // 次回リトライできるようにキャッシュを捨てて再送出する。
+    dbPromise.catch(err => {
+      console.error('[megroove] DBのオープンに失敗しました:', err)
+      dbPromise = null
     })
   }
   return dbPromise

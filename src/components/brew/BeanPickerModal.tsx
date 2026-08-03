@@ -3,8 +3,10 @@ import type { Bean, Brew, RoastLevel } from '../../db'
 import {
   getAllBeans, getAllBrews, putBean, newId, nowISO,
   ROAST_LEVEL_LABELS, daysSinceRoast, formatBeanRemaining,
+  withSaveTimeout, saveErrorMessage,
 } from '../../db'
 import OriginInput from '../OriginInput'
+import { useToast } from '../Toast'
 
 // 'bean' = 通常の豆、'brand' = ドリップバッグの銘柄（ラベルを変え、入力を最小化）
 type PickerMode = 'bean' | 'brand'
@@ -32,6 +34,7 @@ function AddBeanForm({ mode, onAdd, onCancel, recentOrigins }: {
   const [amountG, setAmountG] = useState<number | undefined>()
   const [decaf, setDecaf] = useState(false)
   const [submitting, setSubmitting] = useState(false)
+  const showToast = useToast()
 
   const handleSubmit = async () => {
     if (!name.trim() || submitting) return
@@ -46,7 +49,15 @@ function AddBeanForm({ mode, onAdd, onCancel, recentOrigins }: {
       decaf: decaf || undefined,
       createdAt: nowISO(),
     }
-    await putBean(bean)
+    // 保存が失敗／停止しても無言で固まらないよう、エラー・ハングを表面化し、ボタンを復帰させる
+    try {
+      await withSaveTimeout(putBean(bean))
+    } catch (e) {
+      console.error('[megroove] 豆（銘柄）の保存に失敗しました:', e)
+      setSubmitting(false)
+      showToast(saveErrorMessage(e), { type: 'error' })
+      return
+    }
     onAdd(bean)
   }
 

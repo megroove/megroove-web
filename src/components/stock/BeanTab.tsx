@@ -3,6 +3,7 @@ import type { Bean, Brew, RoastLevel } from '../../db'
 import {
   getAllBeans, getAllBrews, putBean, deleteBean, newId, nowISO,
   ROAST_LEVEL_LABELS, daysSinceRoast, formatBeanRemaining,
+  withSaveTimeout, saveErrorMessage,
 } from '../../db'
 import { Field, TextInput, NumberInput, DateInput, ChipSelect, DeleteButton, ModalSheet, SaveButton } from './FormHelpers'
 import { useToast } from '../Toast'
@@ -59,10 +60,11 @@ function BeanForm({
       createdAt:  initial?.createdAt ?? nowISO(),
     }
     try {
-      await putBean(bean)
-    } catch {
+      await withSaveTimeout(putBean(bean))
+    } catch (e) {
+      console.error('[megroove] 豆の保存に失敗しました:', e)
       setSaving(false)
-      showToast('保存に失敗しました', { type: 'error' })
+      showToast(saveErrorMessage(e), { type: 'error' })
       return
     }
     onSave(bean)
