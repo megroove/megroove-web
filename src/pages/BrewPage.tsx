@@ -130,6 +130,7 @@ export default function BrewPage() {
   const [showRecipePicker, setShowRecipePicker] = useState(false)
   const [showSaveAnim, setShowSaveAnim] = useState(false)
   const [savedBrewCount, setSavedBrewCount] = useState(0)
+  const [savedRated, setSavedRated] = useState(true) // 保存時に評価が付いていたか（演出の出し分け用）
   const [saving, setSaving] = useState(false)
 
   // 入力途中の下書き（新規記録のみ）。復元表示のフラグと自動保存の基準
@@ -372,6 +373,7 @@ export default function BrewPage() {
       await putBrew(brew)
       clearBrewDraft() // 保存できたので下書きは不要
       setSavedBrewCount(count + 1)
+      setSavedRated((brew.rating ?? 0) > 0) // 星があればフル演出、無ければ静かに盤を置くだけ
       setSaving(false)
       setShowSaveAnim(true)
     } catch {
@@ -792,9 +794,12 @@ export default function BrewPage() {
         )}
 
         {/* 保存ボタン。通常ドリップは豆必須。ドリップバッグは銘柄なしでも保存可 */}
-        {!isDripBag && !beanId && (
+        {!isDripBag && !beanId ? (
           <p className="text-xs text-[#6b5a4a] text-center -mb-1">豆を選んでください</p>
-        )}
+        ) : rating === 0 && !isEditMode ? (
+          // 保存可能だが星が未入力のとき: 評価は後回しにできることを控えめに伝える（急かさない）
+          <p className="text-xs text-[#6b5a4a] text-center -mb-1">飲んでから、あとで評価を足せます</p>
+        ) : null}
         <button
           type="button"
           onClick={handleSave}
@@ -828,7 +833,7 @@ export default function BrewPage() {
       )}
 
       {showSaveAnim && (
-        <SaveAnimation brewCount={savedBrewCount} onDone={handleAnimDone} />
+        <SaveAnimation brewCount={savedBrewCount} rated={savedRated} onDone={handleAnimDone} />
       )}
     </>
   )

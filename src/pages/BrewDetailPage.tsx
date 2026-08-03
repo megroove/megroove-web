@@ -1,12 +1,18 @@
 import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import type { Brew, Bean, Recipe } from '../db'
+import type { Brew, Bean, Recipe, CuppingScores } from '../db'
 import {
   getBrew, getBean, getAllEquipment, getRecipe, deleteBrew, putBrew,
+  getAllBrews, getAllCafeVisits, calcCuppingAverage, calcFrequentFlavors,
   calcRatio, formatBrewDate, ROAST_LEVEL_LABELS, daysSinceRoast, getBrewEquipmentIds,
   BREW_METHOD_LABELS,
 } from '../db'
 import PhotoLightbox from '../components/PhotoLightbox'
+import StarRating from '../components/brew/StarRating'
+import CuppingSliders from '../components/brew/CuppingSliders'
+import FlavorChips from '../components/brew/FlavorChips'
+import SaveAnimation from '../components/brew/SaveAnimation'
+import RecordDisk from '../components/brew/RecordDisk'
 import { useToast, notifyDataRestored } from '../components/Toast'
 import { CupIcon } from '../components/icons'
 
@@ -45,11 +51,24 @@ export default function BrewDetailPage() {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const [lightboxOpen, setLightboxOpen] = useState(false)
 
+  // 後から評価を足す（未評価＝まだ針を落としていない盤）
+  const [rateValue, setRateValue] = useState(0)
+  const [savingRate, setSavingRate] = useState(false)
+  const [showRateAnim, setShowRateAnim] = useState(false)
+  // 星だけでさっと付けたい人のため、フレーバー・カッピングは折りたたみ（既定は閉じ）
+  const [showRateDetail, setShowRateDetail] = useState(false)
+  const [rateFlavors, setRateFlavors] = useState<string[]>([])
+  const [rateCupping, setRateCupping] = useState<CuppingScores>({})
+  const [frequentFlavors, setFrequentFlavors] = useState<string[]>([])
+
   useEffect(() => {
     if (!id) return
     getBrew(id).then(b => {
       if (!b) { navigate('/library', { replace: true }); return }
       setBrew(b)
+      // 後付け評価の初期値は既存の値（条件のみ保存なら空）を引き継ぐ。上書きで失わない
+      setRateFlavors(b.flavors ?? [])
+      setRateCupping(b.cupping ?? {})
       if (b.beanId) getBean(b.beanId).then(setBean)
       const eqIds = getBrewEquipmentIds(b)
       if (eqIds.length > 0) {
@@ -61,6 +80,13 @@ export default function BrewDetailPage() {
       if (b.recipeId) getRecipe(b.recipeId).then(setRecipe)
     })
   }, [id, navigate])
+
+  // 後付け評価のフレーバー候補（記録画面と同じ頻度順の「よく使う」行）
+  useEffect(() => {
+    Promise.all([getAllBrews(), getAllCafeVisits()])
+      .then(([bs, vs]) => setFrequentFlavors(calcFrequentFlavors([...bs, ...vs])))
+      .catch(() => {})
+  }, [])
 
   if (!brew) {
     return (
@@ -101,6 +127,28 @@ export default function BrewDetailPage() {
     navigate(`/brew/edit/${brew.id}`)
   }
 
+  // 未評価の一杯に星を付ける = 針を落として再生する。集計は自動で反映される（未評価は元々除外）
+  const handleAddRating = async () => {
+    if (!brew || !rateValue) return
+    setSavingRate(true)
+    try {
+      const updated = {
+        ...brew,
+        rating: rateValue,
+        flavors: rateFlavors,
+        cupping: rateCupping,
+        cuppingAverage: calcCuppingAverage(rateCupping),
+      }
+      await putBrew(updated)
+      setBrew(updated)
+      setSavingRate(false)
+      setShowRateAnim(true) // 針を落とすフル演出
+    } catch {
+      setSavingRate(false)
+      showToast('保存に失敗しました', { type: 'error' })
+    }
+  }
+
   return (
     <div className="flex flex-col flex-1 overflow-y-auto">
       {/* ヘッダー */}
@@ -131,6 +179,51 @@ export default function BrewDetailPage() {
             </p>
           )}
         </div>
+
+        {/* 未評価＝まだ針を落としていない盤。ここで星をつけると「再生」される（急かさず、楽しみとして） */}
+        {!brew.rating && (
+          <div className="bg-[#2E2018] rounded-xl p-4 flex flex-col items-center gap-3">
+            <div className="flex items-center gap-2 text-[#CE9C68] text-sm font-medium">
+              <RecordDisk size={26} />
+              <span>まだ針を落としていない一杯</span>
+            </div>
+            <p className="text-xs text-[#6b5a4a] text-center leading-relaxed">
+              飲んでみて、どうでしたか？<br />星をつけると、この盤に針が落ちます
+            </p>
+            <StarRating value={rateValue} onChange={setRateValue} />
+
+            {/* 詳しく評価する（フレーバー＋カッピング）。既定は閉じ＝星だけでも完了できる */}
+            <button
+              type="button"
+              onClick={() => setShowRateDetail(v => !v)}
+              className="flex items-center justify-between w-full text-[#CE9C68] py-1 mt-1"
+            >
+              <span className="text-sm">詳しく評価する</span>
+              <span className="text-xs">{showRateDetail ? '▲ 閉じる' : '▽ 開く'}</span>
+            </button>
+            {showRateDetail && (
+              <div className="w-full flex flex-col gap-5">
+                <div>
+                  <p className="text-xs text-[#CE9C68] mb-3">フレーバー</p>
+                  <FlavorChips selected={rateFlavors} onChange={setRateFlavors} frequent={frequentFlavors} />
+                </div>
+                <div>
+                  <p className="text-xs text-[#CE9C68] mb-4">カッピング</p>
+                  <CuppingSliders value={rateCupping} onChange={setRateCupping} />
+                </div>
+              </div>
+            )}
+
+            <button
+              type="button"
+              onClick={handleAddRating}
+              disabled={!rateValue || savingRate}
+              className="w-full bg-[#993C1D] text-[#F7EFE6] py-3 rounded-2xl text-sm font-semibold active:opacity-80 disabled:opacity-40"
+            >
+              {savingRate ? '保存中...' : '評価する'}
+            </button>
+          </div>
+        )}
 
         {/* 写真 */}
         {brew.photoDataUrl && (
@@ -294,6 +387,10 @@ export default function BrewDetailPage() {
           )}
         </div>
       </div>
+
+      {showRateAnim && (
+        <SaveAnimation brewCount={0} rated message="針を落としました" onDone={() => setShowRateAnim(false)} />
+      )}
     </div>
   )
 }

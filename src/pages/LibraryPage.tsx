@@ -126,9 +126,9 @@ function PhotoGridCard({
 
 // レコードグリッド（アナログレコード型）
 function VinylCard({
-  photoUrl, name, sub, rating, onClick,
+  photoUrl, name, sub, rating, unrated, onClick,
 }: {
-  photoUrl?: string; name: string; sub?: string; rating?: number; onClick: () => void
+  photoUrl?: string; name: string; sub?: string; rating?: number; unrated?: boolean; onClick: () => void
 }) {
   return (
     <button
@@ -185,6 +185,8 @@ function VinylCard({
         {sub && <p className="text-[10px] text-[#6b5a4a] truncate mt-0.5">{sub}</p>}
         {rating ? (
           <p className="text-[10px] text-[#CE9C68] tracking-tight">{'★'.repeat(rating)}</p>
+        ) : unrated ? (
+          <p className="text-[10px] text-[#6b5a4a] tracking-tight">未再生</p>
         ) : null}
       </div>
     </button>
@@ -264,10 +266,13 @@ function CafeCard({ visit, onClick }: { visit: CafeVisit; onClick: () => void })
 
 // ─── フィルタータイプ ──────────────────────────────────────────────────────────
 
-type RatingFilter = 'all' | '3+' | '4+' | '5'
+type RatingFilter = 'all' | '3+' | '4+' | '5' | 'pending'
 const RATING_FILTER_LABELS: Record<RatingFilter, string> = {
-  all: 'すべて', '3+': '★3以上', '4+': '★4以上', '5': '★5のみ',
+  all: 'すべて', '3+': '★3以上', '4+': '★4以上', '5': '★5のみ', pending: '評価待ち',
 }
+// 「評価待ち」はブリューのみ（味の評価を後から足す動線）。カフェタブは従来の4つ
+const BREW_RATING_FILTERS: RatingFilter[] = ['all', '3+', '4+', '5', 'pending']
+const CAFE_RATING_FILTERS: RatingFilter[] = ['all', '3+', '4+', '5']
 
 // ─── ブリュータブ ──────────────────────────────────────────────────────────────
 
@@ -307,6 +312,7 @@ function BrewTab({ displayMode }: { displayMode: DisplayMode }) {
       if (ratingFilter === '3+' && (b.rating ?? 0) < 3) return false
       if (ratingFilter === '4+' && (b.rating ?? 0) < 4) return false
       if (ratingFilter === '5'  && b.rating !== 5)       return false
+      if (ratingFilter === 'pending' && b.rating)        return false // 未評価のみ
       if (beanFilter !== 'all' && b.beanId !== beanFilter) return false
       if (q) {
         const bean = b.beanId ? beanMap.get(b.beanId) : undefined
@@ -333,7 +339,7 @@ function BrewTab({ displayMode }: { displayMode: DisplayMode }) {
 
       {/* 評価フィルタ */}
       <div className="px-4 pb-2 flex gap-2 overflow-x-auto no-scrollbar">
-        {(Object.keys(RATING_FILTER_LABELS) as RatingFilter[]).map(key => (
+        {BREW_RATING_FILTERS.map(key => (
           <button key={key} type="button" onClick={() => setRatingFilter(key)}
             className={`flex-shrink-0 px-3 py-1.5 rounded-full text-sm transition-colors ${
               ratingFilter === key ? 'bg-[#993C1D] text-[#F7EFE6]' : 'bg-[#2E2018] text-[#CE9C68]'
@@ -424,6 +430,7 @@ function BrewTab({ displayMode }: { displayMode: DisplayMode }) {
                           name={bean?.name ?? (brew.method === 'drip_bag' ? '銘柄なし' : '豆なし')}
                           sub={formatBrewDateShort(brew.brewedAt)}
                           rating={brew.rating}
+                          unrated={!brew.rating}
                           onClick={() => navigate(`/library/${brew.id}`)}
                         />
                       )
@@ -482,7 +489,7 @@ function CafeTab({ displayMode }: { displayMode: DisplayMode }) {
     <>
       <SearchBox value={search} onChange={setSearch} placeholder="カフェ名・ドリンク・メモで検索" />
       <div className="px-4 pb-2 flex gap-2 overflow-x-auto no-scrollbar">
-        {(Object.keys(RATING_FILTER_LABELS) as RatingFilter[]).map(key => (
+        {CAFE_RATING_FILTERS.map(key => (
           <button key={key} type="button" onClick={() => setRatingFilter(key)}
             className={`flex-shrink-0 px-3 py-1.5 rounded-full text-sm transition-colors ${
               ratingFilter === key ? 'bg-[#993C1D] text-[#F7EFE6]' : 'bg-[#2E2018] text-[#CE9C68]'

@@ -2,16 +2,18 @@ import { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import RecordDisk from '../components/brew/RecordDisk'
 import StarRating from '../components/brew/StarRating'
+import CuppingSliders from '../components/brew/CuppingSliders'
+import FlavorChips from '../components/brew/FlavorChips'
 import SaveAnimation from '../components/brew/SaveAnimation'
 import { useToast } from '../components/Toast'
 import { getAllBrews, getAllBeans, getAllCafeVisits, getAllEquipment, getAllCaffeineIntakes, putBrew, putCafeVisit, getBrewCount } from '../db'
-import type { Brew, Bean, CafeVisit, Equipment } from '../db'
+import type { Brew, Bean, CafeVisit, Equipment, CuppingScores } from '../db'
 import {
   formatBrewDateShort, ROAST_LEVEL_LABELS, CAFE_DRINK_TYPE_LABELS, CAFE_DRINK_SIZE_LABELS,
   EQUIPMENT_TYPE_LABELS, daysSinceRoast, getBrewEquipmentIds,
   getBackupReminder, snoozeBackupReminder, countUnbackedRecords,
   hasSeenBackupIntro, markBackupIntroSeen, loadLastExportAt, exportBackup,
-  calcResidualCaffeine, calcStreakDays, isSameLocalDay,
+  calcResidualCaffeine, calcStreakDays, isSameLocalDay, calcCuppingAverage, calcFrequentFlavors,
   newId, nowISO, estimateCaffeine, estimateCafeCaffeine, calcRatio, loadSettings, getBedtimeDate,
 } from '../db'
 import {
@@ -231,6 +233,18 @@ export default function HomePage() {
   const [savedBrewCount, setSavedBrewCount] = useState(0)
   const [recentIntakes, setRecentIntakes] = useState<{ caffeineAmount: number; brewedAt: string }[]>([])
 
+  // 「針を落とす一杯」= 評価待ち（未評価のブリュー）に後から星をつける
+  const [pendingBrews, setPendingBrews] = useState<{ brew: Brew; bean?: Bean }[]>([])
+  const [showRateSheet, setShowRateSheet] = useState(false)
+  const [rateValue, setRateValue] = useState(0)
+  const [rateSaving, setRateSaving] = useState(false)
+  const [showRateAnim, setShowRateAnim] = useState(false)
+  // 星だけでさっと付けたい人のため、フレーバー・カッピングは折りたたみ（既定は閉じ）
+  const [showRateDetail, setShowRateDetail] = useState(false)
+  const [rateFlavors, setRateFlavors] = useState<string[]>([])
+  const [rateCupping, setRateCupping] = useState<CuppingScores>({})
+  const [frequentFlavors, setFrequentFlavors] = useState<string[]>([])
+
   // 「また、あのカフェの一杯」クイック記録（カフェ版）
   const [lastVisit, setLastVisit] = useState<CafeVisit | null>(null)
   const [showCafeQuickSheet, setShowCafeQuickSheet] = useState(false)
@@ -275,6 +289,15 @@ export default function HomePage() {
 
         // カフェ版クイック記録用の前回来店（ブリュー版と同じ「最後の1件」）
         setLastVisit(visits.at(-1) ?? null)
+
+        // 評価待ち（未評価）のブリュー。新しい順。針を落とすと集計へ自動反映（未評価は元々除外済み）
+        setPendingBrews(
+          [...brews].reverse()
+            .filter(b => !b.rating)
+            .map(b => ({ brew: b, bean: b.beanId ? beanMap.get(b.beanId) : undefined })),
+        )
+        // 後付け評価のフレーバー候補（記録画面と同じ頻度順の「よく使う」行）
+        setFrequentFlavors(calcFrequentFlavors([...brews, ...visits]))
 
         // 最近の記録（ブリュー＋カフェ混合、新しい順5件）
         const brewItems: RecentItem[] = [...brews].reverse().slice(0, 5).map(b => ({
@@ -386,6 +409,34 @@ export default function HomePage() {
 
   const handleQuickAnimDone = useCallback(() => {
     setShowQuickAnim(false)
+    loadHome()
+  }, [loadHome])
+
+  // 針を落とす: 評価待ちの一杯（最新）に星をつけて再生する
+  const latestPending = pendingBrews[0]
+
+  const handleRateSave = async () => {
+    if (!latestPending || !rateValue || rateSaving) return
+    setRateSaving(true)
+    try {
+      await putBrew({
+        ...latestPending.brew,
+        rating: rateValue,
+        flavors: rateFlavors,
+        cupping: rateCupping,
+        cuppingAverage: calcCuppingAverage(rateCupping),
+      })
+      setRateSaving(false)
+      setShowRateSheet(false)
+      setShowRateAnim(true) // 針を落とすフル演出
+    } catch {
+      setRateSaving(false)
+      showToast('保存に失敗しました。ストレージの空き容量を確認してください', { type: 'error' })
+    }
+  }
+
+  const handleRateAnimDone = useCallback(() => {
+    setShowRateAnim(false)
     loadHome()
   }, [loadHome])
 
@@ -560,6 +611,27 @@ export default function HomePage() {
               : lastVisit.drinkType
                 ? ` · ${CAFE_DRINK_TYPE_LABELS[lastVisit.drinkType]}`
                 : ''}
+          </span>
+        </button>
+      )}
+
+      {/* 針を落とす一杯（評価待ちのブリューに後から星をつける。あるときだけ・件数バッジや赤丸は使わない） */}
+      {latestPending && (
+        <button
+          type="button"
+          onClick={() => {
+            // 既存値（条件のみ保存なら空）を引き継いで開く。フォールドは既定で閉じる
+            setRateValue(0)
+            setShowRateDetail(false)
+            setRateFlavors(latestPending.brew.flavors ?? [])
+            setRateCupping(latestPending.brew.cupping ?? {})
+            setShowRateSheet(true)
+          }}
+          className={`${lastBrew || lastVisit ? '-mt-4' : '-mt-3'} w-full bg-[#2E2018] rounded-xl px-4 py-2.5 flex items-center justify-between gap-3 active:opacity-80`}
+        >
+          <span className="text-sm text-[#CE9C68] font-medium shrink-0">針を落とす一杯</span>
+          <span className="text-xs text-[#6b5a4a] truncate">
+            {latestPending.bean?.name ?? 'ホームブリュー'} · {formatBrewDateShort(latestPending.brew.brewedAt)}
           </span>
         </button>
       )}
@@ -1012,8 +1084,94 @@ export default function HomePage() {
         </div>
       )}
 
+      {/* ─── 針を落とす（評価待ち）シート ─── */}
+      {showRateSheet && latestPending && (
+        <div
+          className="fixed inset-0 bg-black/70 flex items-end justify-center z-50"
+          onClick={() => setShowRateSheet(false)}
+        >
+          <div
+            className="bg-[#2E2018] rounded-t-2xl w-full max-w-lg p-5 pb-8 flex flex-col gap-4 max-h-[85vh] overflow-y-auto"
+            onClick={e => e.stopPropagation()}
+          >
+            <h3 className="text-[#F7EFE6] font-semibold flex items-center gap-2">
+              <RecordDisk size={22} /> 針を落とす一杯
+            </h3>
+
+            {/* 評価待ちの条件サマリ（読み取り専用） */}
+            <div className="bg-[#3e3020] rounded-xl p-4 flex flex-col gap-2">
+              <div className="flex items-baseline justify-between gap-2">
+                <p className="text-sm text-[#F7EFE6] font-medium truncate">
+                  {latestPending.bean?.name ?? 'ホームブリュー'}
+                </p>
+                <span className="text-[10px] text-[#6b5a4a] shrink-0">
+                  {formatBrewDateShort(latestPending.brew.brewedAt)}
+                </span>
+              </div>
+              <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-[#CE9C68]">
+                {latestPending.brew.doseG != null && latestPending.brew.waterG != null && (
+                  <span>
+                    {latestPending.brew.doseG}g / {latestPending.brew.waterG}g
+                    （{calcRatio(latestPending.brew.doseG, latestPending.brew.waterG)}）
+                  </span>
+                )}
+                {latestPending.brew.tempC != null && <span>{latestPending.brew.tempC}°C</span>}
+              </div>
+            </div>
+
+            <div className="flex flex-col items-center gap-2">
+              <p className="text-xs text-[#CE9C68]">飲んでみて、どうでしたか？</p>
+              <StarRating value={rateValue} onChange={setRateValue} />
+            </div>
+
+            {/* 詳しく評価する（フレーバー＋カッピング）。既定は閉じ＝星だけでも完了できる */}
+            <button
+              type="button"
+              onClick={() => setShowRateDetail(v => !v)}
+              className="flex items-center justify-between w-full text-[#CE9C68] py-1"
+            >
+              <span className="text-sm">詳しく評価する</span>
+              <span className="text-xs">{showRateDetail ? '▲ 閉じる' : '▽ 開く'}</span>
+            </button>
+            {showRateDetail && (
+              <div className="w-full flex flex-col gap-5">
+                <div>
+                  <p className="text-xs text-[#CE9C68] mb-3">フレーバー</p>
+                  <FlavorChips selected={rateFlavors} onChange={setRateFlavors} frequent={frequentFlavors} />
+                </div>
+                <div>
+                  <p className="text-xs text-[#CE9C68] mb-4">カッピング</p>
+                  <CuppingSliders value={rateCupping} onChange={setRateCupping} />
+                </div>
+              </div>
+            )}
+
+            <button
+              type="button"
+              onClick={handleRateSave}
+              disabled={rateValue === 0 || rateSaving}
+              className="w-full bg-[#993C1D] text-[#F7EFE6] py-3.5 rounded-2xl text-base font-semibold active:opacity-80 disabled:opacity-40"
+            >
+              {rateSaving ? '保存中...' : '評価する'}
+            </button>
+            <button
+              type="button"
+              onClick={() => { setShowRateSheet(false); navigate(`/library/${latestPending.brew.id}`) }}
+              className="text-sm text-[#CE9C68] text-center active:opacity-70"
+            >
+              詳しく見る →
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* クイック記録の保存アニメーション（節目演出も共通） */}
       {showQuickAnim && <SaveAnimation brewCount={savedBrewCount} onDone={handleQuickAnimDone} />}
+
+      {/* 針を落とすフル演出（後から評価を足したとき） */}
+      {showRateAnim && (
+        <SaveAnimation brewCount={0} rated message="針を落としました" onDone={handleRateAnimDone} />
+      )}
 
       {/* ─── 豆ピッカーモーダル ─── */}
       {showBeanPicker && (

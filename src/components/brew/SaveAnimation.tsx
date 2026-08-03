@@ -6,6 +6,10 @@ const MILESTONES = new Set([1, 10, 30, 50, 100, 200, 365, 500, 1000])
 interface Props {
   brewCount: number
   onDone: () => void
+  /** 評価あり＝針を落とすフル演出。false＝盤をそっと置くだけの静かな演出（未評価保存） */
+  rated?: boolean
+  /** 完了時の一言（フル演出のみ）。後から評価を足したときは「針を落としました」等に差し替える */
+  message?: string
 }
 
 function Confetti() {
@@ -45,18 +49,30 @@ function Confetti() {
   )
 }
 
-export default function SaveAnimation({ brewCount, onDone }: Props) {
+export default function SaveAnimation({ brewCount, onDone, rated = true, message = '一杯を記録しました' }: Props) {
   const isMilestone = MILESTONES.has(brewCount)
 
   useEffect(() => {
-    // 通常保存は「保存直後にコトッ＋針の着地（約0.9s後）にもう一度」の2段パターン
-    if (navigator.vibrate) navigator.vibrate(isMilestone ? [30, 50, 30] : [15, 750, 20])
-    if (!isMilestone) {
-      const t = setTimeout(onDone, 1400)
+    if (isMilestone) {
+      if (navigator.vibrate) navigator.vibrate([30, 50, 30])
+      return
+    }
+    if (rated) {
+      // フル演出: 保存直後のコトッ＋針の着地（約0.9s後）にもう一度、の2段パターン。
+      // 針の着地後に盤が回る余韻を少し長めに取る（着地=0.9s は不変、尾だけ延ばす）。
+      // 急ぐ人はタップで即スキップできるので「待たされ感」は出さない。
+      if (navigator.vibrate) navigator.vibrate([15, 750, 20])
+      const t = setTimeout(onDone, 2000)
       return () => clearTimeout(t)
     }
-  }, [isMilestone, onDone])
+    // 静かな演出: 盤をそっと置くだけ。触感も控えめに一度だけ。
+    // 文言を読めるよう表示時間は長めに取り、急ぐ人はタップで即スキップできる。
+    if (navigator.vibrate) navigator.vibrate(15)
+    const t = setTimeout(onDone, 2400)
+    return () => clearTimeout(t)
+  }, [isMilestone, rated, onDone])
 
+  // 節目（杯数の祝福）は評価の有無に依らず紙吹雪で祝う
   if (isMilestone) {
     return (
       <div
@@ -73,8 +89,36 @@ export default function SaveAnimation({ brewCount, onDone }: Props) {
     )
   }
 
+  // 未評価保存: 針は落とさず、盤を棚にそっと置くだけの静かな演出。タップで即スキップ可。
+  if (!rated) {
+    return (
+      <div
+        className="fixed inset-0 z-50 bg-black/80 flex flex-col items-center justify-center gap-6"
+        onClick={onDone}
+      >
+        <div style={{ animation: 'disk-in 0.55s ease-out both' }}>
+          <RecordDisk size={120} />
+        </div>
+        <div className="text-center" style={{ animation: 'disk-in 0.45s 0.3s ease-out both' }}>
+          <p className="text-[#F7EFE6] text-base font-medium">棚にそっと置きました</p>
+          <p className="text-[#6b5a4a] text-xs mt-1">味の評価は、飲んでからでも</p>
+        </div>
+        <p
+          className="absolute bottom-16 text-xs text-[#6b5a4a]"
+          style={{ animation: 'disk-in 0.5s 1.3s ease-out both' }}
+        >
+          タップで進む
+        </p>
+      </div>
+    )
+  }
+
+  // フル演出: 波紋 → 盤フェードイン → トーンアーム着地 → 回転（余韻）。タップで即スキップ可。
   return (
-    <div className="fixed inset-0 z-50 bg-black/80 flex flex-col items-center justify-center gap-6 pointer-events-none">
+    <div
+      className="fixed inset-0 z-50 bg-black/80 flex flex-col items-center justify-center gap-6"
+      onClick={onDone}
+    >
       {[0, 1, 2].map(i => (
         <div
           key={i}
@@ -109,7 +153,14 @@ export default function SaveAnimation({ brewCount, onDone }: Props) {
         className="text-[#F7EFE6] text-base font-medium"
         style={{ animation: 'disk-in 0.45s 0.6s ease-out both' }}
       >
-        一杯を記録しました
+        {message}
+      </p>
+      {/* 余韻を延ばした分、急ぐ人向けに「タップで進む」を遅れて淡く表示 */}
+      <p
+        className="absolute bottom-16 text-xs text-[#6b5a4a]"
+        style={{ animation: 'disk-in 0.5s 1.1s ease-out both' }}
+      >
+        タップで進む
       </p>
     </div>
   )
