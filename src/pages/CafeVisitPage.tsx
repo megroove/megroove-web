@@ -15,6 +15,7 @@ import CuppingSliders from '../components/brew/CuppingSliders'
 import { useToast } from '../components/Toast'
 import { CameraIcon, CafeIcon, ClockIcon } from '../components/icons'
 import OriginInput from '../components/OriginInput'
+import { CAFE_CHAINS } from '../db/cafes'
 
 const DRINK_TYPES = Object.keys(CAFE_DRINK_TYPE_LABELS) as CafeDrinkType[]
 const DRINK_SIZES = Object.keys(CAFE_DRINK_SIZE_LABELS) as CafeDrinkSize[]
@@ -124,9 +125,7 @@ export default function CafeVisitPage() {
   // 過去記録
   const [pastVisits,     setPastVisits]     = useState<CafeVisit[]>([])
   const [cafeNames,      setCafeNames]      = useState<string[]>([])
-  const [showSuggestions, setShowSuggestions] = useState(false)
   const [showPicker,     setShowPicker]     = useState(false)
-  const nameInputRef = useRef<HTMLInputElement>(null)
 
   // 「よく使う」フレーバー（全ブリュー＋カフェ記録から集計）
   const [frequentFlavors, setFrequentFlavors] = useState<string[]>([])
@@ -191,16 +190,9 @@ export default function CafeVisitPage() {
     setScene('')
   }
 
-  // カフェ名候補（入力に一致・未選択）
-  const suggestions = cafeNames.filter(n =>
-    cafeName ? n.toLowerCase().includes(cafeName.toLowerCase()) && n !== cafeName : true,
-  ).slice(0, 6)
-
-  // オートコンプリートで選択
-  const selectSuggestion = (name: string) => {
-    setCafeName(name)
-    setShowSuggestions(false)
-    // その店の直近の訪問でドリンク情報を埋める
+  // 履歴の店を候補から明示的に選んだときだけ、その店の直近訪問でドリンク情報を補完する
+  // （マスターのチェーン店＝過去訪問なしなので補完対象なし。自由入力では発火しない）
+  const handleCafeSelect = (name: string) => {
     const latest = pastVisits.find(v => v.cafeName === name)
     if (latest) fillFromVisit(latest)
   }
@@ -285,35 +277,19 @@ export default function CafeVisitPage() {
           />
         </div>
 
-        {/* カフェ名（オートコンプリート付き） */}
-        <div className="bg-[#2E2018] rounded-xl p-4 relative">
+        {/* カフェ名（履歴＋全国チェーンのマスターからオートコンプリート。自由入力も可） */}
+        <div className="bg-[#2E2018] rounded-xl p-4">
           <p className="text-xs text-[#CE9C68] mb-2">カフェ名 <span className="text-[#993C1D]">*</span></p>
-          <input
-            ref={nameInputRef}
-            type="text"
+          <OriginInput
             value={cafeName}
-            onChange={e => { setCafeName(e.target.value); setShowSuggestions(true) }}
-            onFocus={() => setShowSuggestions(true)}
-            onBlur={() => setTimeout(() => setShowSuggestions(false), 150)}
-            placeholder="カフェの名前を入力"
-            className="w-full bg-transparent text-[#F7EFE6] outline-none placeholder-[#4a3a2a] text-base"
+            onChange={setCafeName}
+            onSelect={handleCafeSelect}
+            variant="bare"
+            placeholder="カフェの名前（チェーンは候補から選べます）"
+            master={CAFE_CHAINS}
+            recentOrigins={cafeNames}
+            suggestionIcon={<CafeIcon size={13} />}
           />
-          {/* 候補ドロップダウン */}
-          {showSuggestions && suggestions.length > 0 && (
-            <div className="absolute left-0 right-0 top-full mt-1 bg-[#3e3020] rounded-xl overflow-hidden z-20 shadow-xl border border-[#2e2018]">
-              {suggestions.map(name => (
-                <button
-                  key={name}
-                  type="button"
-                  onMouseDown={() => selectSuggestion(name)}
-                  className="w-full px-4 py-3 text-left text-sm text-[#F7EFE6] border-b border-[#2e2018] last:border-0 hover:bg-[#2e2018] active:bg-[#2e2018] flex items-center gap-2"
-                >
-                  <CafeIcon size={14} className="text-[#6b5a4a] shrink-0" />
-                  {name}
-                </button>
-              ))}
-            </div>
-          )}
         </div>
 
         {/* ドリンク名 */}

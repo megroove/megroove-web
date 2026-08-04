@@ -15,6 +15,9 @@ const MAX_SUGGESTIONS = 8
 interface Props {
   value: string
   onChange: (v: string) => void
+  // 候補を明示的にタップして選んだときだけ発火（自由入力では発火しない）。
+  // カフェ名で「履歴の店を選んだらドリンク情報を補完する」等に使う。任意。
+  onSelect?: (v: string) => void
   placeholder?: string
   // ユーザーが過去に入力した値（新しい順）。マスター候補より優先して表示する
   recentOrigins?: string[]
@@ -27,7 +30,7 @@ interface Props {
 }
 
 export default function OriginInput({
-  value, onChange, placeholder = '例: エチオピア イルガチェフェ',
+  value, onChange, onSelect, placeholder = '例: エチオピア イルガチェフェ',
   recentOrigins = [], variant = 'filled',
   master = COFFEE_ORIGINS, suggestionIcon = <GlobeIcon size={13} />,
 }: Props) {
@@ -73,7 +76,7 @@ export default function OriginInput({
             <button
               key={s.name}
               type="button"
-              onMouseDown={() => { onChange(s.name); setOpen(false) }}
+              onMouseDown={() => { onChange(s.name); onSelect?.(s.name); setOpen(false) }}
               className="w-full px-4 py-2.5 text-left text-sm text-[#F7EFE6] border-b border-[#2e2018] last:border-0 hover:bg-[#2e2018] active:bg-[#2e2018] flex items-center gap-2"
             >
               <span className={`shrink-0 ${s.recent ? 'text-[#993C1D]' : 'text-[#6b5a4a]'}`}>
