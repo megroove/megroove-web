@@ -21,6 +21,7 @@ export interface Bean {
   finishedAt?: string     // 飲み切った日時 (ISO)。設定されるとアーカイブ扱い
   decaf?: boolean         // デカフェ豆。カフェイン推定を通常の10%にする
   stockNote?: string
+  photoDataUrl?: string   // 任意。袋/パッケージ等の写真（base64 JPEG、最大800px）。無くても自然に表示する
   createdAt: string    // ISO datetime
 }
 
@@ -40,6 +41,7 @@ export interface Equipment {
   type: EquipmentType
   maker?: string
   sizeNote?: string
+  photoDataUrl?: string   // 任意。器具の写真（base64 JPEG、最大800px）。無くても自然に表示する
   createdAt: string
 }
 

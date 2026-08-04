@@ -8,6 +8,7 @@ import {
 import { Field, TextInput, NumberInput, DateInput, ChipSelect, DeleteButton, ModalSheet, SaveButton } from './FormHelpers'
 import { useToast } from '../Toast'
 import OriginInput from '../OriginInput'
+import PhotoField from '../PhotoField'
 import { ClockIcon } from '../icons'
 
 const ROAST_LEVELS: RoastLevel[] = ['light', 'light-medium', 'medium', 'medium-dark', 'dark']
@@ -37,6 +38,7 @@ function BeanForm({
   const [process,     setProcess]     = useState(initial?.process     ?? '')
   const [decaf,       setDecaf]       = useState(initial?.decaf       ?? false)
   const [stockNote,   setStockNote]   = useState(initial?.stockNote   ?? '')
+  const [photoDataUrl, setPhotoDataUrl] = useState<string | undefined>(initial?.photoDataUrl)
   const [saving,      setSaving]      = useState(false)
   const showToast = useToast()
 
@@ -57,6 +59,7 @@ function BeanForm({
       process:     process.trim()   || undefined,
       decaf:       decaf            || undefined,
       stockNote:   stockNote.trim() || undefined,
+      photoDataUrl: photoDataUrl    || undefined,
       createdAt:  initial?.createdAt ?? nowISO(),
     }
     try {
@@ -79,6 +82,10 @@ function BeanForm({
 
       <Field label="名前 *">
         <TextInput value={name} onChange={setName} placeholder="例: エチオピア イルガチェフェ" autoFocus />
+      </Field>
+
+      <Field label="写真（任意・袋やパッケージなど）">
+        <PhotoField value={photoDataUrl} onChange={setPhotoDataUrl} onError={m => showToast(m, { type: 'error' })} />
       </Field>
 
       <Field label="焙煎度">
@@ -194,18 +201,25 @@ function BeanRow({ bean, brews, onClick, muted }: {
       onClick={onClick}
       className={`w-full bg-[#2E2018] rounded-xl p-4 text-left active:opacity-80 ${muted ? 'opacity-60' : ''}`}
     >
-      <p className="text-[#F7EFE6] font-medium">{bean.name}</p>
-      <p className="text-xs text-[#CE9C68] mt-0.5">
-        {ROAST_LEVEL_LABELS[bean.roastLevel]}
-        {bean.roastedAt ? ` · 焙煎から${daysSinceRoast(bean.roastedAt)}日` : ''}
-        {bean.origin ? ` · ${bean.origin}` : ''}
-      </p>
-      {remaining && (
-        <p className="text-xs text-[#6b5a4a] mt-0.5">{remaining}</p>
-      )}
-      {bean.stockNote && (
-        <p className="text-xs text-[#6b5a4a] mt-1 truncate">{bean.stockNote}</p>
-      )}
+      <div className="flex gap-3 items-start">
+        {bean.photoDataUrl && (
+          <img src={bean.photoDataUrl} alt="" className="w-12 h-12 rounded-lg object-cover shrink-0 border border-[#3e3020]" />
+        )}
+        <div className="min-w-0 flex-1">
+          <p className="text-[#F7EFE6] font-medium">{bean.name}</p>
+          <p className="text-xs text-[#CE9C68] mt-0.5">
+            {ROAST_LEVEL_LABELS[bean.roastLevel]}
+            {bean.roastedAt ? ` · 焙煎から${daysSinceRoast(bean.roastedAt)}日` : ''}
+            {bean.origin ? ` · ${bean.origin}` : ''}
+          </p>
+          {remaining && (
+            <p className="text-xs text-[#6b5a4a] mt-0.5">{remaining}</p>
+          )}
+          {bean.stockNote && (
+            <p className="text-xs text-[#6b5a4a] mt-1 truncate">{bean.stockNote}</p>
+          )}
+        </div>
+      </div>
     </button>
   )
 }

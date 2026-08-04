@@ -6,6 +6,7 @@ import {
   withSaveTimeout, saveErrorMessage,
 } from '../../db'
 import OriginInput from '../OriginInput'
+import PhotoField from '../PhotoField'
 import { useToast } from '../Toast'
 
 // 'bean' = 通常の豆、'brand' = ドリップバッグの銘柄（ラベルを変え、入力を最小化）
@@ -33,6 +34,7 @@ function AddBeanForm({ mode, onAdd, onCancel, recentOrigins }: {
   const [origin, setOrigin] = useState('')
   const [amountG, setAmountG] = useState<number | undefined>()
   const [decaf, setDecaf] = useState(false)
+  const [photoDataUrl, setPhotoDataUrl] = useState<string | undefined>()
   const [submitting, setSubmitting] = useState(false)
   const showToast = useToast()
 
@@ -47,6 +49,7 @@ function AddBeanForm({ mode, onAdd, onCancel, recentOrigins }: {
       origin: origin.trim() || undefined,
       initialAmountG: amountG,
       decaf: decaf || undefined,
+      photoDataUrl: photoDataUrl || undefined,
       createdAt: nowISO(),
     }
     // 保存が失敗／停止しても無言で固まらないよう、エラー・ハングを表面化し、ボタンを復帰させる
@@ -75,6 +78,11 @@ function AddBeanForm({ mode, onAdd, onCancel, recentOrigins }: {
           className="w-full bg-[#3e3020] text-[#F7EFE6] rounded-xl px-4 py-3 outline-none placeholder-[#6b5a4a]"
           autoFocus
         />
+      </div>
+
+      <div>
+        <label className="text-xs text-[#CE9C68] mb-1.5 block">写真（任意）</label>
+        <PhotoField value={photoDataUrl} onChange={setPhotoDataUrl} onError={m => showToast(m, { type: 'error' })} />
       </div>
 
       {/* 銘柄（ドリップバッグ）は焙煎度・焙煎日・産地・内容量を出さず、最小入力にする */}
@@ -254,21 +262,26 @@ export default function BeanPickerModal({ currentBeanId, mode = 'bean', onSelect
                     bean.id === currentBeanId ? 'bg-[#2e1810]' : ''
                   } ${bean.finishedAt ? 'opacity-60' : ''}`}
                 >
-                  <div>
-                    <p className="text-[#F7EFE6] font-medium">{bean.name}</p>
-                    <p className="text-xs text-[#CE9C68] mt-0.5">
-                      {ROAST_LEVEL_LABELS[bean.roastLevel]}
-                      {bean.roastedAt ? ` · 焙煎から${daysSinceRoast(bean.roastedAt)}日` : ''}
-                      {bean.origin ? ` · ${bean.origin}` : ''}
-                    </p>
-                    {(bean.finishedAt || formatBeanRemaining(bean, brews)) && (
-                      <p className="text-xs text-[#6b5a4a] mt-0.5">
-                        {bean.finishedAt ? '飲み切り' : formatBeanRemaining(bean, brews)}
-                      </p>
+                  <div className="flex items-center gap-3 min-w-0">
+                    {bean.photoDataUrl && (
+                      <img src={bean.photoDataUrl} alt="" className="w-11 h-11 rounded-lg object-cover shrink-0 border border-[#3e3020]" />
                     )}
+                    <div className="min-w-0">
+                      <p className="text-[#F7EFE6] font-medium">{bean.name}</p>
+                      <p className="text-xs text-[#CE9C68] mt-0.5">
+                        {ROAST_LEVEL_LABELS[bean.roastLevel]}
+                        {bean.roastedAt ? ` · 焙煎から${daysSinceRoast(bean.roastedAt)}日` : ''}
+                        {bean.origin ? ` · ${bean.origin}` : ''}
+                      </p>
+                      {(bean.finishedAt || formatBeanRemaining(bean, brews)) && (
+                        <p className="text-xs text-[#6b5a4a] mt-0.5">
+                          {bean.finishedAt ? '飲み切り' : formatBeanRemaining(bean, brews)}
+                        </p>
+                      )}
+                    </div>
                   </div>
                   {bean.id === currentBeanId && (
-                    <span className="text-[#993C1D] text-lg">✓</span>
+                    <span className="text-[#993C1D] text-lg shrink-0 ml-2">✓</span>
                   )}
                 </button>
               </li>

@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import type { Equipment, EquipmentType } from '../../db'
-import { putEquipment, newId, nowISO, EQUIPMENT_TYPE_LABELS } from '../../db'
+import { putEquipment, newId, nowISO, EQUIPMENT_TYPE_LABELS, withSaveTimeout, saveErrorMessage } from '../../db'
+import { useToast } from '../Toast'
 
 interface Props {
   equipment: Equipment[]
@@ -17,12 +18,21 @@ export default function EquipmentSection({ equipment, selectedIds, onToggle, onN
   const [name, setName] = useState('')
   const [type, setType] = useState<EquipmentType>('dripper')
   const [submitting, setSubmitting] = useState(false)
+  const showToast = useToast()
 
   const handleAdd = async () => {
     if (!name.trim() || submitting) return
     setSubmitting(true)
     const item: Equipment = { id: newId(), name: name.trim(), type, createdAt: nowISO() }
-    await putEquipment(item)
+    // 保存が失敗／停止しても無言で固まらないよう、エラー・ハングを表面化する
+    try {
+      await withSaveTimeout(putEquipment(item))
+    } catch (e) {
+      console.error('[megroove] 器具の保存に失敗しました:', e)
+      setSubmitting(false)
+      showToast(saveErrorMessage(e), { type: 'error' })
+      return
+    }
     onNewEquipment(item)
     onToggle(item.id)
     setName('')

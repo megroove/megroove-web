@@ -154,9 +154,12 @@ Brew（抽出ログ）が Bean と Recipe を参照し、そこから条件を�
 - 内容量 initialAmountG(任意) — 記録の粉量合計から残量を**保存せず都度計算**（`calcBeanRemainingG`）
 - 飲み切り finishedAt(任意) — 設定するとアーカイブ扱い（ピッカーの既定表示から除外、記録は保持）
 - decaf(任意) — デカフェ豆。カフェイン推定を通常の10%にする（「90%以上除去」表示基準の控えめな上限）
+- photoDataUrl(任意) — 袋/パッケージ等の写真（base64 JPEG、最大800px）。Brew と同じ保存方式。無くても自然に表示。
+  ドリップバッグの「銘柄」も Bean 共通のため写真を持てる
 
 ### Equipment（器具）
 - id (UUID), 名前 / タイプ / メーカー(任意) / サイズメモ(任意)
+- photoDataUrl(任意) — 器具の写真（base64 JPEG、最大800px）。無くても自然に表示
 
 ### Recipe（レシピ＝抽出テンプレート）
 - id (UUID), 名前
@@ -351,7 +354,7 @@ Webでの操作感を都度ブラウザで確認しながら進める。
 | PWA 導入タイミング | 第1段階から導入済み（`vite-plugin-pwa`） |
 | 記録画面カスタマイズ UI | 上下移動ボタン＋ゾーン選択ボタン（ドラッグなし） |
 | バックアップ JSON | Web版独自構造（iOS版との完全互換は将来対応） |
-| 写真保存方式 | base64 JPEG を IndexedDB `photoDataUrl` フィールドに直接保存。最大 800px にリサイズ |
+| 写真保存方式 | base64 JPEG を IndexedDB `photoDataUrl` フィールドに直接保存。最大 800px にリサイズ（`resizeImage`）。Brew / CafeVisit / Bean / Equipment 共通で、撮影/選択UIは `src/components/PhotoField.tsx`。インポート時は `isSafePhotoDataUrl` でサニタイズ（全ストア） |
 
 ---
 

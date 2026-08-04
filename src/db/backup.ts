@@ -100,10 +100,18 @@ export async function importBackup(
     ...v,
     photoDataUrl: isSafePhotoDataUrl(v.photoDataUrl) ? v.photoDataUrl : undefined,
   })
+  const safeBean = (b: Bean): Bean => ({
+    ...b,
+    photoDataUrl: isSafePhotoDataUrl(b.photoDataUrl) ? b.photoDataUrl : undefined,
+  })
+  const safeEquipment = (e: Equipment): Equipment => ({
+    ...e,
+    photoDataUrl: isSafePhotoDataUrl(e.photoDataUrl) ? e.photoDataUrl : undefined,
+  })
 
   await Promise.all([
-    ...(data.beans      ?? []).map(putBean),
-    ...(data.equipment  ?? []).map(putEquipment),
+    ...(data.beans      ?? []).map(b => putBean(safeBean(b))),
+    ...(data.equipment  ?? []).map(e => putEquipment(safeEquipment(e))),
     ...(data.recipes    ?? []).map(putRecipe),
     ...(data.brews      ?? []).map(b => putBrew(safeBrew(b))),
     ...(data.cafeVisits ?? []).map(v => putCafeVisit(safeVisit(v))),

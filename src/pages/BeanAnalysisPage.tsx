@@ -8,6 +8,7 @@ import {
 } from '../db'
 import RadarChart from '../components/analysis/RadarChart'
 import AgingWindowCard from '../components/analysis/AgingWindowCard'
+import PhotoLightbox from '../components/PhotoLightbox'
 import { calcWeightedScores, rankBrews, calcAgingWindow } from '../components/analysis/stats'
 import { CupIcon } from '../components/icons'
 
@@ -18,6 +19,7 @@ export default function BeanAnalysisPage() {
   const [bean, setBean] = useState<Bean | null>(null)
   const [allBrews, setAllBrews] = useState<Brew[]>([])
   const [loading, setLoading] = useState(true)
+  const [lightboxOpen, setLightboxOpen] = useState(false)
 
   useEffect(() => {
     if (!id) return
@@ -80,16 +82,31 @@ export default function BeanAnalysisPage() {
         ← 戻る
       </button>
 
-      {/* 豆ヘッダー */}
-      <div>
-        <h2 className="text-2xl font-semibold text-[#F7EFE6]">{bean.name}</h2>
-        <p className="text-sm text-[#CE9C68] mt-1">
-          {ROAST_LEVEL_LABELS[bean.roastLevel]}
-          {bean.roastedAt ? ` · 焙煎から${daysSinceRoast(bean.roastedAt)}日` : ''}
-          {bean.origin ? ` · ${bean.origin}` : ''}
-        </p>
-        {remaining && <p className="text-xs text-[#6b5a4a] mt-0.5">{remaining}</p>}
+      {/* 豆ヘッダー（写真があればジャケットとして左に表示。タップで拡大） */}
+      <div className="flex gap-3 items-start">
+        {bean.photoDataUrl && (
+          <button
+            type="button"
+            onClick={() => setLightboxOpen(true)}
+            className="shrink-0 active:opacity-80"
+            aria-label="写真を拡大"
+          >
+            <img src={bean.photoDataUrl} alt="" className="w-24 h-24 rounded-lg object-cover border border-[#3e3020] shadow-md" />
+          </button>
+        )}
+        <div className="min-w-0 flex-1">
+          <h2 className="text-2xl font-semibold text-[#F7EFE6]">{bean.name}</h2>
+          <p className="text-sm text-[#CE9C68] mt-1">
+            {ROAST_LEVEL_LABELS[bean.roastLevel]}
+            {bean.roastedAt ? ` · 焙煎から${daysSinceRoast(bean.roastedAt)}日` : ''}
+            {bean.origin ? ` · ${bean.origin}` : ''}
+          </p>
+          {remaining && <p className="text-xs text-[#6b5a4a] mt-0.5">{remaining}</p>}
+        </div>
       </div>
+      {lightboxOpen && bean.photoDataUrl && (
+        <PhotoLightbox src={bean.photoDataUrl} onClose={() => setLightboxOpen(false)} />
+      )}
 
       {/* サマリ */}
       <div className="grid grid-cols-3 gap-3">

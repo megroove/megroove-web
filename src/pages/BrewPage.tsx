@@ -699,24 +699,29 @@ export default function BrewPage() {
           >
             <p className="text-xs text-[#CE9C68] mb-1">{beanLabel}</p>
             {selectedBean ? (
-              <>
-                <p className="text-[#F7EFE6] font-medium pr-8">{selectedBean.name}</p>
-                {/* 銘柄（ドリップバッグ）は焙煎度・産地・残量が実態に合わないため名前のみ */}
-                {!isDripBag && (
-                  <>
-                    <p className="text-xs text-[#CE9C68] mt-0.5">
-                      {ROAST_LEVEL_LABELS[selectedBean.roastLevel]}
-                      {selectedBean.roastedAt ? ` · 焙煎から${daysSinceRoast(selectedBean.roastedAt)}日` : ''}
-                      {selectedBean.origin ? ` · ${selectedBean.origin}` : ''}
-                    </p>
-                    {formatBeanRemaining(selectedBean, allBrews) && (
-                      <p className="text-xs text-[#6b5a4a] mt-0.5">
-                        {formatBeanRemaining(selectedBean, allBrews)}
-                      </p>
-                    )}
-                  </>
+              <div className="flex gap-3 items-start">
+                {selectedBean.photoDataUrl && (
+                  <img src={selectedBean.photoDataUrl} alt="" className="w-12 h-12 rounded-lg object-cover shrink-0 border border-[#3e3020]" />
                 )}
-              </>
+                <div className="min-w-0 flex-1">
+                  <p className="text-[#F7EFE6] font-medium pr-8">{selectedBean.name}</p>
+                  {/* 銘柄（ドリップバッグ）は焙煎度・産地・残量が実態に合わないため名前のみ */}
+                  {!isDripBag && (
+                    <>
+                      <p className="text-xs text-[#CE9C68] mt-0.5">
+                        {ROAST_LEVEL_LABELS[selectedBean.roastLevel]}
+                        {selectedBean.roastedAt ? ` · 焙煎から${daysSinceRoast(selectedBean.roastedAt)}日` : ''}
+                        {selectedBean.origin ? ` · ${selectedBean.origin}` : ''}
+                      </p>
+                      {formatBeanRemaining(selectedBean, allBrews) && (
+                        <p className="text-xs text-[#6b5a4a] mt-0.5">
+                          {formatBeanRemaining(selectedBean, allBrews)}
+                        </p>
+                      )}
+                    </>
+                  )}
+                </div>
+              </div>
             ) : (
               <p className="text-[#6b5a4a]">タップして{beanLabel}を選ぶ{isDripBag ? '（任意）' : ''} →</p>
             )}

@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react'
 import type { Equipment, EquipmentType } from '../../db'
-import { getAllEquipment, putEquipment, deleteEquipment, newId, nowISO, EQUIPMENT_TYPE_LABELS } from '../../db'
+import { getAllEquipment, putEquipment, deleteEquipment, newId, nowISO, EQUIPMENT_TYPE_LABELS, withSaveTimeout, saveErrorMessage } from '../../db'
 import { Field, TextInput, ChipSelect, DeleteButton, ModalSheet, SaveButton } from './FormHelpers'
 import { useToast } from '../Toast'
+import PhotoField from '../PhotoField'
 
 const EQUIPMENT_TYPES: EquipmentType[] = ['dripper', 'server', 'grinder', 'kettle', 'scale', 'other']
 
@@ -18,7 +19,9 @@ function EquipmentForm({
   const [type,     setType]     = useState<EquipmentType>(initial?.type ?? 'dripper')
   const [maker,    setMaker]    = useState(initial?.maker    ?? '')
   const [sizeNote, setSizeNote] = useState(initial?.sizeNote ?? '')
+  const [photoDataUrl, setPhotoDataUrl] = useState<string | undefined>(initial?.photoDataUrl)
   const [saving,   setSaving]   = useState(false)
+  const showToast = useToast()
 
   const handleSave = async () => {
     if (!name.trim() || saving) return
@@ -29,9 +32,18 @@ function EquipmentForm({
       type,
       maker:    maker.trim()    || undefined,
       sizeNote: sizeNote.trim() || undefined,
+      photoDataUrl: photoDataUrl || undefined,
       createdAt: initial?.createdAt ?? nowISO(),
     }
-    await putEquipment(item)
+    // 保存が失敗／停止しても無言で固まらないよう、エラー・ハングを表面化する
+    try {
+      await withSaveTimeout(putEquipment(item))
+    } catch (e) {
+      console.error('[megroove] 器具の保存に失敗しました:', e)
+      setSaving(false)
+      showToast(saveErrorMessage(e), { type: 'error' })
+      return
+    }
     onSave(item)
   }
 
@@ -44,6 +56,10 @@ function EquipmentForm({
 
       <Field label="名前 *">
         <TextInput value={name} onChange={setName} placeholder="例: ハリオ V60" autoFocus />
+      </Field>
+
+      <Field label="写真（任意）">
+        <PhotoField value={photoDataUrl} onChange={setPhotoDataUrl} onError={m => showToast(m, { type: 'error' })} />
       </Field>
 
       <Field label="タイプ">
@@ -120,12 +136,19 @@ export default function EquipmentTab() {
               onClick={() => setEditing(item)}
               className="w-full bg-[#2E2018] rounded-xl p-4 text-left active:opacity-80"
             >
-              <p className="text-[#F7EFE6] font-medium">{item.name}</p>
-              <p className="text-xs text-[#CE9C68] mt-0.5">
-                {EQUIPMENT_TYPE_LABELS[item.type]}
-                {item.maker ? ` · ${item.maker}` : ''}
-                {item.sizeNote ? ` · ${item.sizeNote}` : ''}
-              </p>
+              <div className="flex gap-3 items-start">
+                {item.photoDataUrl && (
+                  <img src={item.photoDataUrl} alt="" className="w-12 h-12 rounded-lg object-cover shrink-0 border border-[#3e3020]" />
+                )}
+                <div className="min-w-0 flex-1">
+                  <p className="text-[#F7EFE6] font-medium">{item.name}</p>
+                  <p className="text-xs text-[#CE9C68] mt-0.5">
+                    {EQUIPMENT_TYPE_LABELS[item.type]}
+                    {item.maker ? ` · ${item.maker}` : ''}
+                    {item.sizeNote ? ` · ${item.sizeNote}` : ''}
+                  </p>
+                </div>
+              </div>
             </button>
           ))}
         </div>

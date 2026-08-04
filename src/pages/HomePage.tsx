@@ -827,18 +827,23 @@ export default function HomePage() {
           )}
         </div>
         {featuredBean ? (
-          <div className="bg-[#2E2018] rounded-xl p-4">
-            <p className="text-[#F7EFE6] font-semibold">{featuredBean.name}</p>
-            <p className="text-xs text-[#CE9C68] mt-1">
-              {ROAST_LEVEL_LABELS[featuredBean.roastLevel]}
-              {featuredBean.origin ? ` · ${featuredBean.origin}` : ''}
-              {featuredBean.farm ? ` / ${featuredBean.farm}` : ''}
-            </p>
-            {featuredBean.roastedAt && (
-              <p className="text-xs text-[#6b5a4a] mt-0.5">
-                焙煎から {daysSinceRoast(featuredBean.roastedAt)} 日
-              </p>
+          <div className="bg-[#2E2018] rounded-xl p-4 flex gap-3 items-center">
+            {featuredBean.photoDataUrl && (
+              <img src={featuredBean.photoDataUrl} alt="" className="w-20 h-20 rounded-lg object-cover shrink-0 border border-[#3e3020] shadow-md" />
             )}
+            <div className="min-w-0 flex-1">
+              <p className="text-[#F7EFE6] font-semibold truncate">{featuredBean.name}</p>
+              <p className="text-xs text-[#CE9C68] mt-1">
+                {ROAST_LEVEL_LABELS[featuredBean.roastLevel]}
+                {featuredBean.origin ? ` · ${featuredBean.origin}` : ''}
+                {featuredBean.farm ? ` / ${featuredBean.farm}` : ''}
+              </p>
+              {featuredBean.roastedAt && (
+                <p className="text-xs text-[#6b5a4a] mt-0.5">
+                  焙煎から {daysSinceRoast(featuredBean.roastedAt)} 日
+                </p>
+              )}
+            </div>
           </div>
         ) : (
           <button
@@ -879,15 +884,20 @@ export default function HomePage() {
             )}
           </div>
         ) : featuredItem?.type === 'equipment' && featuredEquipment ? (
-          <div className="bg-[#2E2018] rounded-xl p-4">
-            <p className="text-[#F7EFE6] font-semibold">{featuredEquipment.name}</p>
-            <p className="text-xs text-[#CE9C68] mt-1">
-              {EQUIPMENT_TYPE_LABELS[featuredEquipment.type]}
-              {featuredEquipment.maker ? ` · ${featuredEquipment.maker}` : ''}
-            </p>
-            {featuredEquipment.sizeNote && (
-              <p className="text-xs text-[#6b5a4a] mt-0.5">{featuredEquipment.sizeNote}</p>
+          <div className="bg-[#2E2018] rounded-xl p-4 flex gap-3 items-center">
+            {featuredEquipment.photoDataUrl && (
+              <img src={featuredEquipment.photoDataUrl} alt="" className="w-20 h-20 rounded-lg object-cover shrink-0 border border-[#3e3020] shadow-md" />
             )}
+            <div className="min-w-0 flex-1">
+              <p className="text-[#F7EFE6] font-semibold truncate">{featuredEquipment.name}</p>
+              <p className="text-xs text-[#CE9C68] mt-1">
+                {EQUIPMENT_TYPE_LABELS[featuredEquipment.type]}
+                {featuredEquipment.maker ? ` · ${featuredEquipment.maker}` : ''}
+              </p>
+              {featuredEquipment.sizeNote && (
+                <p className="text-xs text-[#6b5a4a] mt-0.5">{featuredEquipment.sizeNote}</p>
+              )}
+            </div>
           </div>
         ) : (
           <button
