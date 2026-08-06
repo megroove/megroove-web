@@ -1,8 +1,18 @@
+import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import DataTab from '../components/stock/DataTab'
+import { loadSettings, saveSettings } from '../db'
+import { MoonIcon } from '../components/icons'
 
 export default function SettingsPage() {
   const navigate = useNavigate()
+  const [sleepOn, setSleepOn] = useState(() => loadSettings().sleepTrackingEnabled)
+
+  const toggleSleep = () => {
+    const next = { ...loadSettings(), sleepTrackingEnabled: !sleepOn }
+    saveSettings(next)
+    setSleepOn(next.sleepTrackingEnabled)
+  }
 
   return (
     <div className="flex flex-col flex-1 px-4 py-5 gap-6 overflow-y-auto">
@@ -37,6 +47,26 @@ export default function SettingsPage() {
           </div>
           <span className="text-[#6b5a4a] text-sm ml-3">→</span>
         </button>
+      </section>
+
+      {/* 機能 */}
+      <section className="flex flex-col gap-2">
+        <h3 className="text-sm font-semibold text-[#CE9C68] uppercase tracking-wider">機能</h3>
+        <div className="w-full bg-[#2E2018] rounded-xl px-4 py-4 flex items-center justify-between">
+          <div className="text-left pr-3">
+            <p className="text-sm text-[#F7EFE6] flex items-center gap-1.5"><MoonIcon size={15} /> 睡眠の記録（任意）</p>
+            <p className="text-xs text-[#6b5a4a] mt-0.5 leading-relaxed">
+              朝にワンタップで眠りを記録し、カフェインとの傾向を数値で確認できます。オフにしても記録は残ります。
+            </p>
+          </div>
+          <button type="button" onClick={toggleSleep}
+            className={`shrink-0 px-4 py-1.5 rounded-full text-sm font-medium transition-colors ${
+              sleepOn ? 'bg-[#993C1D] text-[#F7EFE6]' : 'bg-[#3e3020] text-[#CE9C68]'
+            }`}
+          >
+            {sleepOn ? 'オン' : 'オフ'}
+          </button>
+        </div>
       </section>
 
       {/* データ管理 */}

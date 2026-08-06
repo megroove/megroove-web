@@ -1,5 +1,5 @@
 import { openDB, type DBSchema, type IDBPDatabase } from 'idb'
-import type { Bean, Equipment, Recipe, Brew, CafeVisit, CaffeineIntake } from './types'
+import type { Bean, Equipment, Recipe, Brew, CafeVisit, CaffeineIntake, SleepLog } from './types'
 
 interface MetaEntry {
   key: string
@@ -13,11 +13,12 @@ interface MegrooveDB extends DBSchema {
   brews:      { key: string; value: Brew;      indexes: { byBrewedAt:  string } }
   cafeVisits: { key: string; value: CafeVisit; indexes: { byVisitedAt: string } }
   caffeineIntakes: { key: string; value: CaffeineIntake; indexes: { byConsumedAt: string } }
+  sleepLogs:  { key: string; value: SleepLog }
   meta:       { key: string; value: MetaEntry }
 }
 
 const DB_NAME = 'megroove'
-const DB_VERSION = 4
+const DB_VERSION = 5
 
 let dbPromise: Promise<IDBPDatabase<MegrooveDB>> | null = null
 
@@ -44,6 +45,10 @@ function getDB() {
           // コーヒー以外のカフェイン飲料の摂取ログ。コーヒー記録とは独立
           db.createObjectStore('caffeineIntakes', { keyPath: 'id' })
             .createIndex('byConsumedAt', 'consumedAt')
+        }
+        if (oldVersion < 5) {
+          // 睡眠の主観評価（1日1件・date が keyPath）。カフェインとの傾向を見る補助機能
+          db.createObjectStore('sleepLogs', { keyPath: 'date' })
         }
       },
       // 別タブ／別PWAが古いバージョンで接続していると、こちらのアップグレードが
@@ -163,6 +168,21 @@ export async function deleteCaffeineIntake(id: string): Promise<void> {
   await (await getDB()).delete('caffeineIntakes', id)
 }
 
+// ─── SleepLog（睡眠の主観評価。1日1件・date が keyPath＝上書き保存） ────────────
+
+export async function getAllSleepLogs(): Promise<SleepLog[]> {
+  return (await getDB()).getAll('sleepLogs')
+}
+export async function getSleepLog(date: string): Promise<SleepLog | undefined> {
+  return (await getDB()).get('sleepLogs', date)
+}
+export async function putSleepLog(log: SleepLog): Promise<void> {
+  await (await getDB()).put('sleepLogs', log)
+}
+export async function deleteSleepLog(date: string): Promise<void> {
+  await (await getDB()).delete('sleepLogs', date)
+}
+
 // ─── Meta（userSecret 等の内部値） ────────────────────────────────────────────
 
 export async function getMeta(key: string): Promise<string | undefined> {
@@ -189,7 +209,7 @@ export async function getOrCreateUserSecret(): Promise<string> {
 export async function clearAllData(): Promise<void> {
   const db = await getDB()
   const tx = db.transaction(
-    ['beans', 'equipment', 'recipes', 'brews', 'cafeVisits', 'caffeineIntakes'],
+    ['beans', 'equipment', 'recipes', 'brews', 'cafeVisits', 'caffeineIntakes', 'sleepLogs'],
     'readwrite',
   )
   await Promise.all([
@@ -199,6 +219,7 @@ export async function clearAllData(): Promise<void> {
     tx.objectStore('brews').clear(),
     tx.objectStore('cafeVisits').clear(),
     tx.objectStore('caffeineIntakes').clear(),
+    tx.objectStore('sleepLogs').clear(),
   ])
   await tx.done
 }

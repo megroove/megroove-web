@@ -75,6 +75,14 @@ export function CaffeineIcon(props: IconProps) {
   )
 }
 
+export function MoonIcon(props: IconProps) {
+  return (
+    <Svg {...props}>
+      <path d="M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z" />
+    </Svg>
+  )
+}
+
 // コーヒーカップ（真上から見た液面＋取っ手。アプリアイコンと同じモチーフ）
 export function CupIcon(props: IconProps) {
   return (

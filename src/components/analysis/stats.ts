@@ -1,5 +1,5 @@
-import type { Brew, Bean, CafeVisit } from '../../db'
-import { roastAgeAtBrew } from '../../db'
+import type { Brew, Bean, CafeVisit, SleepLog } from '../../db'
+import { roastAgeAtBrew, calcResidualCaffeine } from '../../db'
 import type { RadarScores } from './RadarChart'
 
 // ─── カッピング加重平均（レーダー用） ─────────────────────────────────────────
@@ -224,4 +224,57 @@ export function calcAgingWindow(brews: Brew[], beans: Bean[]): AgingWindow {
   }, undefined)
 
   return { buckets, total, peak }
+}
+
+// ─── 睡眠 × 就寝時カフェイン残留（補助機能・§12: 数値の集計のみ） ─────────────────
+// 前夜の就寝時刻における推定カフェイン残留量で夜を二分し、翌朝の睡眠評価の平均を返す。
+// ここでは解釈・助言・因果の判断は一切持たない（結果の数値だけを返す純関数）。
+
+export interface SleepBedtimeStats {
+  enough: boolean                    // 比較を表示してよいだけの日数が両バケツに揃ったか
+  high: { avg: number; n: number }   // 就寝時の推定残留 > 目標 だった夜の翌朝の平均評価・日数
+  low:  { avg: number; n: number }   // 目標以下だった夜の翌朝の平均評価・日数
+  total: number                      // 対象になった睡眠記録の日数
+  minPerBucket: number               // 各バケツに必要な最低日数（UI の案内用）
+}
+
+// 朝 morningDateKey('YYYY-MM-DD') に対応する「前夜の就寝時刻」の絶対日時。
+// 就寝時刻が正午以降なら前日の夜、正午前（深夜〜早朝の就寝）ならその日の時刻とみなす。
+function bedtimeBefore(morningDateKey: string, hour: number, minute: number): Date | null {
+  const parts = morningDateKey.split('-').map(Number)
+  if (parts.length !== 3 || parts.some(n => !Number.isFinite(n))) return null
+  const [y, mo, d] = parts
+  const bt = new Date(y, mo - 1, d, hour, minute, 0, 0)
+  if (hour >= 12) bt.setDate(bt.getDate() - 1)
+  return bt
+}
+
+export function calcSleepBedtimeStats(
+  sleepLogs: SleepLog[],
+  intakes: { caffeineAmount: number; brewedAt: string }[],
+  opts: { bedtimeHour: number; bedtimeMinute: number; targetMg: number; minPerBucket?: number },
+): SleepBedtimeStats {
+  const minPerBucket = opts.minPerBucket ?? 5
+  const highRatings: number[] = []
+  const lowRatings: number[] = []
+
+  for (const log of sleepLogs) {
+    if (!(typeof log.rating === 'number' && log.rating >= 1)) continue
+    const bt = bedtimeBefore(log.date, opts.bedtimeHour, opts.bedtimeMinute)
+    if (!bt) continue
+    const residual = calcResidualCaffeine(intakes, bt)
+    ;(residual > opts.targetMg ? highRatings : lowRatings).push(log.rating)
+  }
+
+  const avg = (xs: number[]) =>
+    xs.length ? Math.round((xs.reduce((a, b) => a + b, 0) / xs.length) * 10) / 10 : 0
+  const high = { avg: avg(highRatings), n: highRatings.length }
+  const low = { avg: avg(lowRatings), n: lowRatings.length }
+  return {
+    enough: high.n >= minPerBucket && low.n >= minPerBucket,
+    high,
+    low,
+    total: highRatings.length + lowRatings.length,
+    minPerBucket,
+  }
 }

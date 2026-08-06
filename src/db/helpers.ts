@@ -418,10 +418,11 @@ export interface AppSettings {
   bedtimeHour: number
   bedtimeMinute: number
   bedtimeTargetMg: number  // 就寝時に残したいカフェイン量の上限 (mg)
+  sleepTrackingEnabled: boolean  // 睡眠の主観評価（補助機能）。既定 false＝オプトイン
 }
 
 const SETTINGS_KEY = 'megroove-settings'
-const DEFAULT_SETTINGS: AppSettings = { bedtimeHour: 23, bedtimeMinute: 0, bedtimeTargetMg: 50 }
+const DEFAULT_SETTINGS: AppSettings = { bedtimeHour: 23, bedtimeMinute: 0, bedtimeTargetMg: 50, sleepTrackingEnabled: false }
 
 export function loadSettings(): AppSettings {
   try {
@@ -433,6 +434,28 @@ export function loadSettings(): AppSettings {
 
 export function saveSettings(settings: AppSettings): void {
   localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings))
+}
+
+// 睡眠の主観評価（3段階）のラベル。値は 1..3
+export const SLEEP_RATING_LABELS: Record<number, string> = {
+  1: 'あまり眠れなかった',
+  2: 'ふつう',
+  3: 'よく眠れた',
+}
+// ボタン等に使う短いラベル
+export const SLEEP_RATING_SHORT: Record<number, string> = {
+  1: 'あまり',
+  2: 'ふつう',
+  3: 'よく眠れた',
+}
+
+// ローカルタイムの 'YYYY-MM-DD'（SleepLog の日付キー・日単位の集計に使う）
+export function localDateKey(d: Date): string {
+  return [
+    d.getFullYear(),
+    String(d.getMonth() + 1).padStart(2, '0'),
+    String(d.getDate()).padStart(2, '0'),
+  ].join('-')
 }
 
 // ─── Flavors ─────────────────────────────────────────────────────────────────

@@ -7,6 +7,7 @@ import {
 } from '../db'
 import type { CaffeineCategory } from '../db'
 import CaffeineGraph from '../components/caffeine/CaffeineGraph'
+import SleepSection from '../components/caffeine/SleepSection'
 import { CupIcon, CafeIcon, DrinkIcon } from '../components/icons'
 import { useToast } from '../components/Toast'
 
@@ -393,7 +394,26 @@ export default function CaffeinePage() {
           </div>
           <p className="text-xs text-[#4a3a2a] text-center mt-1">0〜200mg。就寝時に残したくない量を、あなたの体感に合わせて設定してください（感じ方には個人差があります）</p>
         </div>
+
+        {/* 睡眠の記録（補助機能・オプトイン） */}
+        <div className="flex items-center justify-between border-t border-[#3e3020] pt-4">
+          <div className="pr-3">
+            <p className="text-xs text-[#6b5a4a]">睡眠の記録（任意）</p>
+            <p className="text-[10px] text-[#4a3a2a] mt-0.5 leading-relaxed">朝にワンタップで眠りを記録し、カフェインとの傾向を数値で見られます</p>
+          </div>
+          <button type="button"
+            onClick={() => updateSettings({ sleepTrackingEnabled: !settings.sleepTrackingEnabled })}
+            className={`shrink-0 px-4 py-1.5 rounded-full text-sm font-medium transition-colors ${
+              settings.sleepTrackingEnabled ? 'bg-[#993C1D] text-[#F7EFE6]' : 'bg-[#3e3020] text-[#CE9C68]'
+            }`}
+          >
+            {settings.sleepTrackingEnabled ? 'オン' : 'オフ'}
+          </button>
+        </div>
       </div>
+
+      {/* 睡眠セクション（ON のときだけ表示。OFF でもデータは保持される） */}
+      {settings.sleepTrackingEnabled && <SleepSection settings={settings} />}
 
       <div className="text-xs text-[#4a3a2a] text-center pb-2 flex flex-col gap-1.5 leading-relaxed">
         <p>

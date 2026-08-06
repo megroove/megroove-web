@@ -1,7 +1,7 @@
-import type { Bean, Equipment, Recipe, Brew, CafeVisit, CaffeineIntake } from './types'
+import type { Bean, Equipment, Recipe, Brew, CafeVisit, CaffeineIntake, SleepLog } from './types'
 import {
-  getAllBeans, getAllEquipment, getAllRecipes, getAllBrews, getAllCafeVisits, getAllCaffeineIntakes,
-  putBean, putEquipment, putRecipe, putBrew, putCafeVisit, putCaffeineIntake,
+  getAllBeans, getAllEquipment, getAllRecipes, getAllBrews, getAllCafeVisits, getAllCaffeineIntakes, getAllSleepLogs,
+  putBean, putEquipment, putRecipe, putBrew, putCafeVisit, putCaffeineIntake, putSleepLog,
   clearAllData, getMeta, setMeta, getOrCreateUserSecret,
 } from './client'
 import { saveLastExportAt } from './helpers'
@@ -15,6 +15,7 @@ interface BackupData {
   brews: Brew[]
   cafeVisits?: CafeVisit[]           // version 1 のファイルには存在しない（後方互換）
   caffeineIntakes?: CaffeineIntake[] // 後から追加（配列追加＝後方互換。version は据え置き）
+  sleepLogs?: SleepLog[]             // 睡眠の主観評価（配列追加＝後方互換。version は据え置き）
   userSecret?: string                // version 3 から。データ提供の仮名ID継続用（機種変更対応）
 }
 
@@ -28,14 +29,14 @@ function isSafePhotoDataUrl(url: unknown): boolean {
 }
 
 export async function exportBackup(): Promise<void> {
-  const [beans, equipment, recipes, brews, cafeVisits, caffeineIntakes, userSecret] = await Promise.all([
+  const [beans, equipment, recipes, brews, cafeVisits, caffeineIntakes, sleepLogs, userSecret] = await Promise.all([
     getAllBeans(), getAllEquipment(), getAllRecipes(), getAllBrews(), getAllCafeVisits(),
-    getAllCaffeineIntakes(), getOrCreateUserSecret(),
+    getAllCaffeineIntakes(), getAllSleepLogs(), getOrCreateUserSecret(),
   ])
   const data: BackupData = {
     version: 3,
     exportedAt: new Date().toISOString(),
-    beans, equipment, recipes, brews, cafeVisits, caffeineIntakes, userSecret,
+    beans, equipment, recipes, brews, cafeVisits, caffeineIntakes, sleepLogs, userSecret,
   }
   const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' })
   const url  = URL.createObjectURL(blob)
@@ -56,6 +57,7 @@ export interface ImportResult {
   brews: number
   cafeVisits: number
   caffeineIntakes: number
+  sleepLogs: number
 }
 
 export async function parseBackupFile(file: File): Promise<BackupData> {
@@ -83,6 +85,7 @@ export function summarizeBackup(data: BackupData): ImportResult {
     brews:      data.brews?.length ?? 0,
     cafeVisits: data.cafeVisits?.length ?? 0,
     caffeineIntakes: data.caffeineIntakes?.length ?? 0,
+    sleepLogs: data.sleepLogs?.length ?? 0,
   }
 }
 
@@ -108,6 +111,10 @@ export async function importBackup(
     ...e,
     photoDataUrl: isSafePhotoDataUrl(e.photoDataUrl) ? e.photoDataUrl : undefined,
   })
+  // 睡眠ログは date が 'YYYY-MM-DD'・rating が 1..3 の妥当なものだけ取り込む
+  const isValidSleepLog = (s: SleepLog): boolean =>
+    typeof s?.date === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(s.date) &&
+    typeof s?.rating === 'number' && s.rating >= 1 && s.rating <= 3
 
   await Promise.all([
     ...(data.beans      ?? []).map(b => putBean(safeBean(b))),
@@ -116,6 +123,7 @@ export async function importBackup(
     ...(data.brews      ?? []).map(b => putBrew(safeBrew(b))),
     ...(data.cafeVisits ?? []).map(v => putCafeVisit(safeVisit(v))),
     ...(data.caffeineIntakes ?? []).map(putCaffeineIntake),
+    ...(data.sleepLogs ?? []).filter(isValidSleepLog).map(putSleepLog),
   ])
 
   // userSecret の復元: 完全置換はバックアップ側を採用、追加インポートは既存を優先

@@ -6,7 +6,7 @@ import CuppingSliders from '../components/brew/CuppingSliders'
 import FlavorChips from '../components/brew/FlavorChips'
 import SaveAnimation from '../components/brew/SaveAnimation'
 import { useToast } from '../components/Toast'
-import { getAllBrews, getAllBeans, getAllCafeVisits, getAllEquipment, getAllCaffeineIntakes, putBrew, putCafeVisit, getBrewCount } from '../db'
+import { getAllBrews, getAllBeans, getAllCafeVisits, getAllEquipment, getAllCaffeineIntakes, putBrew, putCafeVisit, getBrewCount, getSleepLog, putSleepLog } from '../db'
 import type { Brew, Bean, CafeVisit, Equipment, CuppingScores } from '../db'
 import {
   formatBrewDateShort, ROAST_LEVEL_LABELS, CAFE_DRINK_TYPE_LABELS, CAFE_DRINK_SIZE_LABELS,
@@ -14,10 +14,10 @@ import {
   getBackupReminder, snoozeBackupReminder, countUnbackedRecords,
   hasSeenBackupIntro, markBackupIntroSeen, loadLastExportAt, exportBackup,
   calcResidualCaffeine, calcStreakDays, isSameLocalDay, calcCuppingAverage, calcFrequentFlavors,
-  newId, nowISO, estimateCaffeine, estimateCafeCaffeine, calcRatio, loadSettings, getBedtimeDate,
+  newId, nowISO, estimateCaffeine, estimateCafeCaffeine, calcRatio, loadSettings, getBedtimeDate, localDateKey,
 } from '../db'
 import {
-  GearIcon, CupIcon, CafeIcon, TrophyIcon, CameraIcon, DownloadIcon,
+  GearIcon, CupIcon, CafeIcon, TrophyIcon, CameraIcon, DownloadIcon, MoonIcon,
 } from '../components/icons'
 
 // ─── 型定義 ──────────────────────────────────────────────────────────────────
@@ -167,6 +167,9 @@ async function resizeImage(file: File, maxPx = 480): Promise<string> {
 
 const FEATURED_BEAN_KEY = 'megroove-featured-bean-id'
 const FEATURED_ITEM_KEY = 'megroove-featured-item'
+const SLEEP_PROMPT_KEY = 'megroove-sleep-prompt-date' // 朝ポップアップを当日出したか
+const SLEEP_SNOOZE_KEY = 'megroove-sleep-snooze-date' // ポップアップで「あとで」を選んだ日（その日はカードを残す）
+const SLEEP_CHOICES = [{ v: 3, l: 'よく眠れた' }, { v: 2, l: 'ふつう' }, { v: 1, l: 'あまり' }]
 
 function loadFeaturedBeanId(): string | null {
   return localStorage.getItem(FEATURED_BEAN_KEY)
@@ -244,6 +247,10 @@ export default function HomePage() {
   const [rateFlavors, setRateFlavors] = useState<string[]>([])
   const [rateCupping, setRateCupping] = useState<CuppingScores>({})
   const [frequentFlavors, setFrequentFlavors] = useState<string[]>([])
+
+  // 睡眠の朝プロンプト。ポップアップ（午前・1日1回）＋「あとで」後のホームカード（その日は残す）
+  const [showSleepModal, setShowSleepModal] = useState(false)
+  const [showSleepCard, setShowSleepCard] = useState(false)
 
   // 「また、あのカフェの一杯」クイック記録（カフェ版）
   const [lastVisit, setLastVisit] = useState<CafeVisit | null>(null)
@@ -368,6 +375,46 @@ export default function HomePage() {
   }, [])
 
   useEffect(() => { loadHome() }, [loadHome])
+
+  // 睡眠の朝プロンプト。機能ON・今朝未記録が前提。
+  //  - 「あとで」を選んだ日は、その日ホームに静かなカードを残す（時間帯問わず・リロードでも表示）。
+  //  - それ以外は、午前中(5〜11時台) × 当日ポップアップ未表示 のとき1回だけポップアップを出す。
+  useEffect(() => {
+    const s = loadSettings()
+    if (!s.sleepTrackingEnabled) return
+    const nowD = new Date()
+    const today = localDateKey(nowD)
+    getSleepLog(today).then(existing => {
+      if (existing) return // 今朝は記録済み → 何も出さない
+      if (localStorage.getItem(SLEEP_SNOOZE_KEY) === today) {
+        setShowSleepCard(true) // 「あとで」済み → その日はカードで受ける
+        return
+      }
+      const hour = nowD.getHours()
+      if (hour < 5 || hour >= 12) return          // ポップアップは午前中のみ
+      if (localStorage.getItem(SLEEP_PROMPT_KEY) === today) return // 1日1回（2回目起動では出さない）
+      setShowSleepModal(true)
+      localStorage.setItem(SLEEP_PROMPT_KEY, today)
+    }).catch(() => {})
+  }, [])
+
+  const handleSleepRate = async (rating: number) => {
+    try {
+      await putSleepLog({ date: localDateKey(new Date()), rating, createdAt: nowISO() })
+      setShowSleepModal(false)
+      setShowSleepCard(false)
+      showToast('睡眠を記録しました', { type: 'success' })
+    } catch {
+      showToast('保存に失敗しました', { type: 'error' })
+    }
+  }
+
+  // ポップアップで「あとで」: ポップアップは閉じ、その日はホームにカードを残す
+  const handleSleepLater = () => {
+    localStorage.setItem(SLEEP_SNOOZE_KEY, localDateKey(new Date()))
+    setShowSleepModal(false)
+    setShowSleepCard(true)
+  }
 
   // クイック記録の保存: /brew の前回値プリフィル（fillFromBrew）と同じ範囲をコピーする
   const handleQuickSave = async () => {
@@ -634,6 +681,57 @@ export default function HomePage() {
             {latestPending.bean?.name ?? 'ホームブリュー'} · {formatBrewDateShort(latestPending.brew.brewedAt)}
           </span>
         </button>
+      )}
+
+      {/* 睡眠の朝カード（ポップアップで「あとで」を選んだ日の受け皿。その日ホームに残る・静かな見せ方） */}
+      {showSleepCard && (
+        <div className="bg-[#2E2018] rounded-xl p-4 flex flex-col gap-3">
+          <p className="text-sm text-[#CE9C68] font-medium flex items-center gap-1.5">
+            <MoonIcon size={15} /> 昨夜の眠りは？
+          </p>
+          <div className="flex gap-2">
+            {SLEEP_CHOICES.map(({ v, l }) => (
+              <button key={v} type="button" onClick={() => handleSleepRate(v)}
+                className="flex-1 py-2.5 rounded-xl text-sm font-medium bg-[#3e3020] text-[#CE9C68] active:opacity-80"
+              >
+                {l}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* 睡眠の朝ポップアップ（アプリ内ダイアログ。午前1回・「あとで」で閉じてカードに委ねる） */}
+      {showSleepModal && (
+        <div
+          className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 px-6"
+          onClick={handleSleepLater}
+        >
+          <div
+            className="bg-[#2E2018] rounded-2xl w-full max-w-sm p-6 flex flex-col gap-5"
+            onClick={e => e.stopPropagation()}
+          >
+            <div className="flex flex-col items-center gap-2 text-center">
+              <span className="text-[#CE9C68]"><MoonIcon size={32} strokeWidth={1.4} /></span>
+              <p className="text-[#F7EFE6] text-lg font-semibold">昨夜の眠りは？</p>
+              <p className="text-xs text-[#6b5a4a]">朝のワンタップで、カフェインとの傾向を見られます</p>
+            </div>
+            <div className="flex flex-col gap-2">
+              {SLEEP_CHOICES.map(({ v, l }) => (
+                <button key={v} type="button" onClick={() => handleSleepRate(v)}
+                  className="w-full py-3 rounded-xl text-sm font-medium bg-[#3e3020] text-[#F7EFE6] active:opacity-80"
+                >
+                  {l}
+                </button>
+              ))}
+            </div>
+            <button type="button" onClick={handleSleepLater}
+              className="text-sm text-[#6b5a4a] text-center active:opacity-70"
+            >
+              あとで
+            </button>
+          </div>
+        </div>
       )}
 
       {/* 今日のサマリ */}

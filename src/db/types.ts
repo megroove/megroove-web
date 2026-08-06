@@ -58,6 +58,15 @@ export interface Recipe {
   createdAt: string
 }
 
+// ─── SleepLog（睡眠の主観評価。カフェインとの傾向を見る補助機能） ───────────────
+// その朝に記録＝前夜の睡眠。1日1件（date が keyPath）。コーヒー記録とは独立の補助機能。
+export interface SleepLog {
+  date: string    // 'YYYY-MM-DD'（ローカル日付・1日1件）
+  rating: number  // 1..3（1=あまり眠れなかった / 2=ふつう / 3=よく眠れた）
+  createdAt: string
+  note?: string
+}
+
 // ─── CuppingScores（CafeVisit でも共用） ─────────────────────────────────────
 
 export interface CuppingScores {

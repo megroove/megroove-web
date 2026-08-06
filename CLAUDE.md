@@ -53,6 +53,11 @@ competing する要求が出たら、必ずこの順位で判断する。
     カフェインタブから選択式で記録し、残留量・就寝時予測・今日の摂取量に合流（`CaffeineIntake`）。
     代表値は食品安全委員会の目安に基づく参考値で、UIに出典と「商品・サイズで変動」を明示（§12厳守）。
     コーヒー記録（ライブラリ/分析/ランキング）には一切混ぜない
+- 睡眠の主観評価（補助機能・オプトイン＝既定OFF）: 毎朝ワンタップで3段階（よく眠れた/ふつう/あまり）を記録し、
+  カフェインとの傾向を「結果の数値のみ」で提示（§12厳守・解釈/助言なし・免責明示）。入力は朝のアプリ内ポップアップ
+  （午前5〜11時・1日1回・「あとで」でホームの静かなカードに委譲・再表示しない）＋カフェインタブでの手動/遡り入力。
+  分析＝前夜の就寝時推定残留量（目標 `bedtimeTargetMg` で二分）× 翌朝評価の平均。各グループ5日以上で表示。
+  新ストア `sleepLogs`（DB v5）・完全ローカル・データ提供の対象外。主役（コーヒー記録）を奪わない控えめな位置づけ
 - ホーム画面：今月のベスト記録・よく行くカフェランキング・推し豆・お気に入りアイテム枠
 - 設定画面（/settings）：記録画面カスタマイズ + データ管理（エクスポート/インポート）
 - ローカル完結のデータ管理（IndexedDB）＋ JSON エクスポート/インポート（カフェ記録含む・version 2）
@@ -105,9 +110,10 @@ competing する要求が出たら、必ずこの順位で判断する。
 - **フレームワーク**: React 19 + TypeScript + Vite 8
 - **スタイリング**: Tailwind CSS v4（`@tailwindcss/vite` プラグイン）
 - **永続化**: IndexedDB via `idb` ライブラリ
-  - DB名: `megroove`、バージョン: `4`
+  - DB名: `megroove`、バージョン: `5`
   - ストア: `beans` / `equipment` / `recipes` / `brews`（byBrewedAt インデックス）/ `cafeVisits`（byVisitedAt インデックス）/
     `caffeineIntakes`（byConsumedAt インデックス。コーヒー以外のカフェイン飲料の摂取ログ）/
+    `sleepLogs`（keyPath=`date`・1日1件。睡眠の主観評価。補助機能・オプトイン）/
     `meta`（内部値。データ提供の仮名ID導出に使う `userSecret` 等。`clearAllData` の対象外）
   - iOS版 SwiftData の「ローカル完結」と同じ思想。データは端末・ブラウザ内のみに保持
   - 各エンティティは **UUID** を持つ（iOS版と揃える）
@@ -120,7 +126,7 @@ competing する要求が出たら、必ずこの順位で判断する。
 
 | キー | 用途 |
 |---|---|
-| `megroove-settings` | AppSettings（就寝時間・カフェイン目標値） |
+| `megroove-settings` | AppSettings（就寝時間・カフェイン目標値・`sleepTrackingEnabled`＝睡眠記録の有効化。既定 false） |
 | `megroove-brew-layout` | 記録画面ブロックのゾーン分け設定 |
 | `megroove-library-view` | ライブラリ表示モード（list/card/record） |
 | `megroove-featured-bean-id` | ホーム画面の推し豆 ID |
@@ -130,6 +136,8 @@ competing する要求が出たら、必ずこの順位で判断する。
 | `megroove-backup-intro` | バックアップの仕組み周知カードを閉じたフラグ（一度閉じたら再表示しない） |
 | `megroove-brew-draft` | 記録画面（新規のみ）の入力途中の下書き。画面遷移での喪失を防ぐ。保存成功で消去 |
 | `megroove-onboarded` | 初回起動フィーチャーツアーの完了フラグ |
+| `megroove-sleep-prompt-date` | 睡眠の朝ポップアップを当日出したか（1日1回・2回目起動では出さない） |
+| `megroove-sleep-snooze-date` | 朝ポップアップで「あとで」を選んだ日（その日はホームに静かなカードを残す） |
 
 ### Web特有の注意点（iOS版との違い）
 
@@ -193,6 +201,12 @@ Brew（抽出ログ）が Bean と Recipe を参照し、そこから条件を�
 - quantity（本数/杯数・既定1）, caffeineAmount（1本あたりの目安×quantity。目安は参考値を初期表示し調整可）, note（任意・銘柄など）
 - Brew/CafeVisit とは独立ストア。**カフェイン管理の集計にのみ合流**し、ライブラリ・分析・ランキングには混ぜない
 - 代表値は `src/db/helpers.ts` の参考テーブル（食品安全委員会の目安に基づく）。§12 を厳守し UI に出典と参考値注記を明示
+
+### SleepLog（睡眠の主観評価・補助機能）
+- date（'YYYY-MM-DD'・keyPath＝1日1件・その朝に記録＝前夜の睡眠）, rating（1..3）, createdAt, note(任意)
+- コーヒー記録とは独立。**カフェインとの傾向分析にのみ使用**し、ライブラリ・コーヒーの分析・ランキングには混ぜない
+- オプトイン（`sleepTrackingEnabled` 既定 false）。完全ローカルで、データ提供（匿名化）の対象外
+- 傾向表示は §12 厳守（数値の集計のみ・解釈/助言/因果の断定なし・免責明示）
 
 ### 評価（Brew / CafeVisit に内包）
 - 星評価（総合, 数値 1〜5）
