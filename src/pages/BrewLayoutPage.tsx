@@ -139,7 +139,9 @@ export default function BrewLayoutPage() {
   )
 
   return (
-    <div className="flex flex-col flex-1 px-4 py-5 gap-4 overflow-y-auto">
+    // ブロックフローでスクロールさせる。flex 縦並びだと overflow-hidden のカードが
+    // 縮んで（flex アイテムの自動最小サイズ=0）内容が溢れず、スクロールできなくなる。
+    <div className="flex-1 min-h-0 overflow-y-auto px-4 py-5 space-y-4">
       <div className="flex items-center gap-3">
         <button type="button" onClick={() => navigate(-1)} className="text-[#CE9C68] text-sm shrink-0">
           ← 戻る
