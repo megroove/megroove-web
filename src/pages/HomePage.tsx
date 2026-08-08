@@ -220,6 +220,7 @@ export default function HomePage() {
   const [topCafe, setTopCafe] = useState<{ name: string; count: number } | null>(null)
   const [dbError, setDbError] = useState(false)
   const [loading, setLoading] = useState(true)
+  const [hasRecords, setHasRecords] = useState(true) // 初期は true（新規CTAの一瞬のちらつき防止）。読込後に確定
   const [backupReminder, setBackupReminder] = useState<string | null>(null)
   const [showBackupIntro, setShowBackupIntro] = useState(false)
   const [quickExporting, setQuickExporting] = useState(false)
@@ -369,6 +370,7 @@ export default function HomePage() {
             ...visits.map(v => v.visitedAt),
           ]),
         })
+        setHasRecords(brews.length > 0 || visits.length > 0)
         setLoading(false)
       },
     ).catch(() => { setDbError(true); setLoading(false) })
@@ -606,23 +608,32 @@ export default function HomePage() {
         </button>
       </div>
 
-      {/* アクションボタン */}
+      {/* 初回（記録ゼロ）だけの導入。記録が付いたら自動で消える（常設しない） */}
+      {!loading && !hasRecords && (
+        <p className="text-center text-sm text-[#CE9C68] -mb-1">
+          ようこそ。下のボタンから、最初の一杯を記録できます ↓
+        </p>
+      )}
+
+      {/* アクションボタン（記録開始の主動線。大きく＋用途をサブ文言で明示） */}
       <div className="grid grid-cols-2 gap-3">
         <button
           type="button"
           onClick={() => navigate('/brew')}
-          className="bg-[#993C1D] text-[#F7EFE6] rounded-xl py-3.5 flex items-center justify-center gap-2 active:opacity-80"
+          className="bg-[#993C1D] text-[#F7EFE6] rounded-2xl py-5 flex flex-col items-center justify-center gap-1.5 active:opacity-80"
         >
-          <CupIcon size={20} />
-          <span className="text-sm font-semibold">淹れる</span>
+          <CupIcon size={28} />
+          <span className="text-base font-semibold">淹れる</span>
+          <span className="text-[11px] text-[#F7EFE6]/70">自宅の一杯</span>
         </button>
         <button
           type="button"
           onClick={() => navigate('/cafe')}
-          className="bg-[#4a3828] text-[#F7EFE6] rounded-xl py-3.5 flex items-center justify-center gap-2 active:opacity-80"
+          className="bg-[#4a3828] text-[#F7EFE6] rounded-2xl py-5 flex flex-col items-center justify-center gap-1.5 active:opacity-80"
         >
-          <CafeIcon size={20} />
-          <span className="text-sm font-semibold">カフェを記録</span>
+          <CafeIcon size={28} />
+          <span className="text-base font-semibold">カフェを記録</span>
+          <span className="text-[11px] text-[#F7EFE6]/70">お店の一杯</span>
         </button>
       </div>
 
@@ -912,7 +923,8 @@ export default function HomePage() {
         </div>
       )}
 
-      {/* 推しの豆 */}
+      {/* 推しの豆（記録があるか、推しを設定済みのときだけ表示。初回は畳む） */}
+      {(hasRecords || featuredBean) && (
       <div className="flex flex-col gap-2">
         <div className="flex items-center justify-between">
           <p className="text-xs text-[#CE9C68] uppercase tracking-wider">推しの豆</p>
@@ -954,8 +966,10 @@ export default function HomePage() {
           </button>
         )}
       </div>
+      )}
 
-      {/* お気に入り */}
+      {/* お気に入り（記録があるか、お気に入りを設定済みのときだけ表示。初回は畳む） */}
+      {(hasRecords || featuredItem) && (
       <div className="flex flex-col gap-2">
         <div className="flex items-center justify-between">
           <p className="text-xs text-[#CE9C68] uppercase tracking-wider">お気に入り</p>
@@ -1008,8 +1022,10 @@ export default function HomePage() {
           </button>
         )}
       </div>
+      )}
 
-      {/* 最近の記録 */}
+      {/* 最近の記録（記録があるときだけ表示。初回は畳む） */}
+      {hasRecords && (
       <div className="flex flex-col gap-2">
         <p className="text-xs text-[#CE9C68] uppercase tracking-wider">最近の記録</p>
         {recent.length === 0 ? (
@@ -1063,6 +1079,7 @@ export default function HomePage() {
           </div>
         )}
       </div>
+      )}
 
       {/* ─── クイック記録シート ─── */}
       {showQuickSheet && lastBrew && (
