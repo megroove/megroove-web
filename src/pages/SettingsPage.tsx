@@ -82,6 +82,18 @@ export default function SettingsPage() {
         <h3 className="text-sm font-semibold text-[#CE9C68] uppercase tracking-wider">
           このアプリについて
         </h3>
+        <a
+          href="https://megroove.github.io/megroove-legal/manual/"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="w-full bg-[#2E2018] rounded-xl px-4 py-4 flex items-center justify-between active:opacity-80"
+        >
+          <div className="text-left">
+            <p className="text-sm text-[#F7EFE6]">取扱説明書</p>
+            <p className="text-xs text-[#6b5a4a] mt-0.5">使い方ガイド（別ページで開きます）</p>
+          </div>
+          <span className="text-[#6b5a4a] text-sm ml-3">↗</span>
+        </a>
         <button
           type="button"
           onClick={() => navigate('/settings/privacy')}
