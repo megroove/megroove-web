@@ -80,6 +80,7 @@ graph TB
     end
 
     subgraph GH["☁️ GitHub（Microsoft 社）"]
+        SITE["GitHub Pages<br/>megroove/megroove.github.io<br/>紹介サイト（LP・ルート）"]
         PAGES["GitHub Pages<br/>megroove/megroove-web<br/>gh-pages ブランチ"]
         LEGAL["GitHub Pages<br/>megroove/megroove-legal<br/>プライバシーポリシー・取扱説明書"]
         REPO["Git リポジトリ<br/>ソースコード管理<br/>main ブランチ"]
@@ -92,6 +93,7 @@ graph TB
     FILE["📄 バックアップ JSON<br/>（手動エクスポート）"]
 
     PAGES -->|"アプリ本体を配信<br/>（初回のみ・以降はキャッシュ）"| PWA
+    SITE -.->|"「使ってみる」で誘導"| PWA
     PWA -.->|"リンクで参照"| LEGAL
     MAC -->|"git push"| REPO
     MAC -->|"npm run deploy"| PAGES
@@ -149,8 +151,12 @@ graph TB
 
 | 用途 | URL | リポジトリ |
 |---|---|---|
+| **プロダクト紹介サイト（LP・正面玄関）** | `https://megroove.github.io/` | `megroove/megroove.github.io`（組織サイト・ルート直下 `index.html`＋OGP画像 `og.png`） |
 | プライバシーポリシー | `https://megroove.github.io/megroove-legal/` | `megroove/megroove-legal` |
 | 取扱説明書（使い方ガイド） | `https://megroove.github.io/megroove-legal/manual/` | 同上（`manual/` 配下） |
+
+> URL 体系：**ルート `megroove.github.io/` が紹介サイト（LP）**、`/megroove-web/` がアプリ本体、`/megroove-legal/` 配下が法務・取説。
+> LP → アプリ／取説 へは絶対URLでリンク。いずれも GitHub Pages・費用ゼロで共存（LP は静的HTML1枚＋画像、自己完結）。
 
 ---
 
