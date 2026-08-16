@@ -40,7 +40,12 @@ export default function PrivacyPage() {
       <Section title="2. 収集しない情報">
         <p>
           本アプリは、アカウント登録・ログイン機能を持たず、氏名・メールアドレス等の個人情報を収集しません。
-          アクセス解析ツールや広告配信のためのCookie・トラッキングも使用していません。
+          広告は表示せず、広告配信のためのトラッキングやCookieも使用しません。
+        </p>
+        <p>
+          サービス改善のための利用状況の把握として、<span className="text-[#F7EFE6] font-medium">Cookieを使わない匿名のアクセス解析</span>
+          （Cloudflare Web Analytics）のみを使用します（詳細は第3項）。個人を識別する情報や、
+          あなたの記録内容は解析に一切含まれません。
         </p>
       </Section>
 
@@ -54,6 +59,12 @@ export default function PrivacyPage() {
           取り扱いは
           <span className="text-[#F7EFE6]"> GitHub のプライバシーステートメント</span>
           に従います。
+        </p>
+        <p>
+          ・匿名のアクセス解析: Cloudflare Web Analytics（Cloudflare, Inc.）を利用し、
+          ページの表示回数などの匿名の利用統計を収集します。Cookieを使わず、あなたを個人として識別しません。
+          <span className="text-[#F7EFE6]">記録内容・写真・個人情報は一切送信されません</span>。
+          取り扱いは同社のプライバシーポリシーに従います。
         </p>
         <p>
           ・上記以外の外部送信はありません。オフライン用キャッシュ（Service Worker）も端末内で完結します。
@@ -114,7 +125,7 @@ export default function PrivacyPage() {
         </p>
       </Section>
 
-      <p className="text-[10px] text-[#4a3a2a] text-center pb-2">制定日: 2026年7月9日</p>
+      <p className="text-[10px] text-[#4a3a2a] text-center pb-2">制定日: 2026年7月9日 ・ 改定日: 2026年8月16日（匿名アクセス解析の導入を明記）</p>
     </div>
   )
 }

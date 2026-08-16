@@ -153,6 +153,11 @@ competing する要求が出たら、必ずこの順位で判断する。
   `resizeImage(file, maxPx)` 関数は `src/db/helpers.ts` からエクスポート済み。撮影/選択の共通UIは `src/components/PhotoField.tsx`。
 - 入力欄フォーカス時の自動ズーム抑止: iOS Safari は16px未満の入力欄で自動拡大し戻らないため、
   `index.html` の viewport に `maximum-scale=1.0, user-scalable=no` を設定している（安易に外さない）。
+- 匿名アクセス解析: **Cloudflare Web Analytics**（Cookieレス・匿名・PIIなし）を `index.html` に導入。
+  ページ/機能の匿名集計のみで、**記録内容・写真・個人情報は送信しない**。CSP は解析用ホストだけ限定許可
+  （`script-src` に `static.cloudflareinsights.com`、`connect-src` に `cloudflareinsights.com`）。
+  プライバシーポリシー（アプリ内 `/settings/privacy` と `megroove-legal`）に明記済み。§2 の「外部送信ゼロ」は
+  「記録データは送らない／匿名の利用統計のみ」に更新されている点に注意。
 - IndexedDB 書き込みの安全網: `openDB` に `blocked`/`blocking`/`terminated` ハンドラを備え、別タブ／古いPWAが
   旧バージョンを握ってオープンがブロックされる状況を表面化・自己回復する（`src/db/client.ts`）。保存系は
   `withSaveTimeout`（既定8秒）＋`saveErrorMessage`（`helpers.ts`）で包み、失敗/停止しても無言で固まらず案内を出す。

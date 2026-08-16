@@ -167,7 +167,7 @@ graph TB
 | **GitHub**（リポジトリ） | GitHub / Microsoft | ソースコードのバージョン管理 | Free（Public リポジトリ） | ¥0 |
 | **GitHub Pages** | GitHub / Microsoft | アプリ本体・法務ページの配信（ホスティング） | Free | ¥0 |
 | **独自ドメイン** | — | 未取得（`github.io` サブドメインを利用） | — | ¥0 |
-| **アクセス解析** | — | **未導入**（外部送信ゼロの方針。Google Analytics 等は入れていない。iOS版の Firebase Analytics は Web版では不使用） | — | ¥0 |
+| **アクセス解析** | Cloudflare | **Cloudflare Web Analytics**（Cookieレス・匿名・PIIなし。ページ/機能の匿名集計のみで、記録内容・写真・個人情報は送信しない） | Free | ¥0 |
 | **Claude Code** | Anthropic | 設計・実装・デプロイ作業の開発支援 | 作者の契約プランに準拠 | 契約プラン費 |
 | **MacBook / ローカル環境** | — | 開発・ビルド・動作確認 | — | 既存資産 |
 
@@ -187,7 +187,7 @@ GitHub Pages の無料枠内で運用が完結します。
 | SSL 証明書 | GitHub 自動発行 | ¥0 | ¥0 |
 | サーバー | なし（自前サーバー不要） | ¥0 | ¥0 |
 | データベース | なし（ユーザー端末内） | ¥0 | ¥0 |
-| アクセス解析 | なし（未導入） | ¥0 | ¥0 |
+| アクセス解析 | Cloudflare Web Analytics（無料枠） | ¥0 | ¥0 |
 | **プロダクト運営費 合計** | | **¥0** | **¥0** |
 | （参考）開発支援 | Claude Code の契約 | 契約プランに準拠 | — |
 
@@ -231,7 +231,7 @@ Megroove は静的ファイルのみで数 MB 規模、かつ PWA のキャッ�
 | 設定保存 | **localStorage** | フラグ・設定値（オンボード状態、最終エクスポート日時、表示モード等） |
 | PWA | **vite-plugin-pwa 1**（Workbox・generateSW・autoUpdate） | ホーム画面追加・オフライン動作 |
 | ルーティング | **React Router v7**（**HashRouter**） | GitHub Pages のサブパス配信に対応（`#/...` 形式） |
-| セキュリティ | **CSP**（`index.html` に設定） | `default-src 'none'` を基調に `script-src 'self'` / `style-src 'self'` / `img-src 'self' data: blob:` / `connect-src 'self'` 等。外部への送信・読み込みを封じる（開発時のみ Vite プラグインで `style-src` を緩和） |
+| セキュリティ | **CSP**（`index.html` に設定） | `default-src 'none'` を基調に、外部の送信・読み込みを原則封じる。例外は匿名アクセス解析のみ：`script-src 'self' https://static.cloudflareinsights.com` / `connect-src 'self' https://cloudflareinsights.com`。他は `style-src 'self'` / `img-src 'self' data: blob:` 等（開発時のみ Vite プラグインで `style-src` を緩和） |
 | Lint | oxlint | 静的解析 |
 | デプロイ | `npm run deploy`（`gh-pages`） | ビルド成果物を gh-pages ブランチへ反映 |
 
