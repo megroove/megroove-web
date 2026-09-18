@@ -1,0 +1,178 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<title>案B クイック記録シート</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;font-family:"Noto Sans JP",system-ui,sans-serif;background:#0d0603}
+a{color:#CE9C68}a:hover{color:#F2B98A}
+button{font-family:inherit;cursor:pointer}
+button:focus-visible,a:focus-visible{outline:2px solid #F2B98A;outline-offset:2px}
+@keyframes mgup{from{transform:translateY(40px);opacity:0}to{transform:translateY(0);opacity:1}}
+.mg-up{animation:mgup .28s ease-out}
+@media (prefers-reduced-motion: reduce){.mg-up{animation:none}}
+</style>
+</helmet>
+<div style="width: 390px; height: 844px; position: relative; overflow: hidden; background: #140905; color: #F7EFE6; box-sizing: border-box;">
+
+<div style="padding: 56px 24px 0; display: flex; flex-direction: column; gap: 18px;">
+<div style="display: flex; justify-content: space-between; align-items: flex-end;">
+<div style="display: flex; flex-direction: column; gap: 2px;">
+<span style="font-size: 13px; color: #A8916F;">おはようございます</span>
+<span style="font-size: 26px; font-weight: 700;">Megroove</span>
+</div>
+</div>
+<div style="height: 250px; border-radius: 24px; background: #2A1A11; border: 1px solid #4A3A2A; position: relative; display: flex; align-items: center; justify-content: center;">
+<div style="width: 200px; height: 200px; border-radius: 50%; background: repeating-radial-gradient(circle, #0D0603 0 6px, #22150D 6px 7px); display: flex; align-items: center; justify-content: center; margin-right: 40px;">
+<div style="width: 68px; height: 68px; border-radius: 50%; background: #993C1D; display: flex; align-items: center; justify-content: center; font-weight: 700; color: #FFF7EE;">M</div>
+</div>
+<div style="position: absolute; right: 44px; top: 30px; width: 6px; height: 150px; border-radius: 3px; background: #CE9C68; transform: rotate(18deg); transform-origin: top center;"></div>
+</div>
+<button onClick="{{openSheet}}" style="height: 60px; border: none; border-radius: 18px; background: #B4471F; color: #FFF7EE; font-size: 17px; font-weight: 700;">いつもの一杯を記録</button>
+<div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); padding: 14px 0; background: #1F130C; border: 1px solid #3E3020; border-radius: 16px;">
+<div style="display: flex; flex-direction: column; align-items: center; gap: 2px;"><span style="font-size: 22px; font-weight: 700;">{{cups}}<span style="font-size: 11px; color: #CE9C68; font-weight: 400;">杯</span></span><span style="font-size: 11px; color: #A8916F;">今日</span></div>
+<div style="display: flex; flex-direction: column; align-items: center; gap: 2px;"><span style="font-size: 22px; font-weight: 700;">{{mg}}<span style="font-size: 11px; color: #CE9C68; font-weight: 400;">mg</span></span><span style="font-size: 11px; color: #A8916F;">体内残留（推定）</span></div>
+<div style="display: flex; flex-direction: column; align-items: center; gap: 2px;"><span style="font-size: 22px; font-weight: 700;">{{streak}}<span style="font-size: 11px; color: #CE9C68; font-weight: 400;">日</span></span><span style="font-size: 11px; color: #A8916F;">連続記録</span></div>
+</div>
+</div>
+
+<sc-if value="{{toast}}" hint-placeholder-val="{{false}}">
+<div class="mg-up" style="position: absolute; left: 20px; right: 20px; bottom: 40px; padding: 14px 16px; background: #2E2018; border: 1px solid #4A3A2A; border-radius: 16px; display: flex; align-items: center; gap: 12px;">
+<span style="width: 40px; height: 40px; border-radius: 6px; background: {{presetColor}}; flex-shrink: 0;"></span>
+<div style="flex-grow: 1; display: flex; flex-direction: column; gap: 2px;">
+<span style="font-size: 13px; font-weight: 700;">記録しました</span>
+<span style="font-size: 11px; color: #A8916F;">{{presetBean}}、{{dose}}g／{{water}}g</span>
+</div>
+<button onClick="{{undo}}" style="height: 40px; padding: 0 14px; border: none; border-radius: 999px; background: transparent; color: #F2B98A; font-size: 13px; font-weight: 700;">取り消す</button>
+</div>
+</sc-if>
+
+<sc-if value="{{sheetOpen}}" hint-placeholder-val="{{true}}">
+<div style="position: absolute; inset: 0; background: rgba(0,0,0,0.62);"></div>
+<div class="mg-up" style="position: absolute; left: 0; right: 0; bottom: 0; background: #1A0F09; border-radius: 28px 28px 0 0; padding: 10px 20px 30px; box-sizing: border-box; display: flex; flex-direction: column; gap: 16px;">
+<button aria-label="シートを閉じる" onClick="{{closeSheet}}" style="align-self: center; width: 80px; height: 20px; border: none; background: transparent; display: flex; align-items: center; justify-content: center;"><span style="width: 40px; height: 4px; border-radius: 2px; background: #5A4632;"></span></button>
+<div style="display: flex; justify-content: space-between; align-items: baseline;">
+<span style="font-size: 18px; font-weight: 700;">いつもの一杯を記録</span>
+<span style="font-size: 12px; color: #A8916F;">6:22</span>
+</div>
+
+<div style="display: flex; gap: 10px;">
+<sc-for list="{{presets}}" as="p" hint-placeholder-count="2">
+<button onClick="{{p.pick}}" style="flex: {{p.flex}}; min-width: 0; padding: 12px; border-radius: 16px; background: {{p.bg}}; border: {{p.bw}} solid {{p.bd}}; color: #F7EFE6; text-align: left; display: flex; flex-direction: column; gap: 6px;">
+<span style="display: flex; align-items: center; gap: 8px;"><span style="width: 28px; height: 28px; border-radius: 4px; background: {{p.color}}; flex-shrink: 0;"></span><span style="font-size: 13px; font-weight: 700;">{{p.name}}</span></span>
+<span style="font-size: 11px; color: #CE9C68;">{{p.bean}}を{{p.method}}で</span>
+<span style="font-size: 10px; color: #A8916F;">{{p.detail}}</span>
+</button>
+</sc-for>
+</div>
+
+<div style="display: flex; flex-direction: column; gap: 8px;">
+<span style="font-size: 12px; font-weight: 700; color: #CE9C68;">今日だけ変えたところ</span>
+<div style="display: flex; gap: 8px;">
+<sc-for list="{{tweaks}}" as="t" hint-placeholder-count="3">
+<button onClick="{{t.pick}}" aria-expanded="{{t.open}}" style="height: 36px; padding: 0 12px; border-radius: 10px; font-size: 12px; background: {{t.bg}}; color: #F7EFE6; border: 1px solid {{t.bd}};">{{t.label}}</button>
+</sc-for>
+</div>
+<sc-if value="{{tweakOpen}}" hint-placeholder-val="{{false}}">
+<div style="display: flex; align-items: center; justify-content: space-between; padding: 8px 8px 8px 14px; background: #1F130C; border: 1px solid #3E3020; border-radius: 12px;">
+<span style="font-size: 12px; color: #A8916F;">{{tweakName}}</span>
+<div style="display: flex; align-items: center; gap: 10px;">
+<button aria-label="減らす" onClick="{{tweakDown}}" style="width: 44px; height: 36px; border: none; border-radius: 999px; background: #2E2018; color: #CE9C68; font-size: 16px; font-weight: 700;">−</button>
+<span style="font-size: 18px; font-weight: 700; min-width: 64px; text-align: center;">{{tweakValue}}</span>
+<button aria-label="増やす" onClick="{{tweakUp}}" style="width: 44px; height: 36px; border: none; border-radius: 999px; background: #2E2018; color: #CE9C68; font-size: 16px; font-weight: 700;">＋</button>
+</div>
+</div>
+</sc-if>
+</div>
+
+<div style="display: flex; flex-direction: column; gap: 6px;">
+<div style="display: flex; justify-content: space-between; align-items: center;">
+<span style="font-size: 12px; font-weight: 700; color: #CE9C68;">評価（あとからでも大丈夫です）</span>
+<span style="font-size: 12px; color: #A8916F;">{{starText}}</span>
+</div>
+<div style="display: flex; gap: 4px;">
+<sc-for list="{{stars}}" as="s" hint-placeholder-count="5">
+<button aria-label="{{s.aria}}" onClick="{{s.pick}}" style="width: 48px; height: 48px; border: none; background: transparent; color: {{s.fg}}; display: flex; align-items: center; justify-content: center;"><svg width="30" height="30" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2.8l2.7 5.8 6.3.7-4.7 4.3 1.3 6.3L12 16.7l-5.6 3.2 1.3-6.3L3 9.3l6.3-.7z"></path></svg></button>
+</sc-for>
+</div>
+</div>
+
+<div style="font-size: 11px; color: #8FBF8A;">就寝時の推定カフェイン残留は約{{bedMg}}mg。目標の50mg以内です</div>
+
+<div style="display: flex; gap: 10px;">
+<a href="Main.dc.html" style="height: 56px; padding: 0 18px; border-radius: 18px; background: #2E2018; border: 1px solid #4A3A2A; color: #F7EFE6; font-size: 14px; text-decoration: none; display: flex; align-items: center; box-sizing: border-box;">詳しく記録</a>
+<button onClick="{{save}}" style="flex-grow: 1; height: 56px; border: none; border-radius: 18px; background: #B4471F; color: #FFF7EE; font-size: 16px; font-weight: 700;">この内容で記録</button>
+</div>
+<div style="font-size: 11px; color: #8C7862; text-align: center;">タイマーで淹れるときは「詳しく記録」から</div>
+</div>
+</sc-if>
+
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.presetsData = [
+      { name: '前回と同じ', bean: 'イルガチェフェ', method: 'V60', dose: 15, water: 240, temp: 90, color: '#C2703D' },
+      { name: '週末の一杯', bean: 'ケニア', method: 'プレス', dose: 18, water: 280, temp: 94, color: '#7A2E3A' }
+    ];
+    this.state = { sheet: true, preset: 0, dose: 15, water: 240, temp: 90, tweak: null, stars: 0, cups: 0, toast: false };
+  }
+  renderVals() {
+    const s = this.state;
+    const cur = this.presetsData[s.preset];
+    const presets = this.presetsData.map((p, i) => {
+      const sel = i === s.preset;
+      return Object.assign({}, p, {
+        detail: p.dose + 'g／' + p.water + 'g、' + p.temp + '°C',
+        flex: sel ? '1.5 1 0' : '1 1 0', bg: sel ? '#2E2018' : '#1F130C', bd: sel ? '#CE9C68' : '#3E3020', bw: sel ? '1.5px' : '1px',
+        pick: () => this.setState({ preset: i, dose: p.dose, water: p.water, temp: p.temp, tweak: null })
+      });
+    });
+    const defs = { dose: ['粉量', s.dose + 'g', 1, 8, 30], water: ['湯量', s.water + 'g', 10, 100, 500], temp: ['湯温', s.temp + '°C', 1, 80, 98] };
+    const changed = { dose: s.dose !== cur.dose, water: s.water !== cur.water, temp: s.temp !== cur.temp };
+    const tweaks = Object.keys(defs).map((k) => ({
+      label: defs[k][0] + ' ' + defs[k][1],
+      open: s.tweak === k ? 'true' : 'false',
+      bg: changed[k] ? '#3E2A1C' : '#2E2018',
+      bd: s.tweak === k || changed[k] ? '#CE9C68' : '#2E2018',
+      pick: () => this.setState({ tweak: s.tweak === k ? null : k })
+    }));
+    const step = (dir) => () => {
+      const k = s.tweak; if (!k) return;
+      const d = defs[k];
+      this.setState({ [k]: Math.min(d[4], Math.max(d[3], s[k] + dir * d[2])) });
+    };
+    const labels = ['', 'いまひとつ', 'ふつう', 'おいしい', 'また淹れたい', '今年のベスト級'];
+    const stars = [1, 2, 3, 4, 5].map((n) => ({ aria: '星' + n, fg: n <= s.stars ? '#FFD28A' : '#4A3A2A', pick: () => this.setState({ stars: s.stars === n ? 0 : n }) }));
+    const mgNow = s.cups ? Math.round(s.dose * 12) : 0;
+    return {
+      sheetOpen: s.sheet,
+      toast: s.toast,
+      presets, tweaks, stars,
+      tweakOpen: !!s.tweak,
+      tweakName: s.tweak ? defs[s.tweak][0] : '',
+      tweakValue: s.tweak ? defs[s.tweak][1] : '',
+      tweakUp: step(1), tweakDown: step(-1),
+      starText: s.stars ? labels[s.stars] : '未評価',
+      bedMg: Math.round(s.dose * 12 * 0.1235),
+      cups: s.cups, mg: mgNow, streak: s.cups ? 1 : 0,
+      presetColor: cur.color, presetBean: cur.bean, dose: s.dose, water: s.water,
+      openSheet: () => this.setState({ sheet: true, toast: false }),
+      closeSheet: () => this.setState({ sheet: false }),
+      save: () => this.setState({ sheet: false, toast: true, cups: s.cups + 1 }),
+      undo: () => this.setState({ toast: false, cups: Math.max(0, s.cups - 1), sheet: true })
+    };
+  }
+}
+</script>
+</body>
+</html>

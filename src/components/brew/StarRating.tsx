@@ -11,7 +11,9 @@ export default function StarRating({ value, onChange }: Props) {
           key={s}
           type="button"
           onClick={() => onChange(s === value ? 0 : s)}
-          className={`text-3xl leading-none transition-transform active:scale-90 ${
+          aria-label={`星${s}`}
+          aria-pressed={s <= value}
+          className={`w-11 h-11 flex items-center justify-center text-3xl leading-none transition-transform active:scale-90 ${
             s <= value ? 'text-[#CE9C68]' : 'text-[#3e3020]'
           }`}
         >

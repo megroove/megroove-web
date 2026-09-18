@@ -491,6 +491,74 @@ export function calcFrequentFlavors(
     .map(([f]) => f)
 }
 
+// 就寝時の推定残留量。記録画面・クイック記録・カフェ記録で同じ計算を共有する（重複させない）。
+// addMg = これから記録する一杯の推定カフェイン量。null のときは予測しない。
+// 医学的助言ではなく、一般的なモデル（半減期5.5時間）による推定（CLAUDE.md §12）。
+export interface BedtimePrediction {
+  mg: number
+  hour: number
+  minute: number
+}
+
+export function predictBedtimeResidual(
+  intakes: { caffeineAmount: number; brewedAt: string }[],
+  addMg: number | null,
+  settings: Pick<AppSettings, 'bedtimeHour' | 'bedtimeMinute'>,
+  now: Date = new Date(),
+): BedtimePrediction | null {
+  if (addMg == null) return null
+  const bedtime = getBedtimeDate(settings.bedtimeHour, settings.bedtimeMinute, now)
+  const mg = calcResidualCaffeine(
+    [...intakes, { caffeineAmount: addMg, brewedAt: now.toISOString() }],
+    bedtime,
+  )
+  return { mg, hour: settings.bedtimeHour, minute: settings.bedtimeMinute }
+}
+
+// ─── クイック記録（ホームのシート） ───────────────────────────────────────────
+
+// 「よく使うレシピ」: ブリューでの使用回数が多い順。同数なら直近に使ったものを優先する。
+// 1回しか使っていないレシピは「よく使う」とは言えないので minCount で足切りする。
+export function calcFrequentRecipes(
+  brews: { recipeId?: string; brewedAt: string }[],
+  max = 2,
+  minCount = 2,
+): { recipeId: string; count: number }[] {
+  const map = new Map<string, { count: number; lastUsedAt: string }>()
+  for (const b of brews) {
+    if (!b.recipeId) continue
+    const cur = map.get(b.recipeId)
+    if (cur) {
+      cur.count += 1
+      if (b.brewedAt > cur.lastUsedAt) cur.lastUsedAt = b.brewedAt
+    } else {
+      map.set(b.recipeId, { count: 1, lastUsedAt: b.brewedAt })
+    }
+  }
+  return [...map.entries()]
+    .filter(([, v]) => v.count >= minCount)
+    .sort((a, b) => b[1].count - a[1].count || b[1].lastUsedAt.localeCompare(a[1].lastUsedAt))
+    .slice(0, max)
+    .map(([recipeId, v]) => ({ recipeId, count: v.count }))
+}
+
+// クイック記録で「今日だけ変える」項目。刻みは記録画面の Stepper と揃える
+export const QUICK_TWEAK_LIMITS = {
+  doseG:     { label: '粉量',   unit: 'g',  step: 0.5, min: 1,  max: 100 },
+  waterG:    { label: '湯量',   unit: 'g',  step: 5,   min: 10, max: 2000 },
+  tempC:     { label: '湯温',   unit: '°C', step: 1,   min: 70, max: 100 },
+  grindSize: { label: '挽き目', unit: '',   step: 1,   min: 1,  max: 50 },
+} as const
+
+export type QuickTweakKey = keyof typeof QUICK_TWEAK_LIMITS
+
+// チップの値を範囲内に収める。NaN・非有限値・型違いは基準値へ戻す（不正値を保存しない）
+export function clampTweakValue(key: QuickTweakKey, value: number, fallback: number): number {
+  const { min, max } = QUICK_TWEAK_LIMITS[key]
+  if (typeof value !== 'number' || !Number.isFinite(value)) return fallback
+  return +Math.min(max, Math.max(min, value)).toFixed(1)
+}
+
 // ─── Brew Layout Settings (localStorage) ─────────────────────────────────────
 
 export type BrewBlockId =

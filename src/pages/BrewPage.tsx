@@ -4,10 +4,10 @@ import type { Brew, Bean, Equipment, Recipe, CuppingScores, BrewBlockId, BrewMet
 import {
   getAllBeans, getAllEquipment, getAllRecipes, getAllBrews, getAllCafeVisits,
   getBrew, putBrew, getBrewCount,
-  newId, nowISO, calcCuppingAverage, calcRatio, estimateCaffeine, calcResidualCaffeine,
+  newId, nowISO, calcCuppingAverage, calcRatio, estimateCaffeine, predictBedtimeResidual,
   loadSettings, loadBrewLayout, resizeImage,
   ROAST_LEVEL_LABELS, daysSinceRoast,
-  toDatetimeLocal, fromDatetimeLocal, formatBeanRemaining, calcFrequentFlavors, getBedtimeDate,
+  toDatetimeLocal, fromDatetimeLocal, formatBeanRemaining, calcFrequentFlavors,
   SCENE_OPTIONS, DRINK_STYLE_OPTIONS,
   saveBrewDraft, loadBrewDraft, clearBrewDraft, getBrewEquipmentIds,
   DRIP_BAG_DOSE_G, BREW_METHOD_LABELS,
@@ -174,13 +174,7 @@ export default function BrewPage() {
       ? estimateCaffeine(DRIP_BAG_DOSE_G, decaf)
       : doseG ? estimateCaffeine(doseG, decaf) : null
     if (isEditMode || mg === null) { setBedtimePrediction(null); return }
-    const now = new Date()
-    const bt = getBedtimeDate(caffeineSettings.bedtimeHour, caffeineSettings.bedtimeMinute, now)
-    const allIntakes = [
-      ...pastIntakes,
-      { caffeineAmount: mg, brewedAt: now.toISOString() },
-    ]
-    setBedtimePrediction(calcResidualCaffeine(allIntakes, bt))
+    setBedtimePrediction(predictBedtimeResidual(pastIntakes, mg, caffeineSettings)?.mg ?? null)
   }, [method, doseG, pastIntakes, isEditMode, caffeineSettings, beanId, beans])
 
   const fillFromBrew = useCallback((b: Brew, copyEval: boolean) => {

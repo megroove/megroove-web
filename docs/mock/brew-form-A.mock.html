@@ -1,0 +1,279 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<title>案A Side A / Side B 記録フォーム</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;font-family:"Noto Sans JP",system-ui,sans-serif;background:#0d0603}
+a{color:#CE9C68}a:hover{color:#F2B98A}
+button{font-family:inherit;cursor:pointer}
+button:focus-visible,a:focus-visible{outline:2px solid #F2B98A;outline-offset:2px}
+@keyframes mgspin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}
+.mg-spin{animation:mgspin 1.8s linear infinite}
+@media (prefers-reduced-motion: reduce){.mg-spin{animation:none}}
+.mg-scroll::-webkit-scrollbar{display:none}
+</style>
+</helmet>
+<div style="width: 390px; height: 844px; position: relative; overflow: hidden; background: #140905; color: #F7EFE6; box-sizing: border-box;">
+
+<div style="display: flex; align-items: center; justify-content: space-between; padding: 52px 20px 12px 16px;">
+<button aria-label="閉じる" style="width: 44px; height: 44px; border: none; background: transparent; display: flex; align-items: center; justify-content: center; color: #A8916F;"><svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M3 3l12 12M15 3L3 15"></path></svg></button>
+<div style="font-size: 16px; font-weight: 700;">この一杯を記録</div>
+<div style="font-size: 12px; color: #A8916F; width: 44px; text-align: right;">6:22</div>
+</div>
+
+<div style="margin: 0 20px; padding: 4px; display: flex; gap: 4px; background: #1F130C; border-radius: 999px;">
+<button onClick="{{goA}}" style="flex-grow: 1; height: 44px; border: none; border-radius: 999px; display: flex; align-items: center; justify-content: center; gap: 8px; background: {{tabA.bg}}; color: {{tabA.fg}};">
+<span style="width: 10px; height: 10px; border-radius: 50%; background: {{tabA.dot}};"></span>
+<span style="font-size: 13px; font-weight: 700;">Side A</span>
+<span style="font-size: 11px; opacity: 0.85;">準備と抽出</span>
+</button>
+<button onClick="{{goB}}" style="flex-grow: 1; height: 44px; border: none; border-radius: 999px; display: flex; align-items: center; justify-content: center; gap: 8px; background: {{tabB.bg}}; color: {{tabB.fg}};">
+<span style="width: 10px; height: 10px; border-radius: 50%; background: {{tabB.dot}};"></span>
+<span style="font-size: 13px; font-weight: 700;">Side B</span>
+<span style="font-size: 11px; opacity: 0.85;">味わいと評価</span>
+</button>
+</div>
+
+<sc-if value="{{showA}}" hint-placeholder-val="{{true}}">
+<div class="mg-scroll" style="position: absolute; top: 164px; left: 0; right: 0; bottom: 150px; overflow-y: auto; padding: 0 20px 20px; box-sizing: border-box; display: flex; flex-direction: column; gap: 18px; scrollbar-width: none;">
+
+<button style="display: flex; align-items: center; gap: 12px; padding: 12px 14px 12px 12px; background: #1F130C; border: 1px solid #3E3020; border-radius: 16px; color: #F7EFE6; text-align: left;">
+<span style="width: 48px; height: 48px; border-radius: 6px; background: #C2703D; flex-shrink: 0;"></span>
+<span style="flex-grow: 1; display: flex; flex-direction: column; gap: 2px;">
+<span style="font-size: 14px; font-weight: 700;">エチオピア イルガチェフェ</span>
+<span style="font-size: 11px; color: #A8916F;">浅煎り、残り120g</span>
+</span>
+<span style="font-size: 12px; color: #CE9C68;">変更</span>
+</button>
+
+<div style="display: flex; flex-direction: column; gap: 10px;">
+<div style="font-size: 12px; font-weight: 700; color: #CE9C68;">抽出方法</div>
+<div style="display: flex; gap: 8px; flex-wrap: wrap;">
+<sc-for list="{{methods}}" as="m" hint-placeholder-count="3">
+<button onClick="{{m.pick}}" style="height: 36px; padding: 0 16px; border-radius: 999px; font-size: 12px; background: {{m.bg}}; color: {{m.fg}}; border: 1px solid {{m.bd}}; font-weight: {{m.fw}};">{{m.label}}</button>
+</sc-for>
+</div>
+</div>
+
+<div style="background: #1F130C; border: 1px solid #3E3020; border-radius: 20px; padding: 14px 16px 16px; display: flex; flex-direction: column; gap: 12px;">
+<div style="display: flex; justify-content: space-between; align-items: center;">
+<div style="font-size: 12px; font-weight: 700; color: #CE9C68;">レシピ</div>
+<button onClick="{{resetRecipe}}" style="border: none; background: transparent; color: #A8916F; font-size: 11px; height: 28px;">前回と同じに戻す</button>
+</div>
+<div style="display: flex; align-items: center; justify-content: space-between;">
+<div style="display: flex; flex-direction: column; align-items: center; gap: 6px; width: 96px;">
+<div style="font-size: 11px; color: #A8916F;">粉量</div>
+<div style="display: flex; align-items: baseline; gap: 2px;"><span style="font-size: 26px; font-weight: 700;">{{dose}}</span><span style="font-size: 11px; color: #CE9C68;">g</span></div>
+<div style="display: flex; gap: 8px;">
+<button aria-label="粉量を減らす" onClick="{{doseDown}}" style="width: 40px; height: 32px; border-radius: 999px; border: none; background: #2E2018; color: #CE9C68; font-size: 16px; font-weight: 700;">−</button>
+<button aria-label="粉量を増やす" onClick="{{doseUp}}" style="width: 40px; height: 32px; border-radius: 999px; border: none; background: #2E2018; color: #CE9C68; font-size: 16px; font-weight: 700;">＋</button>
+</div>
+</div>
+<div style="width: 108px; height: 108px; border-radius: 50%; background: #0D0603; box-shadow: 0 0 0 6px #3E2A1C inset, 0 0 0 1px #3E3020; display: flex; align-items: center; justify-content: center;">
+<div style="width: 66px; height: 66px; border-radius: 50%; background: #993C1D; display: flex; flex-direction: column; align-items: center; justify-content: center;">
+<span style="font-size: 9px; color: #F3C9A8;">比率</span>
+<span style="font-size: 15px; font-weight: 700; color: #FFF7EE;">1:{{ratio}}</span>
+</div>
+</div>
+<div style="display: flex; flex-direction: column; align-items: center; gap: 6px; width: 96px;">
+<div style="font-size: 11px; color: #A8916F;">湯量</div>
+<div style="display: flex; align-items: baseline; gap: 2px;"><span style="font-size: 26px; font-weight: 700;">{{water}}</span><span style="font-size: 11px; color: #CE9C68;">g</span></div>
+<div style="display: flex; gap: 8px;">
+<button aria-label="湯量を減らす" onClick="{{waterDown}}" style="width: 40px; height: 32px; border-radius: 999px; border: none; background: #2E2018; color: #CE9C68; font-size: 16px; font-weight: 700;">−</button>
+<button aria-label="湯量を増やす" onClick="{{waterUp}}" style="width: 40px; height: 32px; border-radius: 999px; border: none; background: #2E2018; color: #CE9C68; font-size: 16px; font-weight: 700;">＋</button>
+</div>
+</div>
+</div>
+<div style="display: flex; gap: 8px;">
+<div style="padding: 8px 12px; background: #2E2018; border-radius: 10px; font-size: 11px;">挽き目　中細（C40で22）</div>
+<div style="padding: 8px 12px; background: #2E2018; border-radius: 10px; font-size: 11px;">湯温　90°C</div>
+</div>
+</div>
+
+<div style="display: flex; gap: 12px; align-items: center; padding: 12px 16px; border: 1px dashed #4A3A2A; border-radius: 14px;">
+<svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="#CE9C68" stroke-width="1.6"><circle cx="9" cy="9" r="7.5"></circle><path d="M9 4.5V9l3 2" stroke-linecap="round"></path></svg>
+<div style="display: flex; flex-direction: column; gap: 2px;">
+<div style="font-size: 12px; font-weight: 700;">蒸らし30秒、3回に分けて注いで2分30秒</div>
+<div style="font-size: 11px; color: #A8916F;">前回の注ぎ方をガイドとして流します</div>
+</div>
+</div>
+
+<div style="font-size: 11px; color: #8FBF8A;">就寝時（23:00）の推定カフェイン残留は約{{bedMg}}mg。目標の50mg以内です</div>
+</div>
+
+<div style="position: absolute; left: 0; right: 0; bottom: 0; padding: 14px 20px 30px; background: #1A0F09; border-top: 1px solid #2E2018; display: flex; flex-direction: column; gap: 10px; align-items: center;">
+<button onClick="{{startBrew}}" style="width: 100%; height: 56px; border: none; border-radius: 18px; background: #B4471F; color: #FFF7EE; font-size: 16px; font-weight: 700; display: flex; align-items: center; justify-content: center; gap: 10px;">
+<svg width="14" height="16" viewBox="0 0 14 16" fill="#FFF7EE"><path d="M1 1.5v13l12-6.5z"></path></svg>針を落として抽出スタート</button>
+<button onClick="{{goB}}" style="border: none; background: transparent; color: #CE9C68; font-size: 12px; height: 32px;">タイマーを使わずにSide Bへ進む</button>
+</div>
+</sc-if>
+
+<sc-if value="{{showBrewing}}" hint-placeholder-val="{{false}}">
+<div style="position: absolute; top: 164px; left: 0; right: 0; bottom: 0; padding: 24px 20px 30px; box-sizing: border-box; display: flex; flex-direction: column; align-items: center; gap: 16px;">
+<div style="position: relative; width: 230px; height: 230px; flex-shrink: 0;">
+<div class="mg-spin" style="width: 230px; height: 230px; border-radius: 50%; background: repeating-radial-gradient(circle, {{vinyl.c1}} 0 5px, {{vinyl.c2}} 5px 6px); display: flex; align-items: center; justify-content: center; box-shadow: 0 10px 30px rgba(0,0,0,0.55), 0 0 0 2px {{vinyl.rim}};">
+<div style="width: 76px; height: 76px; border-radius: 50%; background: #993C1D; display: flex; align-items: center; justify-content: center; position: relative; box-shadow: 0 0 0 4px {{vinyl.c1}};">
+<span style="font-size: 18px; font-weight: 700; color: #FFF7EE;">M</span>
+<span style="position: absolute; top: 10px; width: 6px; height: 6px; border-radius: 50%; background: #F3C9A8;"></span>
+</div>
+</div>
+<div style="position: absolute; top: 0; left: 0; width: 230px; height: 230px; border-radius: 50%; pointer-events: none; background: conic-gradient(from 20deg, rgba(255,255,255,0) 0deg, rgba(255,255,255,0.16) 28deg, rgba(255,255,255,0) 58deg, rgba(255,255,255,0) 180deg, rgba(255,255,255,0.10) 208deg, rgba(255,255,255,0) 238deg);"></div>
+</div>
+<div style="display: flex; flex-direction: column; align-items: center; gap: 8px;">
+<div style="display: flex; gap: 8px;">
+<sc-for list="{{vinyls}}" as="v" hint-placeholder-count="7">
+<button aria-label="{{v.name}}" aria-pressed="{{v.on}}" onClick="{{v.pick}}" style="width: 36px; height: 36px; border-radius: 50%; border: 2px solid {{v.ring}}; padding: 3px; background: transparent; display: flex; align-items: center; justify-content: center;"><span style="width: 26px; height: 26px; border-radius: 50%; background: {{v.c1}}; box-shadow: inset 0 0 0 1px rgba(255,255,255,0.18);"></span></button>
+</sc-for>
+</div>
+<div style="font-size: 11px; color: #A8916F;">レコードの色：{{vinyl.name}}</div>
+</div>
+<div style="font-size: 48px; font-weight: 700; letter-spacing: 1px;">{{timeStr}}</div>
+<div style="display: flex; flex-direction: column; align-items: center; gap: 4px;">
+<div style="font-size: 16px; font-weight: 700; color: #F2B98A;">{{stepLabel}}</div>
+<div style="font-size: 12px; color: #A8916F;">{{stepHint}}</div>
+</div>
+<div style="width: 100%; height: 6px; background: #2E2018; border-radius: 3px; overflow: hidden;"><div style="height: 6px; width: {{progress}}%; background: #CE9C68; border-radius: 3px;"></div></div>
+<div style="flex-grow: 1;"></div>
+<button onClick="{{finishBrew}}" style="width: 100%; height: 56px; border: none; border-radius: 18px; background: #B4471F; color: #FFF7EE; font-size: 16px; font-weight: 700;">抽出完了、味わいを記録する</button>
+</div>
+</sc-if>
+
+<sc-if value="{{showB}}" hint-placeholder-val="{{false}}">
+<div class="mg-scroll" style="position: absolute; top: 164px; left: 0; right: 0; bottom: 130px; overflow-y: auto; padding: 0 20px 20px; box-sizing: border-box; display: flex; flex-direction: column; gap: 18px; scrollbar-width: none;">
+<div style="display: flex; align-items: center; gap: 10px; padding: 10px 14px; background: #1F130C; border-radius: 14px;">
+<span style="width: 32px; height: 32px; border-radius: 4px; background: #C2703D; flex-shrink: 0;"></span>
+<span style="font-size: 12px;">イルガチェフェを{{methodLabel}}で、{{dose}}g／{{water}}g、{{timeStr}}</span>
+</div>
+<div style="display: flex; flex-direction: column; gap: 12px;">
+<div style="font-size: 18px; font-weight: 700;">今日の一杯はどうでしたか</div>
+<div style="display: flex; gap: 10px;">
+<sc-for list="{{stars}}" as="s" hint-placeholder-count="5">
+<button aria-label="{{s.aria}}" onClick="{{s.pick}}" style="width: 56px; height: 56px; border-radius: 50%; background: {{s.bg}}; border: 1px solid {{s.bd}}; color: {{s.fg}}; font-size: 24px; display: flex; align-items: center; justify-content: center;"><svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2.8l2.7 5.8 6.3.7-4.7 4.3 1.3 6.3L12 16.7l-5.6 3.2 1.3-6.3L3 9.3l6.3-.7z"></path></svg></button>
+</sc-for>
+</div>
+<div style="font-size: 12px; color: #CE9C68;">{{starLabel}}</div>
+</div>
+<div style="display: flex; flex-direction: column; gap: 10px;">
+<div style="font-size: 12px; font-weight: 700; color: #CE9C68;">感じたフレーバー</div>
+<div style="display: flex; gap: 8px; flex-wrap: wrap;">
+<sc-for list="{{flavors}}" as="f" hint-placeholder-count="6">
+<button onClick="{{f.toggle}}" aria-pressed="{{f.on}}" style="height: 34px; padding: 0 14px; border-radius: 999px; font-size: 12px; background: {{f.bg}}; color: {{f.fg}}; border: 1px solid {{f.bd}}; font-weight: {{f.fw}};">{{f.label}}</button>
+</sc-for>
+</div>
+</div>
+<div style="background: #1F130C; border: 1px solid #3E3020; border-radius: 16px; display: flex; flex-direction: column;">
+<button style="height: 50px; padding: 0 16px; border: none; border-bottom: 1px solid #2E2018; background: transparent; color: #F7EFE6; font-size: 13px; display: flex; justify-content: space-between; align-items: center;"><span>カッピングスコア</span><span style="color: #8C7862; font-size: 12px;">任意</span></button>
+<button style="height: 50px; padding: 0 16px; border: none; border-bottom: 1px solid #2E2018; background: transparent; color: #F7EFE6; font-size: 13px; display: flex; justify-content: space-between; align-items: center;"><span>メモ</span><span style="color: #8C7862; font-size: 12px;">ひとこと残す</span></button>
+<button style="height: 50px; padding: 0 16px; border: none; border-bottom: 1px solid #2E2018; background: transparent; color: #F7EFE6; font-size: 13px; display: flex; justify-content: space-between; align-items: center;"><span>写真</span><span style="color: #8C7862; font-size: 12px;">追加</span></button>
+<button style="height: 50px; padding: 0 16px; border: none; background: transparent; color: #F7EFE6; font-size: 13px; display: flex; justify-content: space-between; align-items: center;"><span>いま聴いている曲</span><span style="color: #CE9C68; font-size: 12px;">追加</span></button>
+</div>
+</div>
+<div style="position: absolute; left: 0; right: 0; bottom: 0; padding: 14px 20px 30px; background: #1A0F09; border-top: 1px solid #2E2018; display: flex; flex-direction: column; gap: 8px; align-items: center;">
+<button onClick="{{save}}" style="width: 100%; height: 56px; border: none; border-radius: 18px; background: #B4471F; color: #FFF7EE; font-size: 16px; font-weight: 700;">レコード棚に保存</button>
+<div style="font-size: 11px; color: #A8916F;">評価を空のまま保存すると「評価待ち」に入ります</div>
+</div>
+</sc-if>
+
+<sc-if value="{{saved}}" hint-placeholder-val="{{false}}">
+<div style="position: absolute; inset: 0; background: rgba(13,6,3,0.88); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 16px; padding: 32px; box-sizing: border-box;">
+<div style="width: 140px; height: 140px; border-radius: 10px; background: #C2703D; display: flex; align-items: flex-end; padding: 12px; box-sizing: border-box; box-shadow: 6px 8px 20px rgba(0,0,0,0.5);"><span style="font-size: 13px; font-weight: 700; color: #FFF7EE;">{{starLabelShort}}</span></div>
+<div style="font-size: 18px; font-weight: 700;">レコード棚に保存しました</div>
+<div style="font-size: 12px; color: #A8916F; text-align: center;">この一杯はライブラリの一番手前に並びます</div>
+<button onClick="{{restart}}" style="margin-top: 8px; height: 48px; padding: 0 24px; border-radius: 999px; border: 1px solid #4A3A2A; background: #2E2018; color: #F7EFE6; font-size: 14px;">最初からもう一度試す</button>
+</div>
+</sc-if>
+
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = { side: 'A', phase: 'form', method: 'V60', dose: 15, water: 240, elapsed: 0, stars: 4, flavors: { 'フルーティ': true, 'シトラス': true }, saved: false, vinyl: 0 };
+    this.vinylData = [
+      { name: '豆に合わせる', c1: '#C2703D', c2: '#A95F31', rim: '#E08A52' },
+      { name: 'クラシック黒', c1: '#151515', c2: '#2C2C2C', rim: '#6B5A4A' },
+      { name: 'クリアピンク', c1: '#F4C6CF', c2: '#E3AAB7', rim: '#FBE1E6' },
+      { name: 'ミント', c1: '#BFE8D4', c2: '#A3D6BE', rim: '#DDF5EA' },
+      { name: 'ターコイズ', c1: '#2E9AA6', c2: '#247F89', rim: '#5CC0CB' },
+      { name: 'コバルト', c1: '#2447B8', c2: '#1B3794', rim: '#4F6FD6' },
+      { name: 'レモン', c1: '#F3E46A', c2: '#DCCB4C', rim: '#FAF0A0' }
+    ];
+    this.timer = null;
+  }
+  componentWillUnmount() { if (this.timer) clearInterval(this.timer); }
+  stopTimer() { if (this.timer) { clearInterval(this.timer); this.timer = null; } }
+  renderVals() {
+    const s = this.state;
+    const on = { bg: '#993C1D', fg: '#FFF7EE', dot: '#FFF7EE' };
+    const off = { bg: 'transparent', fg: '#8C7862', dot: '#5A4632' };
+    const methods = ['V60', 'ドリップバッグ', 'フレンチプレス'].map((label) => {
+      const sel = s.method === label;
+      return { label, bg: sel ? '#3E2A1C' : '#1F130C', fg: sel ? '#F7EFE6' : '#A8916F', bd: sel ? '#CE9C68' : '#3E3020', fw: sel ? 700 : 400, pick: () => this.setState({ method: label }) };
+    });
+    const labels = ['', 'いまひとつ', 'ふつう', 'おいしい', 'また淹れたい', '今年のベスト級'];
+    const stars = [1, 2, 3, 4, 5].map((n) => {
+      const lit = n <= s.stars;
+      return { aria: '星' + n, bg: lit ? '#3E2A1C' : '#1F130C', bd: lit ? '#CE9C68' : '#3E3020', fg: lit ? '#FFD28A' : '#4A3A2A', pick: () => this.setState({ stars: s.stars === n ? 0 : n }) };
+    });
+    const flavors = ['フルーティ', 'シトラス', 'フローラル', 'ベリー', 'チョコレート', 'キャラメル', 'ナッツ', 'ハーブ'].map((label) => {
+      const f = !!s.flavors[label];
+      return { label, on: f ? 'true' : 'false', bg: f ? '#993C1D' : '#1F130C', fg: f ? '#FFF7EE' : '#CE9C68', bd: f ? '#993C1D' : '#3E3020', fw: f ? 700 : 400,
+        toggle: () => this.setState({ flavors: Object.assign({}, s.flavors, { [label]: !f }) }) };
+    });
+    const e = s.elapsed;
+    const mm = Math.floor(e / 60), ss = String(e % 60).padStart(2, '0');
+    let stepLabel = '蒸らし', stepHint = '粉全体が湿る程度、約40gを注ぎます';
+    if (e >= 30 && e < 60) { stepLabel = '1投目'; stepHint = '中心から「の」の字に120gまで'; }
+    else if (e >= 60 && e < 90) { stepLabel = '2投目'; stepHint = '180gまで、ゆっくり'; }
+    else if (e >= 90 && e < 150) { stepLabel = '3投目'; stepHint = s.water + 'gまで注いで落ち切りを待つ'; }
+    else if (e >= 150) { stepLabel = '落ち切り'; stepHint = 'ドリッパーを外して完了です'; }
+    const bedMg = Math.round(s.dose * 12 * 0.1235);
+    return {
+      tabA: s.side === 'A' ? on : off,
+      tabB: s.side === 'B' ? on : off,
+      showA: s.side === 'A' && s.phase === 'form',
+      showBrewing: s.side === 'A' && s.phase === 'brewing',
+      showB: s.side === 'B',
+      saved: s.saved,
+      methods, stars, flavors,
+      methodLabel: s.method,
+      dose: s.dose, water: s.water,
+      ratio: (s.water / s.dose).toFixed(1),
+      bedMg,
+      timeStr: mm + ':' + ss,
+      stepLabel, stepHint,
+      vinyl: this.vinylData[s.vinyl],
+      vinyls: this.vinylData.map((v, i) => Object.assign({}, v, { on: i === s.vinyl ? 'true' : 'false', ring: i === s.vinyl ? '#F2B98A' : 'transparent', pick: () => this.setState({ vinyl: i }) })),
+      progress: Math.min(100, Math.round(e / 150 * 100)),
+      starLabel: s.stars ? s.stars + ' ' + labels[s.stars] : '未評価（あとで評価できます）',
+      starLabelShort: s.stars ? '星' + s.stars : '評価待ち',
+      goA: () => { this.stopTimer(); this.setState({ side: 'A', phase: 'form' }); },
+      goB: () => { this.stopTimer(); this.setState({ side: 'B' }); },
+      doseUp: () => this.setState({ dose: Math.min(30, s.dose + 1) }),
+      doseDown: () => this.setState({ dose: Math.max(8, s.dose - 1) }),
+      waterUp: () => this.setState({ water: Math.min(500, s.water + 10) }),
+      waterDown: () => this.setState({ water: Math.max(100, s.water - 10) }),
+      resetRecipe: () => this.setState({ dose: 15, water: 240, method: 'V60' }),
+      startBrew: () => {
+        this.stopTimer();
+        this.setState({ phase: 'brewing', elapsed: 0 });
+        this.timer = setInterval(() => this.setState({ elapsed: this.state.elapsed + 1 }), 1000);
+      },
+      finishBrew: () => { this.stopTimer(); this.setState({ side: 'B', phase: 'form' }); },
+      save: () => this.setState({ saved: true }),
+      restart: () => { this.stopTimer(); this.setState({ side: 'A', phase: 'form', elapsed: 0, saved: false, stars: 4, dose: 15, water: 240, method: 'V60' }); }
+    };
+  }
+}
+</script>
+</body>
+</html>
