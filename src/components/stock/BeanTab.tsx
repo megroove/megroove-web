@@ -45,32 +45,36 @@ function BeanForm({
   const handleSave = async () => {
     if (!name.trim() || saving) return
     setSaving(true)
-    const bean: Bean = {
-      id:         initial?.id ?? newId(),
-      name:       name.trim(),
-      roastLevel,
-      roastedAt:   roastedAt   || undefined,
-      purchasedAt: purchasedAt || undefined,
-      initialAmountG: amountG,
-      finishedAt:  finished ? (initial?.finishedAt ?? nowISO()) : undefined,
-      origin:      origin.trim()    || undefined,
-      farm:        farm.trim()      || undefined,
-      variety:     variety.trim()   || undefined,
-      process:     process.trim()   || undefined,
-      decaf:       decaf            || undefined,
-      stockNote:   stockNote.trim() || undefined,
-      photoDataUrl: photoDataUrl    || undefined,
-      createdAt:  initial?.createdAt ?? nowISO(),
-    }
+    // ID生成（crypto.randomUUID）も try の内側に入れる。安全でないコンテキスト（http）では
+    // ここで例外になり、外に出すとボタンが「保存中...」のまま無言で固まる
+    let saved: Bean | null = null
     try {
+      const bean: Bean = {
+        id:         initial?.id ?? newId(),
+        name:       name.trim(),
+        roastLevel,
+        roastedAt:   roastedAt   || undefined,
+        purchasedAt: purchasedAt || undefined,
+        initialAmountG: amountG,
+        finishedAt:  finished ? (initial?.finishedAt ?? nowISO()) : undefined,
+        origin:      origin.trim()    || undefined,
+        farm:        farm.trim()      || undefined,
+        variety:     variety.trim()   || undefined,
+        process:     process.trim()   || undefined,
+        decaf:       decaf            || undefined,
+        stockNote:   stockNote.trim() || undefined,
+        photoDataUrl: photoDataUrl    || undefined,
+        createdAt:  initial?.createdAt ?? nowISO(),
+      }
       await withSaveTimeout(putBean(bean))
+      saved = bean
     } catch (e) {
       console.error('[megroove] 豆の保存に失敗しました:', e)
-      setSaving(false)
       showToast(saveErrorMessage(e), { type: 'error' })
-      return
+    } finally {
+      setSaving(false)
     }
-    onSave(bean)
+    if (saved) onSave(saved)
   }
 
   return (

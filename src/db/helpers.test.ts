@@ -1,10 +1,12 @@
-import { describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
+  SaveTimeoutError,
   calcFrequentRecipes,
   calcResidualCaffeine,
   clampTweakValue,
   estimateCaffeine,
   predictBedtimeResidual,
+  saveErrorMessage,
 } from './helpers'
 
 // クイック記録（ホームのシート）で使う純粋なロジックのテスト。
@@ -143,5 +145,48 @@ describe('calcResidualCaffeine', () => {
       at,
     )
     expect(total).toBe(0)
+  })
+})
+
+describe('saveErrorMessage', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals()
+  })
+
+  // 安全なコンテキストかどうかを差し替える（既定の jsdom/node 環境に依存させない）
+  const withSecureContext = (secure: boolean) => {
+    vi.stubGlobal('window', { isSecureContext: secure })
+  }
+
+  it('タイムアウトは他のタブ／PWA を閉じる案内にする', () => {
+    withSecureContext(true)
+    expect(saveErrorMessage(new SaveTimeoutError())).toContain('他に開いている Megroove')
+  })
+
+  it('容量不足はバックアップと整理の案内にする', () => {
+    withSecureContext(true)
+    const e = new DOMException('quota', 'QuotaExceededError')
+    expect(saveErrorMessage(e)).toContain('ストレージの空き容量')
+  })
+
+  it('安全でないコンテキスト（http）では、その原因を名指しで案内する', () => {
+    withSecureContext(false)
+    // crypto.randomUUID が無いために起きる TypeError を想定
+    const e = new TypeError('crypto.randomUUID is not a function')
+    expect(saveErrorMessage(e)).toContain('この接続（http）では保存できません')
+  })
+
+  it('安全なコンテキストでの想定外エラーは汎用の案内にする', () => {
+    withSecureContext(true)
+    expect(saveErrorMessage(new TypeError('boom'))).toBe(
+      '保存に失敗しました。ページを再読み込みしてからお試しください',
+    )
+  })
+
+  it('タイムアウト・容量不足は、安全でないコンテキストでも本来の案内を優先する', () => {
+    withSecureContext(false)
+    expect(saveErrorMessage(new SaveTimeoutError())).toContain('他に開いている Megroove')
+    expect(saveErrorMessage(new DOMException('quota', 'QuotaExceededError')))
+      .toContain('ストレージの空き容量')
   })
 })

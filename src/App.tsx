@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { HashRouter, Routes, Route, useLocation } from 'react-router-dom'
 import BottomNav from './components/BottomNav'
-import { ToastProvider } from './components/Toast'
+import { ToastProvider, useToast } from './components/Toast'
 import ErrorBoundary from './components/ErrorBoundary'
 import HomePage from './pages/HomePage'
 import BrewPage from './pages/BrewPage'
@@ -19,6 +19,25 @@ import DataProvisionPage from './pages/DataProvisionPage'
 import PrivacyPage from './pages/PrivacyPage'
 import PassportPage from './pages/PassportPage'
 import OnboardingTour, { hasCompletedOnboarding } from './components/OnboardingTour'
+import { saveErrorMessage } from './db'
+
+// 最後の安全網: どこかの非同期処理（保存ハンドラ等）が例外を取りこぼしても、
+// 画面が無反応のまま黙り込まないようにユーザーへ知らせる。
+// ErrorBoundary は描画中のエラーしか拾えず、async ハンドラの例外はここでしか見えない。
+function UnhandledRejectionNotice() {
+  const showToast = useToast()
+
+  useEffect(() => {
+    const onRejection = (event: PromiseRejectionEvent) => {
+      console.error('[megroove] 処理されなかったエラー:', event.reason)
+      showToast(saveErrorMessage(event.reason), { type: 'error' })
+    }
+    window.addEventListener('unhandledrejection', onRejection)
+    return () => window.removeEventListener('unhandledrejection', onRejection)
+  }, [showToast])
+
+  return null
+}
 
 function AppRoutes() {
   const location = useLocation()
@@ -64,6 +83,7 @@ export default function App() {
   return (
     <HashRouter>
       <ToastProvider>
+      <UnhandledRejectionNotice />
       {showTour && <OnboardingTour onDone={() => setShowTour(false)} />}
       {/* app-shell: 高さ100dvh の縦フレックス。中身(flex-1 で内部スクロール) ＋ フッター(通常フロー最下段)。
           フッターを fixed から外すことで、短いページでも常に画面最下部に接地する。 */}

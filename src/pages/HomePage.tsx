@@ -18,6 +18,7 @@ import {
   calcResidualCaffeine, calcStreakDays, isSameLocalDay, calcCuppingAverage, calcFrequentFlavors,
   newId, nowISO, estimateCaffeine, estimateCafeCaffeine, calcRatio, loadSettings, localDateKey,
   calcFrequentRecipes, predictBedtimeResidual, DRIP_BAG_DOSE_G,
+  withSaveTimeout, saveErrorMessage,
 } from '../db'
 import {
   GearIcon, CupIcon, CafeIcon, TrophyIcon, CameraIcon, DownloadIcon, MoonIcon,
@@ -442,12 +443,13 @@ export default function HomePage() {
 
   const handleSleepRate = async (rating: number) => {
     try {
-      await putSleepLog({ date: localDateKey(new Date()), rating, createdAt: nowISO() })
+      await withSaveTimeout(putSleepLog({ date: localDateKey(new Date()), rating, createdAt: nowISO() }))
       setShowSleepModal(false)
       setShowSleepCard(false)
       showToast('睡眠を記録しました', { type: 'success' })
-    } catch {
-      showToast('保存に失敗しました', { type: 'error' })
+    } catch (e) {
+      console.error('[megroove] 睡眠の記録に失敗しました:', e)
+      showToast(saveErrorMessage(e), { type: 'error' })
     }
   }
 
@@ -478,7 +480,7 @@ export default function HomePage() {
           : b.caffeineAmount
       const count = await getBrewCount()
       const id = newId()
-      await putBrew({
+      await withSaveTimeout(putBrew({
         id,
         createdAt: nowISO(),
         brewedAt: nowISO(),
@@ -497,7 +499,7 @@ export default function HomePage() {
         drinkStyle: b.drinkStyle,
         cupping: {},
         caffeineAmount,
-      })
+      }))
       const amounts = [doseG != null ? `${doseG}g` : null, input.waterG != null ? `${input.waterG}g` : null]
         .filter(Boolean).join('／')
       setLastQuickSaved({
@@ -509,9 +511,10 @@ export default function HomePage() {
       setQuickSaving(false)
       setShowQuickSheet(false)
       setShowQuickAnim(true)
-    } catch {
+    } catch (e) {
+      console.error('[megroove] クイック記録の保存に失敗しました:', e)
       setQuickSaving(false)
-      showToast('保存に失敗しました。ストレージの空き容量を確認してください', { type: 'error' })
+      showToast(saveErrorMessage(e), { type: 'error' })
     }
   }
 
@@ -549,19 +552,20 @@ export default function HomePage() {
     if (!latestPending || !rateValue || rateSaving) return
     setRateSaving(true)
     try {
-      await putBrew({
+      await withSaveTimeout(putBrew({
         ...latestPending.brew,
         rating: rateValue,
         flavors: rateFlavors,
         cupping: rateCupping,
         cuppingAverage: calcCuppingAverage(rateCupping),
-      })
+      }))
       setRateSaving(false)
       setShowRateSheet(false)
       setShowRateAnim(true) // 針を落とすフル演出
-    } catch {
+    } catch (e) {
+      console.error('[megroove] 評価の保存に失敗しました:', e)
       setRateSaving(false)
-      showToast('保存に失敗しました。ストレージの空き容量を確認してください', { type: 'error' })
+      showToast(saveErrorMessage(e), { type: 'error' })
     }
   }
 
@@ -577,7 +581,7 @@ export default function HomePage() {
     setCafeQuickSaving(true)
     try {
       const v = lastVisit
-      await putCafeVisit({
+      await withSaveTimeout(putCafeVisit({
         id: newId(),
         createdAt: nowISO(),
         visitedAt: nowISO(),
@@ -593,14 +597,15 @@ export default function HomePage() {
         cupping: {},
         caffeineAmount: estimateCafeCaffeine(v.drinkType, v.size, v.decaf),
         price: v.price,
-      })
+      }))
       setCafeQuickSaving(false)
       setShowCafeQuickSheet(false)
       showToast('カフェの一杯を記録しました', { type: 'success' })
       loadHome()
-    } catch {
+    } catch (e) {
+      console.error('[megroove] カフェのクイック記録に失敗しました:', e)
       setCafeQuickSaving(false)
-      showToast('保存に失敗しました。ストレージの空き容量を確認してください', { type: 'error' })
+      showToast(saveErrorMessage(e), { type: 'error' })
     }
   }
 

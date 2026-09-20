@@ -41,27 +41,29 @@ function AddBeanForm({ mode, onAdd, onCancel, recentOrigins }: {
   const handleSubmit = async () => {
     if (!name.trim() || submitting) return
     setSubmitting(true)
-    const bean: Bean = {
-      id: newId(),
-      name: name.trim(),
-      roastLevel,
-      roastedAt: roastedAt || undefined,
-      origin: origin.trim() || undefined,
-      initialAmountG: amountG,
-      decaf: decaf || undefined,
-      photoDataUrl: photoDataUrl || undefined,
-      createdAt: nowISO(),
-    }
-    // 保存が失敗／停止しても無言で固まらないよう、エラー・ハングを表面化し、ボタンを復帰させる
+    // 保存が失敗／停止しても無言で固まらないよう、ID生成も含めて try で包み、ボタンを必ず復帰させる
+    let saved: Bean | null = null
     try {
+      const bean: Bean = {
+        id: newId(),
+        name: name.trim(),
+        roastLevel,
+        roastedAt: roastedAt || undefined,
+        origin: origin.trim() || undefined,
+        initialAmountG: amountG,
+        decaf: decaf || undefined,
+        photoDataUrl: photoDataUrl || undefined,
+        createdAt: nowISO(),
+      }
       await withSaveTimeout(putBean(bean))
+      saved = bean
     } catch (e) {
       console.error('[megroove] 豆（銘柄）の保存に失敗しました:', e)
-      setSubmitting(false)
       showToast(saveErrorMessage(e), { type: 'error' })
-      return
+    } finally {
+      setSubmitting(false)
     }
-    onAdd(bean)
+    if (saved) onAdd(saved)
   }
 
   return (

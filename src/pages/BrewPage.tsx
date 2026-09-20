@@ -11,6 +11,7 @@ import {
   SCENE_OPTIONS, DRINK_STYLE_OPTIONS,
   saveBrewDraft, loadBrewDraft, clearBrewDraft, getBrewEquipmentIds,
   DRIP_BAG_DOSE_G, BREW_METHOD_LABELS,
+  withSaveTimeout, saveErrorMessage,
 } from '../db'
 import type { BrewDraft } from '../db'
 import StarRating from '../components/brew/StarRating'
@@ -349,7 +350,7 @@ export default function BrewPage() {
       if (isEditMode && editBrewId) {
         const existing = await getBrew(editBrewId)
         if (existing) {
-          await putBrew({ ...existing, ...buildBrewFields(), brewedAt: fromDatetimeLocal(brewedAtLocal) })
+          await withSaveTimeout(putBrew({ ...existing, ...buildBrewFields(), brewedAt: fromDatetimeLocal(brewedAtLocal) }))
         }
         setSaving(false)
         navigate(`/library/${editBrewId}`, { replace: true })
@@ -364,15 +365,16 @@ export default function BrewPage() {
         ...buildBrewFields(),
         brewedAt: fromDatetimeLocal(brewedAtLocal),
       }
-      await putBrew(brew)
+      await withSaveTimeout(putBrew(brew))
       clearBrewDraft() // 保存できたので下書きは不要
       setSavedBrewCount(count + 1)
       setSavedRated((brew.rating ?? 0) > 0) // 星があればフル演出、無ければ静かに盤を置くだけ
       setSaving(false)
       setShowSaveAnim(true)
-    } catch {
+    } catch (e) {
+      console.error('[megroove] 記録の保存に失敗しました:', e)
       setSaving(false)
-      showToast('保存に失敗しました。ストレージの空き容量を確認してください', { type: 'error' })
+      showToast(saveErrorMessage(e), { type: 'error' })
     }
   }
 

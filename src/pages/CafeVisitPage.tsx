@@ -8,6 +8,7 @@ import {
   calcCuppingAverage, formatBrewDateShort, resizeImage,
   toDatetimeLocal, fromDatetimeLocal, calcFrequentFlavors,
   SCENE_OPTIONS, DRINK_STYLE_OPTIONS,
+  withSaveTimeout, saveErrorMessage,
 } from '../db'
 import StarRating from '../components/brew/StarRating'
 import FlavorChips from '../components/brew/FlavorChips'
@@ -226,19 +227,20 @@ export default function CafeVisitPage() {
     try {
       if (isEdit) {
         const existing = await getCafeVisit(editId!)
-        if (existing) await putCafeVisit({ ...existing, ...fields })
+        if (existing) await withSaveTimeout(putCafeVisit({ ...existing, ...fields }))
         setSaving(false)
         navigate(`/cafe/${editId}`, { replace: true })
         showToast('変更を保存しました', { type: 'success' })
       } else {
-        await putCafeVisit({ id: newId(), createdAt: nowISO(), ...fields } as CafeVisit)
+        await withSaveTimeout(putCafeVisit({ id: newId(), createdAt: nowISO(), ...fields } as CafeVisit))
         setSaving(false)
         navigate('/library', { state: { tab: 'cafe' } })
         showToast('カフェの一杯を記録しました', { type: 'success' })
       }
-    } catch {
+    } catch (e) {
+      console.error('[megroove] カフェ記録の保存に失敗しました:', e)
       setSaving(false)
-      showToast('保存に失敗しました。ストレージの空き容量を確認してください', { type: 'error' })
+      showToast(saveErrorMessage(e), { type: 'error' })
     }
   }
 

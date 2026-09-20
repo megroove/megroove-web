@@ -30,6 +30,10 @@
   「記録しました・取り消す」トースト（`deleteBrew` で1件のみ・二重実行しない）。
   就寝時カフェイン予測は新設の `predictBedtimeResidual()` に集約し、記録画面・カフェ版クイックの重複計算も解消。
   DB・バックアップ・`Brew` 型は無変更。テスト基盤として **vitest を導入**（`npm test`・`src/db/helpers.test.ts` 16件）
+- **保存失敗の可視化＋実機確認を https 化（完了・未デプロイ）**: 全保存経路で ID生成も含めて try で包み、
+  `finally` でボタン状態を戻し、`unhandledrejection` の最終安全網（`App.tsx`）を追加。
+  `saveErrorMessage()` に「この接続（http）では保存できません」の分岐。`npm run preview:https` で実機確認できる
+  （`HTTPS=1` のときだけ自己署名証明書。本番ビルドへの影響なし）。テストは 21 件に
 - **睡眠の主観評価 × カフェイン傾向（完了・コミット済み）**: 補助機能・**オプトイン（既定OFF）**。毎朝ワンタップで3段階
   （よく眠れた/ふつう/あまり）を記録。入力は**アプリ内ポップアップ**（午前5〜11時・1日1回・「あとで」でホームの静かな
   カードに委譲・再表示しない）＋カフェインタブでの手動/遡り入力。分析は**前夜の就寝時推定残留量（目標 `bedtimeTargetMg`
@@ -87,9 +91,34 @@
 
 1. 「1年前の今日」の 6ヶ月/1ヶ月フォールバック検討（記録歴1年未満のユーザー向け）。ROADMAP F-7
 2. SPEC.md が git 未コミット（システム説明用の新規ドキュメント）。コミットするかは要判断
+### 実機確認は https で行う（http の LAN IP は「安全なコンテキスト」ではない・2026-09-18 決着）
+
+**iPhone 実機の確認は `npm run preview:https` を使う。** `npm run preview -- --host` の
+`http://192.168.x.x:4173/` で開くと**保存が一切できない**（Mac の localhost は例外的に安全なコンテキスト扱い
+なので再現しない＝環境差に注意）。`crypto.randomUUID()` は仕様上 `[SecureContext]` 限定で、http の LAN IP
+では `undefined`。`newId()` がここで TypeError になり、保存に到達しない。
+- 手順: `npm run preview:https` → 表示された `https://192.168.x.x:4173/megroove-web/` を iPhone で開く →
+  自己署名証明書の警告は「詳細を表示」→「このWebサイトを閲覧」で進む（以後そのオリジンは安全なコンテキスト）
+- 仕組み: `vite.config.ts` が `HTTPS=1` のときだけ `@vitejs/plugin-basic-ssl` を足す（**本番ビルドに影響しない**）
+- 同じく安全なコンテキスト限定: `crypto.subtle`（`src/provision/index.ts` の仮名ID＝データ提供の準備）、
+  `navigator.storage.persist()`（App.tsx・任意呼び出しなので実害なし）、Service Worker＝PWA 登録
+- 影響を受けない: `crypto.getRandomValues()`（`userSecret` 生成・バックアップの書き出し）、
+  インポート（ID はファイル内のものを再利用するため `newId()` を使わない）、写真の撮影/選択（file input）
+- **本番（GitHub Pages＝https）では起きない。** ID生成のフォールバックは入れない判断
+  （`crypto.randomUUID` は Safari 15.4 以降で利用可能。自前 UUID を持つ責任を負うより、確認を https に寄せる）
+- PWA インストール・オフライン動作まで実機で見るときは、自己署名だと Service Worker の挙動が
+  ブラウザに依存する。厳密に見たい場合は mkcert でルートCAを iPhone に入れるか、本番デプロイ後に確認する
 
 ### 解決済み（経緯の記録）
 
+- **保存が無反応になる（エラーがユーザーに見えない）→ 2026-09-20 に全保存経路を是正**（上の実機確認メモが発端）。
+  `setSaving(true)` の後、`try` の外で例外が起きるとボタンが「保存中...」のまま何も出ない状態だった。
+  ①ID生成（`newId()`）を含めてハンドラ全体を try で包む ②`finally` でボタン状態を必ず戻す
+  ③`saveErrorMessage()` に「安全でないコンテキスト（http）」の分岐を足す ④`unhandledrejection` を
+  `App.tsx` の `UnhandledRejectionNotice` で拾ってトースト、の4点を実施。あわせて
+  `stock/RecipeTab`・`brew/RecipePickerModal`（try/catch が無かった）に安全網を追加し、
+  記録/カフェ記録/カフェイン/後付け評価/睡眠/クイック記録の保存も `withSaveTimeout` ＋ `saveErrorMessage` に統一
+  （CLAUDE.md「保存系は同じ安全網に倣う」の実装漏れを解消）
 - `datetime-local` の視認性 → F-7 で `color-scheme: dark` を宣言して解決（コミット `1065392`）
 - 「また、あのカフェの一杯」の設計論点 → F-6 で決着: 「前回」= 直近のカフェ記録（頻度最多ではない）、
   コピー範囲は `fillFromVisit` と同一（価格含む・評価/カッピング/メモ/シーン/写真は除く）、
@@ -104,6 +133,7 @@
   するため、`vite.config.ts` の `relaxCspForDev` プラグインが dev 限定で `'unsafe-inline'` を足している
 - localhost と本番は別オリジン = **IndexedDB は共有されない**。dev での動作確認にはテストデータを作るか
   本番からエクスポート→インポート
+- **実機（iPhone）確認は `npm run preview:https`**（http の LAN IP では保存できない。上記「実機確認は https で行う」参照）
 - デプロイ: `npm run deploy`（build + gh-pages publish）。あわせて `git push origin main` も忘れずに
   （過去に main 未プッシュのまま本番だけ古い状態が続き、確認の混乱を招いた）
 - PWA は autoUpdate。デプロイ後、既存ユーザーには次回アクセス時に反映（リロード2回で確実）
@@ -264,5 +294,5 @@
 
 ---
 
-*最終更新: 2026-09-18（記録フォーム UI 改善の計画を追記し、決定事項7点を確定。**P1（いつもの一杯クイック記録）は実装完了・未デプロイ**。
-次は P2 の回帰検証）。状態が変わったらこのファイルを更新すること。*
+*最終更新: 2026-09-20（P1＝いつもの一杯クイック記録に加え、**保存失敗の可視化**と **`npm run preview:https`** を実装（ともに未デプロイ）。
+次は iPhone 実機での P1 確認 → P2 の回帰検証）。状態が変わったらこのファイルを更新すること。*

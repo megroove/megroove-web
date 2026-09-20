@@ -1,6 +1,9 @@
 import { useState, useEffect } from 'react'
 import type { Recipe, Equipment } from '../../db'
-import { getAllRecipes, putRecipe, deleteRecipe, getAllEquipment, newId, nowISO, calcRatio } from '../../db'
+import {
+  getAllRecipes, putRecipe, deleteRecipe, getAllEquipment, newId, nowISO, calcRatio,
+  withSaveTimeout, saveErrorMessage,
+} from '../../db'
 import { Field, TextInput, NumberInput, DeleteButton, ModalSheet, SaveButton } from './FormHelpers'
 import { useToast } from '../Toast'
 
@@ -20,24 +23,35 @@ function RecipeForm({
   const [tempC,      setTempC]      = useState<number | undefined>(initial?.defaultTempC)
   const [equipId,    setEquipId]    = useState<string | undefined>(initial?.defaultEquipmentId)
   const [saving,     setSaving]     = useState(false)
+  const showToast = useToast()
 
   const ratio = doseG && waterG ? calcRatio(doseG, waterG) : '—'
 
   const handleSave = async () => {
     if (!name.trim() || saving) return
     setSaving(true)
-    const recipe: Recipe = {
-      id:   initial?.id ?? newId(),
-      name: name.trim(),
-      defaultDoseG:       doseG,
-      defaultWaterG:      waterG,
-      defaultGrindSize:   grindSize,
-      defaultTempC:       tempC,
-      defaultEquipmentId: equipId,
-      createdAt: initial?.createdAt ?? nowISO(),
+    // 保存が失敗／停止しても無言で固まらないよう、ID生成も含めて try で包む
+    let saved: Recipe | null = null
+    try {
+      const recipe: Recipe = {
+        id:   initial?.id ?? newId(),
+        name: name.trim(),
+        defaultDoseG:       doseG,
+        defaultWaterG:      waterG,
+        defaultGrindSize:   grindSize,
+        defaultTempC:       tempC,
+        defaultEquipmentId: equipId,
+        createdAt: initial?.createdAt ?? nowISO(),
+      }
+      await withSaveTimeout(putRecipe(recipe))
+      saved = recipe
+    } catch (e) {
+      console.error('[megroove] レシピの保存に失敗しました:', e)
+      showToast(saveErrorMessage(e), { type: 'error' })
+    } finally {
+      setSaving(false)
     }
-    await putRecipe(recipe)
-    onSave(recipe)
+    if (saved) onSave(saved)
   }
 
   return (

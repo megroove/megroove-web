@@ -35,6 +35,12 @@ export function saveErrorMessage(e: unknown): string {
   if (e instanceof DOMException && e.name === 'QuotaExceededError') {
     return 'ストレージの空き容量が不足しています。設定からバックアップ後、不要な写真つき記録を整理してください'
   }
+  // http で開いた LAN IP 等は「安全なコンテキスト」ではなく、ブラウザが crypto.randomUUID() を
+  // 提供しないため ID 生成の時点で失敗する。原因が分からないまま詰まらないよう名指しで案内する
+  // （本番＝GitHub Pages は https のため、通常のユーザーには出ない）
+  if (typeof window !== 'undefined' && window.isSecureContext === false) {
+    return 'この接続（http）では保存できません。https のアドレスで開き直してください'
+  }
   return '保存に失敗しました。ページを再読み込みしてからお試しください'
 }
 

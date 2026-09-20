@@ -6,6 +6,7 @@ import {
   getAllBrews, getAllCafeVisits, calcCuppingAverage, calcFrequentFlavors,
   calcRatio, formatBrewDate, ROAST_LEVEL_LABELS, daysSinceRoast, getBrewEquipmentIds,
   BREW_METHOD_LABELS,
+  withSaveTimeout, saveErrorMessage,
 } from '../db'
 import PhotoLightbox from '../components/PhotoLightbox'
 import StarRating from '../components/brew/StarRating'
@@ -139,13 +140,14 @@ export default function BrewDetailPage() {
         cupping: rateCupping,
         cuppingAverage: calcCuppingAverage(rateCupping),
       }
-      await putBrew(updated)
+      await withSaveTimeout(putBrew(updated))
       setBrew(updated)
       setSavingRate(false)
       setShowRateAnim(true) // 針を落とすフル演出
-    } catch {
+    } catch (e) {
+      console.error('[megroove] 評価の保存に失敗しました:', e)
       setSavingRate(false)
-      showToast('保存に失敗しました', { type: 'error' })
+      showToast(saveErrorMessage(e), { type: 'error' })
     }
   }
 

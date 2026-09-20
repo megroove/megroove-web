@@ -4,6 +4,7 @@ import {
   getAllSleepLogs, putSleepLog, deleteSleepLog,
   getAllBrews, getAllCafeVisits, getAllCaffeineIntakes,
   localDateKey, nowISO,
+  withSaveTimeout, saveErrorMessage,
 } from '../../db'
 import { calcSleepBedtimeStats, type SleepBedtimeStats } from '../analysis/stats'
 import { useToast } from '../Toast'
@@ -60,11 +61,12 @@ export default function SleepSection({ settings }: { settings: AppSettings }) {
         await deleteSleepLog(dateKey)
       } else {
         const log: SleepLog = { date: dateKey, rating, createdAt: nowISO() }
-        await putSleepLog(log)
+        await withSaveTimeout(putSleepLog(log))
       }
       load()
-    } catch {
-      showToast('保存に失敗しました', { type: 'error' })
+    } catch (e) {
+      console.error('[megroove] 睡眠の記録に失敗しました:', e)
+      showToast(saveErrorMessage(e), { type: 'error' })
     }
   }
 

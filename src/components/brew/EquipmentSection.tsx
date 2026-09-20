@@ -23,22 +23,24 @@ export default function EquipmentSection({ equipment, selectedIds, onToggle, onN
   const handleAdd = async () => {
     if (!name.trim() || submitting) return
     setSubmitting(true)
-    const item: Equipment = { id: newId(), name: name.trim(), type, createdAt: nowISO() }
-    // 保存が失敗／停止しても無言で固まらないよう、エラー・ハングを表面化する
+    // 保存が失敗／停止しても無言で固まらないよう、ID生成も含めて try で包む
+    let saved: Equipment | null = null
     try {
+      const item: Equipment = { id: newId(), name: name.trim(), type, createdAt: nowISO() }
       await withSaveTimeout(putEquipment(item))
+      saved = item
     } catch (e) {
       console.error('[megroove] 器具の保存に失敗しました:', e)
-      setSubmitting(false)
       showToast(saveErrorMessage(e), { type: 'error' })
-      return
+    } finally {
+      setSubmitting(false)
     }
-    onNewEquipment(item)
-    onToggle(item.id)
+    if (!saved) return
+    onNewEquipment(saved)
+    onToggle(saved.id)
     setName('')
     setType('dripper')
     setShowAdd(false)
-    setSubmitting(false)
   }
 
   return (

@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import type { Recipe } from '../../db'
-import { getAllRecipes, putRecipe, newId, nowISO } from '../../db'
+import { getAllRecipes, putRecipe, newId, nowISO, withSaveTimeout, saveErrorMessage } from '../../db'
+import { useToast } from '../Toast'
 
 interface Props {
   currentRecipeId?: string
@@ -30,21 +31,32 @@ function AddRecipeForm({
 }) {
   const [name, setName] = useState('')
   const [submitting, setSubmitting] = useState(false)
+  const showToast = useToast()
 
   const handleSubmit = async () => {
     if (!name.trim() || submitting) return
     setSubmitting(true)
-    const recipe: Recipe = {
-      id: newId(),
-      name: name.trim(),
-      defaultDoseG,
-      defaultWaterG,
-      defaultGrindSize,
-      defaultTempC,
-      createdAt: nowISO(),
+    // 保存が失敗／停止しても無言で固まらないよう、ID生成も含めて try で包む
+    let saved: Recipe | null = null
+    try {
+      const recipe: Recipe = {
+        id: newId(),
+        name: name.trim(),
+        defaultDoseG,
+        defaultWaterG,
+        defaultGrindSize,
+        defaultTempC,
+        createdAt: nowISO(),
+      }
+      await withSaveTimeout(putRecipe(recipe))
+      saved = recipe
+    } catch (e) {
+      console.error('[megroove] レシピの保存に失敗しました:', e)
+      showToast(saveErrorMessage(e), { type: 'error' })
+    } finally {
+      setSubmitting(false)
     }
-    await putRecipe(recipe)
-    onAdd(recipe)
+    if (saved) onAdd(saved)
   }
 
   return (

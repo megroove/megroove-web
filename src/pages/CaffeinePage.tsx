@@ -4,6 +4,7 @@ import {
   calcResidualCaffeine, loadSettings, saveSettings, getBedtimeDate, isSameLocalDay,
   CAFFEINE_CATEGORY_LABELS, CAFFEINE_CATEGORY_UNIT_MG,
   newId, nowISO, toDatetimeLocal, fromDatetimeLocal,
+  withSaveTimeout, saveErrorMessage,
 } from '../db'
 import type { CaffeineCategory } from '../db'
 import CaffeineGraph from '../components/caffeine/CaffeineGraph'
@@ -113,7 +114,7 @@ export default function CaffeinePage() {
     if (addSaving) return
     setAddSaving(true)
     try {
-      await putCaffeineIntake({
+      await withSaveTimeout(putCaffeineIntake({
         id: newId(),
         createdAt: nowISO(),
         consumedAt: addAt ? fromDatetimeLocal(addAt) : nowISO(),
@@ -121,12 +122,13 @@ export default function CaffeinePage() {
         quantity: addQuantity,
         caffeineAmount: addEstimate,
         note: addNote.trim() || undefined,
-      })
+      }))
       setShowAddSheet(false)
       setReloadKey(k => k + 1)
       showToast('摂取を記録しました', { type: 'success' })
-    } catch {
-      showToast('保存に失敗しました', { type: 'error' })
+    } catch (e) {
+      console.error('[megroove] カフェイン摂取の保存に失敗しました:', e)
+      showToast(saveErrorMessage(e), { type: 'error' })
     } finally {
       setAddSaving(false)
     }
