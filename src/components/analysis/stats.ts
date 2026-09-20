@@ -53,14 +53,20 @@ export function generateInsight(scores: RadarScores): string {
 
 // ─── ランキング ───────────────────────────────────────────────────────────────
 
+// ランキングは評価済みの記録だけを対象にする。
+// 未評価（＝まだ針を落としていない盤）は、並べ替えでは末尾に沈むだけで消えないため、
+// ここで除外しないと評価済みが3杯に満たない月のトップ3に紛れ込む。
 export function rankBrews(brews: Brew[]): Brew[] {
-  return [...brews].sort((a, b) => {
-    const r = (b.rating ?? 0) - (a.rating ?? 0)
-    if (r !== 0) return r
-    const c = (b.cuppingAverage ?? 0) - (a.cuppingAverage ?? 0)
-    if (c !== 0) return c
-    return new Date(b.brewedAt).getTime() - new Date(a.brewedAt).getTime()
-  })
+  // filter が新しい配列を返すので、呼び出し元の配列は並べ替えない
+  return brews
+    .filter(b => (b.rating ?? 0) > 0)
+    .sort((a, b) => {
+      const r = (b.rating ?? 0) - (a.rating ?? 0)
+      if (r !== 0) return r
+      const c = (b.cuppingAverage ?? 0) - (a.cuppingAverage ?? 0)
+      if (c !== 0) return c
+      return new Date(b.brewedAt).getTime() - new Date(a.brewedAt).getTime()
+    })
 }
 
 // ─── 月別トレンド ─────────────────────────────────────────────────────────────

@@ -80,13 +80,15 @@ function RankingSection({
   emptyMessage: string
 }) {
   const top3 = useMemo(() => rankBrews(brews).slice(0, 3), [brews])
+  // 記録はあるが、すべて評価待ちのとき。「記録がありません」だと理由が伝わらない
+  const onlyPending = top3.length === 0 && brews.length > 0
 
   return (
     <section className="flex flex-col gap-3">
       <h3 className="text-sm font-semibold text-[#CE9C68] uppercase tracking-wider">{title}</h3>
       {top3.length === 0 ? (
         <div className="bg-[#2E2018] rounded-xl p-5 text-center text-[#6b5a4a] text-sm">
-          {emptyMessage}
+          {onlyPending ? '評価待ちの一杯だけです。星をつけるとここに並びます' : emptyMessage}
         </div>
       ) : (
         top3.map((brew, i) => (
