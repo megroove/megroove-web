@@ -1,7 +1,10 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import type { BrewBlockId, BrewLayoutSettings } from '../db'
-import { loadBrewLayout, saveBrewLayout, DEFAULT_BREW_LAYOUT, BREW_BLOCK_LABELS } from '../db'
+import {
+  loadBrewLayout, saveBrewLayout, DEFAULT_BREW_LAYOUT, BREW_BLOCK_LABELS,
+  BREW_BLOCK_SIDE, BREW_SIDE_LABELS,
+} from '../db'
 
 const BLOOM_MIN = 10
 const BLOOM_MAX = 120
@@ -66,7 +69,10 @@ export default function BrewLayoutPage() {
 
       {zone === 'main' && (
         <div className="flex items-center justify-between px-4 py-3 border-b border-[#3e3020]">
-          <span className="text-sm text-[#6b5a4a]">豆</span>
+          <span className="text-sm text-[#6b5a4a]">
+            豆
+            <span className="ml-2 text-[10px] text-[#4a3a2a]">{BREW_SIDE_LABELS.A}</span>
+          </span>
           <span className="text-xs bg-[#3e3020] text-[#4a3a2a] px-2 py-0.5 rounded-full">固定</span>
         </div>
       )}
@@ -101,7 +107,12 @@ export default function BrewLayoutPage() {
               <div className="w-6 shrink-0" />
             )}
 
-            <span className="flex-1 text-sm text-[#F7EFE6]">{BREW_BLOCK_LABELS[id]}</span>
+            <span className="flex-1 min-w-0 text-sm text-[#F7EFE6]">
+              {BREW_BLOCK_LABELS[id]}
+              {zone !== 'hidden' && (
+                <span className="ml-2 text-[10px] text-[#6b5a4a]">{BREW_SIDE_LABELS[BREW_BLOCK_SIDE[id]]}</span>
+              )}
+            </span>
 
             <div className="flex gap-1.5 shrink-0">
               {zone !== 'main' && (
@@ -149,8 +160,9 @@ export default function BrewLayoutPage() {
         <h2 className="text-xl font-semibold text-[#F7EFE6]">記録画面のカスタマイズ</h2>
       </div>
 
-      <p className="text-xs text-[#6b5a4a]">
-        各項目をメイン表示・詳細（折りたたみ内）・非表示に振り分けられます。「豆」は固定です。
+      <p className="text-xs text-[#6b5a4a] leading-relaxed">
+        各項目をメイン表示・詳細（折りたたみ内）・非表示に振り分けられます。「豆」は固定です。<br />
+        記録画面は Side A（準備と抽出）と Side B（味わいと評価）の2面で、どちらに出るかは項目ごとに決まっています。
       </p>
 
       {renderZoneSection('main',   'メイン表示（常時表示）',   layout.main)}
@@ -167,7 +179,7 @@ export default function BrewLayoutPage() {
         <div className="px-4 py-4 flex items-center justify-between">
           <div>
             <p className="text-sm text-[#F7EFE6]">カスタム時間</p>
-            <p className="text-xs text-[#6b5a4a] mt-0.5">記録画面のタイマーで最初に選択される時間</p>
+            <p className="text-xs text-[#6b5a4a] mt-0.5">抽出中の画面で最初に選択される蒸らし時間</p>
           </div>
           <div className="flex items-center gap-3">
             <button

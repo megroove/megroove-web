@@ -7,12 +7,17 @@ function buildPresets(customSec: number): number[] {
   return [customSec, ...FIXED_PRESETS.filter(s => s !== customSec).slice(0, 3)]
 }
 
-export default function BloomTimer() {
+interface Props {
+  /** 表示と同時に計測を始める（抽出中画面から使う）。既定は現行どおり手動スタート */
+  autoStart?: boolean
+}
+
+export default function BloomTimer({ autoStart = false }: Props) {
   const customSec = loadBrewLayout().bloomTimeSec ?? 30
   const presets   = buildPresets(customSec)
   const [targetSec, setTargetSec] = useState(customSec)
   const [elapsed, setElapsed] = useState(0)
-  const [running, setRunning] = useState(false)
+  const [running, setRunning] = useState(autoStart)
   const [done, setDone] = useState(false)
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const wakeLockRef = useRef<WakeLockSentinel | null>(null)

@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { useNavigate, useParams, useLocation } from 'react-router-dom'
-import type { Brew, Bean, Equipment, Recipe, CuppingScores, BrewBlockId, BrewMethod } from '../db'
+import type { Brew, Bean, Equipment, Recipe, CuppingScores, BrewBlockId, BrewMethod, BrewSide } from '../db'
 import {
   getAllBeans, getAllEquipment, getAllRecipes, getAllBrews, getAllCafeVisits,
   getBrew, putBrew, getBrewCount,
@@ -10,7 +10,8 @@ import {
   toDatetimeLocal, fromDatetimeLocal, formatBeanRemaining, calcFrequentFlavors,
   SCENE_OPTIONS, DRINK_STYLE_OPTIONS,
   saveBrewDraft, loadBrewDraft, clearBrewDraft, getBrewEquipmentIds,
-  DRIP_BAG_DOSE_G, BREW_METHOD_LABELS,
+  DRIP_BAG_DOSE_G, BREW_METHOD_LABELS, formatSecToMmSs,
+  BREW_BLOCK_SIDE, BREW_SIDE_LABELS, BREW_SIDE_SUBTITLES,
   withSaveTimeout, saveErrorMessage,
 } from '../db'
 import type { BrewDraft } from '../db'
@@ -21,8 +22,9 @@ import BeanPickerModal from '../components/brew/BeanPickerModal'
 import RecipePickerModal from '../components/brew/RecipePickerModal'
 import EquipmentSection from '../components/brew/EquipmentSection'
 import SaveAnimation from '../components/brew/SaveAnimation'
-import BloomTimer from '../components/brew/BloomTimer'
-import ExtractionStopwatch from '../components/brew/ExtractionStopwatch'
+import ExtractionTimeInput from '../components/brew/ExtractionTimeInput'
+import RecordDisk from '../components/brew/RecordDisk'
+import BrewingOverlay from '../components/brew/BrewingOverlay'
 import { useToast } from '../components/Toast'
 import { CameraIcon, CaffeineIcon } from '../components/icons'
 
@@ -127,6 +129,10 @@ export default function BrewPage() {
   const [photoDataUrl, setPhotoDataUrl] = useState<string | undefined>()
   const photoInputRef = useRef<HTMLInputElement>(null)
 
+  // 2面構成: Side A（準備と抽出）/ Side B（味わいと評価）
+  const [side, setSide] = useState<BrewSide>('A')
+  const [showBrewing, setShowBrewing] = useState(false)
+
   const [showBeanPicker, setShowBeanPicker] = useState(false)
   const [showRecipePicker, setShowRecipePicker] = useState(false)
   const [showSaveAnim, setShowSaveAnim] = useState(false)
@@ -222,6 +228,7 @@ export default function BrewPage() {
     setNote(d.note)
     setPhotoDataUrl(d.photoDataUrl)
     setShowDetail(d.showDetail)
+    setSide(d.side ?? 'A') // 古い下書きには無いので Side A から再開する
   }, [])
 
   useEffect(() => {
@@ -268,11 +275,11 @@ export default function BrewPage() {
   const buildDraft = useCallback((): BrewDraft => ({
     brewedAtLocal, method, beanId, recipeId, doseG, waterG, grindSize, tempC, rating,
     flavors, scene, drinkStyle, cupping, equipmentIds, totalTimeSec, pourCount,
-    note, photoDataUrl, showDetail,
+    note, photoDataUrl, showDetail, side,
   }), [
     brewedAtLocal, method, beanId, recipeId, doseG, waterG, grindSize, tempC, rating,
     flavors, scene, drinkStyle, cupping, equipmentIds, totalTimeSec, pourCount,
-    note, photoDataUrl, showDetail,
+    note, photoDataUrl, showDetail, side,
   ])
 
   // 入力途中の自動保存（新規記録のみ）。初期化直後の値を基準にし、変化があったら退避する
@@ -311,6 +318,20 @@ export default function BrewPage() {
   const ratio = calcRatio(doseG, waterG)
   const isDripBag = method === 'drip_bag'
   const beanLabel = isDripBag ? '銘柄' : '豆' // ドリップバッグは実態が「豆」でなく銘柄・商品名
+
+  // いま表示している面のブロックだけを描く（ゾーンは面の中でそのまま効く）
+  const mainBlocks   = layout.main.filter(id => BREW_BLOCK_SIDE[id] === side)
+  const detailBlocks = layout.detail.filter(id => BREW_BLOCK_SIDE[id] === side)
+
+  // Side B の冒頭サマリ「◯◯を△△で、15g／240g、2:30」
+  const brewSummary = [
+    `${selectedBean?.name ?? (isDripBag ? '銘柄なし' : 'ホームブリュー')}を${BREW_METHOD_LABELS[method]}で`,
+    isDripBag ? `${waterG}g` : `${doseG}g／${waterG}g`,
+    totalTimeSec ? formatSecToMmSs(totalTimeSec) : null,
+  ].filter(Boolean).join('、')
+
+  // 保存の可否（豆必須。ドリップバッグは銘柄なしでも保存可）
+  const beanMissing = !isDripBag && !beanId
 
   // 推定カフェイン量。ドリップバッグは粉量を持たないため代表量で推定する（参考値）
   const estimatedCaffeine =
@@ -561,7 +582,12 @@ export default function BrewPage() {
           <div key="extraction" className="bg-[#2E2018] rounded-xl p-4 flex flex-col gap-4">
             <div>
               <p className="text-xs text-[#CE9C68] mb-2">総抽出時間</p>
-              <ExtractionStopwatch valueSec={totalTimeSec} onChange={setTotalTimeSec} />
+              <ExtractionTimeInput valueSec={totalTimeSec} onChange={setTotalTimeSec} />
+              {!isEditMode && (
+                <p className="text-[11px] text-[#6b5a4a] mt-2">
+                  「針を落として抽出スタート」で計ると、ここに入ります
+                </p>
+              )}
             </div>
             <div className="border-t border-[#3e3020] pt-4">
               <p className="text-xs text-[#CE9C68] mb-2">注湯回数</p>
@@ -573,10 +599,6 @@ export default function BrewPage() {
                 placeholder="—"
                 className="w-full bg-transparent text-[#F7EFE6] text-xl font-semibold outline-none placeholder-[#4a3a2a] tabular-nums"
               />
-            </div>
-            <div className="border-t border-[#3e3020] pt-4">
-              <p className="text-xs text-[#CE9C68] mb-3">蒸らしタイマー</p>
-              <BloomTimer />
             </div>
           </div>
         )
@@ -675,6 +697,38 @@ export default function BrewPage() {
           </div>
         )}
 
+        {/* Side A（準備と抽出）/ Side B（味わいと評価）の切り替え。
+            色だけでなく丸印と副題でも選択状態が分かるようにする */}
+        <div className="flex gap-1 bg-[#1a0a05] rounded-full p-1">
+          {(['A', 'B'] as const).map(s => {
+            const on = side === s
+            return (
+              <button
+                key={s}
+                type="button"
+                onClick={() => setSide(s)}
+                aria-pressed={on}
+                className={`flex-1 min-h-11 rounded-full flex items-center justify-center gap-2 transition-colors ${
+                  on ? 'bg-[#993C1D] text-[#F7EFE6]' : 'text-[#8c7862]'
+                }`}
+              >
+                <span
+                  className="w-2.5 h-2.5 rounded-full shrink-0"
+                  style={{ background: on ? '#F7EFE6' : '#5a4632' }}
+                />
+                <span className={`text-[13px] ${on ? 'font-bold' : ''}`}>{BREW_SIDE_LABELS[s]}</span>
+                <span className="text-[11px] opacity-85">{BREW_SIDE_SUBTITLES[s]}</span>
+              </button>
+            )
+          })}
+        </div>
+
+        {/* Side B は、何を淹れた一杯かを一行で思い出せるようにしておく */}
+        {side === 'B' && (
+          <p className="text-xs text-[#6b5a4a]">{brewSummary}</p>
+        )}
+
+        {side === 'A' && (<>
         {/* 日時（既定は今。過去の一杯もあとから記録できる） */}
         <div className="w-full bg-[#2E2018] rounded-xl px-4 py-3 flex items-center justify-between gap-3">
           <p className="text-xs text-[#CE9C68] shrink-0">日時</p>
@@ -752,12 +806,13 @@ export default function BrewPage() {
             ))}
           </div>
         </div>
+        </>)}
 
-        {/* メインゾーンのブロック */}
-        {layout.main.map(id => renderBlock(id))}
+        {/* メインゾーンのブロック（この面のぶんだけ） */}
+        {mainBlocks.map(id => renderBlock(id))}
 
-        {/* 詳細トグル（詳細ゾーンにブロックがある場合のみ表示） */}
-        {layout.detail.length > 0 && (
+        {/* 詳細トグル（この面の詳細ゾーンにブロックがある場合のみ表示） */}
+        {detailBlocks.length > 0 && (
           <button
             type="button"
             onClick={() => setShowDetail(v => !v)}
@@ -769,14 +824,14 @@ export default function BrewPage() {
         )}
 
         {/* 詳細ゾーンのブロック */}
-        {showDetail && layout.detail.length > 0 && (
+        {showDetail && detailBlocks.length > 0 && (
           <div className="flex flex-col gap-4">
-            {layout.detail.map(id => renderBlock(id))}
+            {detailBlocks.map(id => renderBlock(id))}
           </div>
         )}
 
-        {/* 就寝時の残留予測（推定・目安。5mg 未満は表示しない） */}
-        {bedtimePrediction !== null && bedtimePrediction >= 5 && (
+        {/* 就寝時の残留予測（推定・目安。5mg 未満は表示しない）。淹れる前＝Side A に置く */}
+        {side === 'A' && bedtimePrediction !== null && bedtimePrediction >= 5 && (
           bedtimePrediction > caffeineSettings.bedtimeTargetMg ? (
             <div className="bg-amber-900/40 border border-amber-600/40 rounded-xl p-3 flex gap-2.5 items-start">
               <span className="text-amber-400 mt-0.5"><CaffeineIcon size={16} /></span>
@@ -794,21 +849,70 @@ export default function BrewPage() {
           )
         )}
 
-        {/* 保存ボタン。通常ドリップは豆必須。ドリップバッグは銘柄なしでも保存可 */}
-        {!isDripBag && !beanId ? (
-          <p className="text-xs text-[#6b5a4a] text-center -mb-1">豆を選んでください</p>
-        ) : rating === 0 && !isEditMode ? (
-          // 保存可能だが星が未入力のとき: 評価は後回しにできることを控えめに伝える（急かさない）
-          <p className="text-xs text-[#6b5a4a] text-center -mb-1">飲んでから、あとで評価を足せます</p>
-        ) : null}
-        <button
-          type="button"
-          onClick={handleSave}
-          disabled={saving || (!isDripBag && !beanId)}
-          className="w-full bg-[#993C1D] text-[#F7EFE6] py-4 rounded-2xl text-base font-semibold active:opacity-80 disabled:opacity-40 mt-2 mb-2"
-        >
-          {saving ? '保存中...' : isEditMode ? '変更を保存する' : 'この一杯を記録する'}
-        </button>
+        {/* アクション。通常ドリップは豆必須、ドリップバッグは銘柄なしでも保存可。
+            Side A からも保存できるようにして、条件だけ先に残す道を塞がない */}
+        {side === 'A' ? (
+          <div className="flex flex-col gap-2 mt-2 mb-2">
+            {beanMissing && (
+              <p className="text-xs text-[#6b5a4a] text-center">{beanLabel}を選んでください</p>
+            )}
+            {/* 編集は「すでに淹れ終わった一杯」なので、計測は出さない */}
+            {!isEditMode && (
+              <button
+                type="button"
+                onClick={() => setShowBrewing(true)}
+                disabled={beanMissing}
+                className="w-full bg-[#993C1D] text-[#F7EFE6] py-4 rounded-2xl text-base font-semibold active:opacity-80 disabled:opacity-40 flex items-center justify-center gap-2"
+              >
+                <RecordDisk size={20} />
+                針を落として抽出スタート
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={() => setSide('B')}
+              className="w-full border border-[#3e3020] text-[#F7EFE6] py-3.5 rounded-2xl text-sm active:opacity-80"
+            >
+              {isEditMode ? '味わいと評価へ →' : 'タイマーを使わずに味わいへ →'}
+            </button>
+            <button
+              type="button"
+              onClick={handleSave}
+              disabled={saving || beanMissing}
+              className="text-sm text-[#CE9C68] py-2.5 active:opacity-70 disabled:opacity-40"
+            >
+              {saving
+                ? '保存中...'
+                : isEditMode
+                  ? '変更を保存する'
+                  : rating > 0 ? 'この一杯を記録する' : 'このまま記録する（評価はあとで）'}
+            </button>
+          </div>
+        ) : (
+          <div className="flex flex-col gap-2 mt-2 mb-2">
+            {beanMissing ? (
+              <p className="text-xs text-[#6b5a4a] text-center">Side A で{beanLabel}を選んでください</p>
+            ) : rating === 0 && !isEditMode ? (
+              // 保存可能だが星が未入力のとき: 評価は後回しにできることを控えめに伝える（急かさない）
+              <p className="text-xs text-[#6b5a4a] text-center">飲んでから、あとで評価を足せます</p>
+            ) : null}
+            <button
+              type="button"
+              onClick={handleSave}
+              disabled={saving || beanMissing}
+              className="w-full bg-[#993C1D] text-[#F7EFE6] py-4 rounded-2xl text-base font-semibold active:opacity-80 disabled:opacity-40"
+            >
+              {saving ? '保存中...' : isEditMode ? '変更を保存する' : 'この一杯を記録する'}
+            </button>
+            <button
+              type="button"
+              onClick={() => setSide('A')}
+              className="text-sm text-[#CE9C68] py-2 active:opacity-70"
+            >
+              ← 準備と抽出に戻る
+            </button>
+          </div>
+        )}
       </div>
 
       {showBeanPicker && (
@@ -830,6 +934,15 @@ export default function BrewPage() {
           onSelect={handleRecipeSelect}
           onClear={() => setRecipeId(undefined)}
           onClose={() => setShowRecipePicker(false)}
+        />
+      )}
+
+      {/* 抽出中（針を落とす）。完了で総抽出時間を確定し、そのまま味わいの評価へ送り出す */}
+      {showBrewing && (
+        <BrewingOverlay
+          summary={brewSummary}
+          onDone={sec => { setTotalTimeSec(sec); setShowBrewing(false); setSide('B') }}
+          onCancel={() => setShowBrewing(false)}
         />
       )}
 

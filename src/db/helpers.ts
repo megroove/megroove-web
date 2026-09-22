@@ -333,6 +333,7 @@ export interface BrewDraft {
   note: string
   photoDataUrl?: string
   showDetail: boolean
+  side?: BrewSide   // 後から追加（任意）。古い下書きは Side A から再開する
 }
 
 export function saveBrewDraft(draft: BrewDraft): void {
@@ -597,6 +598,27 @@ export const BREW_BLOCK_LABELS: Record<BrewBlockId, string> = {
 // シーン（単一選択）と飲み方（複数選択）の定番チップ
 export const SCENE_OPTIONS = ['朝の一杯', '仕事のおとも', '食後', 'リラックス', '来客', '外で']
 export const DRINK_STYLE_OPTIONS = ['ブラック', 'ミルク', '砂糖', 'アイス']
+
+// 記録画面の2面構成。準備系＝Side A、評価系＝Side B に固定分類する。
+// ゾーン（main/detail/hidden）は各面の中の見せ方として従来どおり効く（CLAUDE.md §7）。
+export type BrewSide = 'A' | 'B'
+
+export const BREW_SIDE_LABELS: Record<BrewSide, string> = { A: 'Side A', B: 'Side B' }
+export const BREW_SIDE_SUBTITLES: Record<BrewSide, string> = { A: '準備と抽出', B: '味わいと評価' }
+
+export const BREW_BLOCK_SIDE: Record<BrewBlockId, BrewSide> = {
+  recipe:     'A',
+  dose_water: 'A',
+  grind_temp: 'A',
+  equipment:  'A',
+  extraction: 'A',
+  rating:     'B',
+  flavors:    'B',
+  scene:      'B',
+  cupping:    'B',
+  note:       'B',
+  photo:      'B',
+}
 
 export interface BrewLayoutSettings {
   main:          BrewBlockId[]
