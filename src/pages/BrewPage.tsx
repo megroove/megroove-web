@@ -282,11 +282,19 @@ export default function BrewPage() {
     note, photoDataUrl, showDetail, side,
   ])
 
+  // 「入力が変わったか」の判定に使う鍵。面の切り替えや詳細の開閉は**見た目の状態**であって
+  // 入力ではないので除く（タブを切り替えただけで「復元しました」が出るのを防ぐ）。
+  // 除いた値も、実際に入力が変わって保存するときには一緒に残る。
+  const draftContentKey = useCallback(
+    () => JSON.stringify({ ...buildDraft(), side: undefined, showDetail: undefined }),
+    [buildDraft],
+  )
+
   // 入力途中の自動保存（新規記録のみ）。初期化直後の値を基準にし、変化があったら退避する
   useEffect(() => {
     if (editBrewId || fromBrewId) return
     if (!draftLoadedRef.current) return
-    const str = JSON.stringify(buildDraft())
+    const str = draftContentKey()
     if (draftBaselineRef.current === null) {
       // 初期化後の最初の1回は基準として記録するだけ（保存しない）
       draftBaselineRef.current = str
@@ -294,7 +302,7 @@ export default function BrewPage() {
     }
     if (str === draftBaselineRef.current) return
     saveBrewDraft(buildDraft())
-  }, [editBrewId, fromBrewId, buildDraft])
+  }, [editBrewId, fromBrewId, buildDraft, draftContentKey])
 
   // 復元した下書きを破棄して、通常の初期状態（前回値）に戻す
   const discardDraft = () => {
