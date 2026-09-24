@@ -1,4 +1,4 @@
-import type { Bean, Brew, CuppingScores, BrewMethod } from './types'
+import type { Bean, Brew, CuppingScores, BrewMethod, RoastLevel } from './types'
 
 export function newId(): string {
   return crypto.randomUUID()
@@ -419,6 +419,65 @@ export function calcResidualCaffeine(
   }, 0)
 }
 
+// ─── 盤（レコード）の色 ───────────────────────────────────────────────────────
+// 抽出中と保存演出で使う。世界観の基調（ダークブラウン）から浮かないよう彩度は抑えめにし、
+// レーベルは全色ともコーラルで固定する（明るい盤でも文字のコントラストを確保するため）。
+
+export type VinylColorId = 'bean' | 'black' | 'pink' | 'mint' | 'turquoise' | 'cobalt' | 'lemon'
+
+export interface VinylPalette {
+  disk: string       // 盤の地色
+  groove: string     // 溝
+  rim: string        // 縁取り（背景と区別をつける）
+  label: string      // 中央レーベル
+  labelText: string  // レーベルの文字
+  labelSub: string   // レーベルの小さな文字
+}
+
+const LABEL = { label: '#993C1D', labelText: '#F7EFE6', labelSub: '#CE9C68' }
+
+// 「豆に合わせる」= 焙煎度から導く（浅いほど明るい茶、深いほど暗い茶）
+const ROAST_VINYL: Record<RoastLevel, Pick<VinylPalette, 'disk' | 'groove' | 'rim'>> = {
+  'light':        { disk: '#C98A54', groove: '#A96F3E', rim: '#E3A873' },
+  'light-medium': { disk: '#BE7A42', groove: '#9E6232', rim: '#DB9A63' },
+  'medium':       { disk: '#C2703D', groove: '#A95F31', rim: '#E08A52' },
+  'medium-dark':  { disk: '#8F4F28', groove: '#78411F', rim: '#B36C3E' },
+  'dark':         { disk: '#5E351B', groove: '#4A2915', rim: '#875030' },
+}
+
+const FIXED_VINYL: Record<Exclude<VinylColorId, 'bean'>, Pick<VinylPalette, 'disk' | 'groove' | 'rim'>> = {
+  black:     { disk: '#151515', groove: '#2C2C2C', rim: '#6B5A4A' },
+  pink:      { disk: '#F4C6CF', groove: '#E3AAB7', rim: '#FBE1E6' },
+  mint:      { disk: '#BFE8D4', groove: '#A3D6BE', rim: '#DDF5EA' },
+  turquoise: { disk: '#2E9AA6', groove: '#247F89', rim: '#5CC0CB' },
+  cobalt:    { disk: '#2447B8', groove: '#1B3794', rim: '#4F6FD6' },
+  lemon:     { disk: '#F3E46A', groove: '#DCCB4C', rim: '#FAF0A0' },
+}
+
+export const VINYL_COLORS: { id: VinylColorId; name: string }[] = [
+  { id: 'bean',      name: '豆に合わせる' },
+  { id: 'black',     name: 'クラシック黒' },
+  { id: 'pink',      name: 'クリアピンク' },
+  { id: 'mint',      name: 'ミント' },
+  { id: 'turquoise', name: 'ターコイズ' },
+  { id: 'cobalt',    name: 'コバルト' },
+  { id: 'lemon',     name: 'レモン' },
+]
+
+export const DEFAULT_VINYL_COLOR: VinylColorId = 'bean'
+
+// localStorage は壊れたり手で書き換えられたりしうるので、必ずホワイトリストに通す
+export function toVinylColorId(value: unknown): VinylColorId {
+  return VINYL_COLORS.some(v => v.id === value) ? value as VinylColorId : DEFAULT_VINYL_COLOR
+}
+
+export function resolveVinyl(id: VinylColorId, roastLevel?: RoastLevel): VinylPalette {
+  const base = id === 'bean'
+    ? ROAST_VINYL[roastLevel ?? 'medium']
+    : FIXED_VINYL[id]
+  return { ...base, ...LABEL }
+}
+
 // ─── Settings (localStorage) ─────────────────────────────────────────────────
 
 export interface AppSettings {
@@ -426,15 +485,23 @@ export interface AppSettings {
   bedtimeMinute: number
   bedtimeTargetMg: number  // 就寝時に残したいカフェイン量の上限 (mg)
   sleepTrackingEnabled: boolean  // 睡眠の主観評価（補助機能）。既定 false＝オプトイン
+  vinylColor: VinylColorId       // 抽出中・保存演出で使う盤の色。既定は豆に合わせる
 }
 
 const SETTINGS_KEY = 'megroove-settings'
-const DEFAULT_SETTINGS: AppSettings = { bedtimeHour: 23, bedtimeMinute: 0, bedtimeTargetMg: 50, sleepTrackingEnabled: false }
+const DEFAULT_SETTINGS: AppSettings = {
+  bedtimeHour: 23, bedtimeMinute: 0, bedtimeTargetMg: 50,
+  sleepTrackingEnabled: false, vinylColor: DEFAULT_VINYL_COLOR,
+}
 
 export function loadSettings(): AppSettings {
   try {
     const raw = localStorage.getItem(SETTINGS_KEY)
-    if (raw) return { ...DEFAULT_SETTINGS, ...JSON.parse(raw) }
+    if (raw) {
+      const merged = { ...DEFAULT_SETTINGS, ...JSON.parse(raw) }
+      // 保存された値が壊れていても既定に落として動き続ける
+      return { ...merged, vinylColor: toVinylColorId(merged.vinylColor) }
+    }
   } catch { /* ignore */ }
   return { ...DEFAULT_SETTINGS }
 }

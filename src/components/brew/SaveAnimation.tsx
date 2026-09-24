@@ -1,5 +1,8 @@
 import { useEffect, useMemo } from 'react'
+import type { RoastLevel } from '../../db'
+import { loadSettings, resolveVinyl } from '../../db'
 import RecordDisk from './RecordDisk'
+import VinylGloss from './VinylGloss'
 
 const MILESTONES = new Set([1, 10, 30, 50, 100, 200, 365, 500, 1000])
 
@@ -10,6 +13,8 @@ interface Props {
   rated?: boolean
   /** 完了時の一言（フル演出のみ）。後から評価を足したときは「針を落としました」等に差し替える */
   message?: string
+  /** 「豆に合わせる」で盤の色を導くための焙煎度 */
+  roastLevel?: RoastLevel
 }
 
 function Confetti() {
@@ -49,8 +54,12 @@ function Confetti() {
   )
 }
 
-export default function SaveAnimation({ brewCount, onDone, rated = true, message = '一杯を記録しました' }: Props) {
+export default function SaveAnimation({
+  brewCount, onDone, rated = true, message = '一杯を記録しました', roastLevel,
+}: Props) {
   const isMilestone = MILESTONES.has(brewCount)
+  // 盤の色はユーザーの設定に従う（抽出中の画面と同じ値）
+  const vinyl = useMemo(() => resolveVinyl(loadSettings().vinylColor, roastLevel), [roastLevel])
 
   useEffect(() => {
     if (isMilestone) {
@@ -96,8 +105,9 @@ export default function SaveAnimation({ brewCount, onDone, rated = true, message
         className="fixed inset-0 z-50 bg-black/80 flex flex-col items-center justify-center gap-6"
         onClick={onDone}
       >
-        <div style={{ animation: 'disk-in 0.55s ease-out both' }}>
-          <RecordDisk size={120} />
+        <div className="relative" style={{ animation: 'disk-in 0.55s ease-out both' }}>
+          <RecordDisk size={120} vinyl={vinyl} />
+          <VinylGloss size={120} />
         </div>
         <div className="text-center" style={{ animation: 'disk-in 0.45s 0.3s ease-out both' }}>
           <p className="text-[#F7EFE6] text-base font-medium">棚にそっと置きました</p>
@@ -133,8 +143,10 @@ export default function SaveAnimation({ brewCount, onDone, rated = true, message
       <div className="relative" style={{ animation: 'disk-in 0.55s 0.15s ease-out both' }}>
         {/* 針の着地(0.9s)と同時に盤が回り始める */}
         <div style={{ animation: 'disk-spin 1.8s linear 0.9s infinite' }}>
-          <RecordDisk size={120} />
+          <RecordDisk size={120} vinyl={vinyl} />
         </div>
+        {/* 光沢は回さない */}
+        <VinylGloss size={120} />
         {/* トーンアーム: 支点(44,12)を軸に持ち上がった状態から盤へ着地 */}
         <svg
           width="64"

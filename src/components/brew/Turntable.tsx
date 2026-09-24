@@ -1,4 +1,6 @@
+import type { VinylPalette } from '../../db'
 import RecordDisk from './RecordDisk'
+import VinylGloss from './VinylGloss'
 
 // トーンアームの進行: 外周着地から4分（240秒）かけて最内周へ（超過後は留まる）。
 // 針は装飾で、正確な時間は常に数字が主表示
@@ -13,18 +15,22 @@ interface Props {
   size?: number
   /** 盤を回すか（false＝静止。計測していないときの見せ方） */
   spinning?: boolean
+  /** 盤の色。省略時は Megroove 既定 */
+  vinyl?: VinylPalette
 }
 
 // 抽出中＝レコード再生。盤が回り、針が経過に応じて外周→内周へ進む
-export default function Turntable({ elapsedSec, size = BASE, spinning = true }: Props) {
+export default function Turntable({ elapsedSec, size = BASE, spinning = true, vinyl }: Props) {
   const armDeg = Math.min(elapsedSec / ARM_FULL_SEC, 1) * ARM_FULL_DEG
   const k = size / BASE
 
   return (
     <div className="relative shrink-0" style={{ width: size, height: size }}>
       <div style={spinning ? { animation: 'disk-spin 1.8s linear infinite' } : undefined}>
-        <RecordDisk size={size} />
+        <RecordDisk size={size} vinyl={vinyl} />
       </div>
+      {/* 光沢は回転させない（回る要素の外側に重ねる） */}
+      <VinylGloss size={size} />
       {/* トーンアーム: 外側=着地アニメ（arm-drop は fill:both のため進行 rotate とは要素を分ける） */}
       <div
         className="absolute"

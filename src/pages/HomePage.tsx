@@ -9,7 +9,7 @@ import QuickBrewSheet from '../components/brew/QuickBrewSheet'
 import type { QuickPreset, QuickSaveInput } from '../components/brew/QuickBrewSheet'
 import { useToast } from '../components/Toast'
 import { getAllBrews, getAllBeans, getAllCafeVisits, getAllEquipment, getAllCaffeineIntakes, getAllRecipes, putBrew, putCafeVisit, deleteBrew, getBrewCount, getSleepLog, putSleepLog } from '../db'
-import type { Brew, Bean, CafeVisit, Equipment, Recipe, CuppingScores } from '../db'
+import type { Brew, Bean, CafeVisit, Equipment, Recipe, CuppingScores, RoastLevel } from '../db'
 import {
   formatBrewDateShort, ROAST_LEVEL_LABELS, CAFE_DRINK_TYPE_LABELS, CAFE_DRINK_SIZE_LABELS,
   EQUIPMENT_TYPE_LABELS, daysSinceRoast, getBrewEquipmentIds,
@@ -270,7 +270,9 @@ export default function HomePage() {
   const [showQuickAnim, setShowQuickAnim] = useState(false)
   const [quickSavedRated, setQuickSavedRated] = useState(true) // 演出の出し分け（星ありはフル）
   // 直前に保存した1件（トーストの「取り消す」対象）。取り消し済みの id は二重実行しない
-  const [lastQuickSaved, setLastQuickSaved] = useState<{ id: string; label: string } | null>(null)
+  const [lastQuickSaved, setLastQuickSaved] = useState<
+    { id: string; label: string; roastLevel?: RoastLevel } | null
+  >(null)
   const undoneRef = useRef<Set<string>>(new Set())
   const [savedBrewCount, setSavedBrewCount] = useState(0)
   const [recentIntakes, setRecentIntakes] = useState<{ caffeineAmount: number; brewedAt: string }[]>([])
@@ -505,6 +507,7 @@ export default function HomePage() {
       setLastQuickSaved({
         id,
         label: [bean?.name ?? (isDripBag ? '銘柄なし' : 'ホームブリュー'), amounts].filter(Boolean).join('、'),
+        roastLevel: bean?.roastLevel,
       })
       setSavedBrewCount(count + 1)
       setQuickSavedRated(input.rating > 0)
@@ -1303,12 +1306,23 @@ export default function HomePage() {
 
       {/* クイック記録の保存アニメーション（節目演出も共通） */}
       {showQuickAnim && (
-        <SaveAnimation brewCount={savedBrewCount} rated={quickSavedRated} onDone={handleQuickAnimDone} />
+        <SaveAnimation
+          brewCount={savedBrewCount}
+          rated={quickSavedRated}
+          roastLevel={lastQuickSaved?.roastLevel}
+          onDone={handleQuickAnimDone}
+        />
       )}
 
       {/* 針を落とすフル演出（後から評価を足したとき） */}
       {showRateAnim && (
-        <SaveAnimation brewCount={0} rated message="針を落としました" onDone={handleRateAnimDone} />
+        <SaveAnimation
+          brewCount={0}
+          rated
+          message="針を落としました"
+          roastLevel={latestPending?.bean?.roastLevel}
+          onDone={handleRateAnimDone}
+        />
       )}
 
       {/* ─── 豆ピッカーモーダル ─── */}

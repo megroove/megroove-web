@@ -941,13 +941,19 @@ export default function BrewPage() {
       {showBrewing && (
         <BrewingOverlay
           summary={brewSummary}
+          roastLevel={selectedBean?.roastLevel}
           onDone={sec => { setTotalTimeSec(sec); setShowBrewing(false); setSide('B') }}
           onCancel={() => setShowBrewing(false)}
         />
       )}
 
       {showSaveAnim && (
-        <SaveAnimation brewCount={savedBrewCount} rated={savedRated} onDone={handleAnimDone} />
+        <SaveAnimation
+          brewCount={savedBrewCount}
+          rated={savedRated}
+          roastLevel={selectedBean?.roastLevel}
+          onDone={handleAnimDone}
+        />
       )}
     </>
   )

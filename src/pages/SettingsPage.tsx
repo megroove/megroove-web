@@ -1,12 +1,20 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import DataTab from '../components/stock/DataTab'
+import type { VinylColorId } from '../db'
 import { loadSettings, saveSettings } from '../db'
+import VinylPicker from '../components/brew/VinylPicker'
 import { MoonIcon } from '../components/icons'
 
 export default function SettingsPage() {
   const navigate = useNavigate()
   const [sleepOn, setSleepOn] = useState(() => loadSettings().sleepTrackingEnabled)
+  const [vinylColor, setVinylColor] = useState<VinylColorId>(() => loadSettings().vinylColor)
+
+  const pickVinyl = (id: VinylColorId) => {
+    saveSettings({ ...loadSettings(), vinylColor: id })
+    setVinylColor(id)
+  }
 
   const toggleSleep = () => {
     const next = { ...loadSettings(), sleepTrackingEnabled: !sleepOn }
@@ -52,6 +60,17 @@ export default function SettingsPage() {
       {/* 機能 */}
       <section className="flex flex-col gap-2">
         <h3 className="text-sm font-semibold text-[#CE9C68] uppercase tracking-wider">機能</h3>
+        {/* 盤の色（抽出中の画面と保存演出に反映される） */}
+        <div className="w-full bg-[#2E2018] rounded-xl px-4 py-4 flex flex-col gap-3">
+          <div>
+            <p className="text-sm text-[#F7EFE6]">レコードの色</p>
+            <p className="text-xs text-[#6b5a4a] mt-0.5 leading-relaxed">
+              抽出中の画面と、保存したときの演出で回る盤の色です。抽出中の画面からも変えられます。
+            </p>
+          </div>
+          <VinylPicker value={vinylColor} onChange={pickVinyl} />
+        </div>
+
         <div className="w-full bg-[#2E2018] rounded-xl px-4 py-4 flex items-center justify-between">
           <div className="text-left pr-3">
             <p className="text-sm text-[#F7EFE6] flex items-center gap-1.5"><MoonIcon size={15} /> 睡眠の記録（任意）</p>

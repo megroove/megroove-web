@@ -1,7 +1,9 @@
 import { useEffect, useRef, useState } from 'react'
-import { formatSecToMmSs } from '../../db'
+import type { RoastLevel, VinylColorId } from '../../db'
+import { formatSecToMmSs, loadSettings, resolveVinyl, saveSettings, VINYL_COLORS } from '../../db'
 import BloomTimer from './BloomTimer'
 import Turntable from './Turntable'
+import VinylPicker from './VinylPicker'
 
 interface Props {
   /** 「抽出完了」で確定した総抽出時間（秒）。Side B へ進む */
@@ -10,13 +12,18 @@ interface Props {
   onCancel: () => void
   /** 何を淹れているかの一行（豆・粉量/湯量など） */
   summary?: string
+  /** 「豆に合わせる」で盤の色を導くための焙煎度 */
+  roastLevel?: RoastLevel
 }
 
 // 抽出中の全画面。ターンテーブル計測が主役で、蒸らしのカウントダウンを重ねる。
 // 手順（1投目/2投目…）の指示は出さない ― Megroove は注湯スケジュールを持たないため、
 // 固定秒数の指示はユーザーの淹れ方と食い違う。
-export default function BrewingOverlay({ onDone, onCancel, summary }: Props) {
+export default function BrewingOverlay({ onDone, onCancel, summary, roastLevel }: Props) {
   const [elapsed, setElapsed] = useState(0)
+  // 盤の色はここでも変えられる（設定画面と同じ値を読み書きする）
+  const [vinylColor, setVinylColor] = useState<VinylColorId>(() => loadSettings().vinylColor)
+  const [showVinylPicker, setShowVinylPicker] = useState(false)
   const startRef = useRef(Date.now())
   const wakeLockRef = useRef<WakeLockSentinel | null>(null)
 
@@ -37,6 +44,13 @@ export default function BrewingOverlay({ onDone, onCancel, summary }: Props) {
       wakeLockRef.current = null
     }
   }, [])
+
+  const pickVinyl = (id: VinylColorId) => {
+    setVinylColor(id)
+    saveSettings({ ...loadSettings(), vinylColor: id })
+  }
+
+  const vinylName = VINYL_COLORS.find(v => v.id === vinylColor)?.name ?? ''
 
   const finish = () => {
     const sec = Math.max(1, Math.floor((Date.now() - startRef.current) / 1000))
@@ -71,7 +85,22 @@ export default function BrewingOverlay({ onDone, onCancel, summary }: Props) {
           <p className="text-xs text-[#6b5a4a] text-center max-w-xs">{summary}</p>
         )}
 
-        <Turntable elapsedSec={elapsed} size={180} />
+        <Turntable elapsedSec={elapsed} size={180} vinyl={resolveVinyl(vinylColor, roastLevel)} />
+
+        {/* 盤の色（モック同様、抽出中にも変えられる） */}
+        <div className="w-full max-w-xs flex flex-col items-center gap-2">
+          <button
+            type="button"
+            onClick={() => setShowVinylPicker(v => !v)}
+            aria-expanded={showVinylPicker}
+            className="min-h-11 px-3 text-xs text-[#6b5a4a] active:opacity-70"
+          >
+            レコードの色：{vinylName} {showVinylPicker ? '▲' : '▽'}
+          </button>
+          {showVinylPicker && (
+            <VinylPicker value={vinylColor} onChange={pickVinyl} roastLevel={roastLevel} />
+          )}
+        </div>
 
         <span className="text-5xl font-mono font-bold text-[#F7EFE6] tabular-nums">
           {formatSecToMmSs(elapsed)}

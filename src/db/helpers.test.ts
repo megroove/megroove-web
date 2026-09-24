@@ -6,7 +6,10 @@ import {
   clampTweakValue,
   estimateCaffeine,
   predictBedtimeResidual,
+  resolveVinyl,
   saveErrorMessage,
+  toVinylColorId,
+  VINYL_COLORS,
 } from './helpers'
 
 // クイック記録（ホームのシート）で使う純粋なロジックのテスト。
@@ -188,5 +191,48 @@ describe('saveErrorMessage', () => {
     expect(saveErrorMessage(new SaveTimeoutError())).toContain('他に開いている Megroove')
     expect(saveErrorMessage(new DOMException('quota', 'QuotaExceededError')))
       .toContain('ストレージの空き容量')
+  })
+})
+
+describe('toVinylColorId', () => {
+  it('既知の色はそのまま通す', () => {
+    expect(toVinylColorId('mint')).toBe('mint')
+    expect(toVinylColorId('bean')).toBe('bean')
+  })
+
+  it('未知の値・壊れた値は既定（豆に合わせる）に落とす', () => {
+    expect(toVinylColorId('rainbow')).toBe('bean')
+    expect(toVinylColorId(undefined)).toBe('bean')
+    expect(toVinylColorId(null)).toBe('bean')
+    expect(toVinylColorId(42)).toBe('bean')
+    expect(toVinylColorId({ id: 'mint' })).toBe('bean')
+  })
+})
+
+describe('resolveVinyl', () => {
+  it('固定色は焙煎度に影響されない', () => {
+    expect(resolveVinyl('cobalt', 'light')).toEqual(resolveVinyl('cobalt', 'dark'))
+  })
+
+  it('「豆に合わせる」は焙煎度で色が変わる', () => {
+    expect(resolveVinyl('bean', 'light').disk).not.toBe(resolveVinyl('bean', 'dark').disk)
+  })
+
+  it('焙煎度が不明なら中煎り相当にする', () => {
+    expect(resolveVinyl('bean')).toEqual(resolveVinyl('bean', 'medium'))
+  })
+
+  it('レーベルは全色ともコーラル固定（明るい盤でも文字のコントラストを保つ）', () => {
+    for (const { id } of VINYL_COLORS) {
+      const p = resolveVinyl(id)
+      expect(p.label).toBe('#993C1D')
+      expect(p.labelText).toBe('#F7EFE6')
+    }
+  })
+
+  it('どの色も縁取りを持つ（背景と区別をつけるため）', () => {
+    for (const { id } of VINYL_COLORS) {
+      expect(resolveVinyl(id).rim).toMatch(/^#[0-9A-Fa-f]{6}$/)
+    }
   })
 })
