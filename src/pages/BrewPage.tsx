@@ -11,7 +11,7 @@ import {
   SCENE_OPTIONS, DRINK_STYLE_OPTIONS,
   saveBrewDraft, loadBrewDraft, clearBrewDraft, getBrewEquipmentIds,
   DRIP_BAG_DOSE_G, BREW_METHOD_LABELS, formatSecToMmSs,
-  BREW_BLOCK_SIDE, BREW_SIDE_LABELS, BREW_SIDE_SUBTITLES,
+  BREW_BLOCK_SIDE, BREW_SIDE_LABELS, BREW_SIDE_SUBTITLES, calcRecentMusic,
   withSaveTimeout, saveErrorMessage,
 } from '../db'
 import type { BrewDraft } from '../db'
@@ -26,7 +26,8 @@ import ExtractionTimeInput from '../components/brew/ExtractionTimeInput'
 import RecordDisk from '../components/brew/RecordDisk'
 import BrewingOverlay from '../components/brew/BrewingOverlay'
 import { useToast } from '../components/Toast'
-import { CameraIcon, CaffeineIcon } from '../components/icons'
+import OriginInput from '../components/OriginInput'
+import { CameraIcon, CaffeineIcon, MusicIcon } from '../components/icons'
 
 function Stepper({
   label,
@@ -125,6 +126,9 @@ export default function BrewPage() {
   const [totalTimeSec, setTotalTimeSec] = useState<number | undefined>()
   const [pourCount, setPourCount] = useState<number | undefined>()
   const [note, setNote] = useState('')
+  // 聴いていた曲（任意）。その瞬間の文脈なので、シーンと同じく前回値はコピーしない
+  const [musicTitle, setMusicTitle] = useState('')
+  const [musicArtist, setMusicArtist] = useState('')
 
   const [photoDataUrl, setPhotoDataUrl] = useState<string | undefined>()
   const photoInputRef = useRef<HTMLInputElement>(null)
@@ -166,6 +170,9 @@ export default function BrewPage() {
     }).catch(() => {})
   }, [isEditMode])
 
+  // 聴いていた曲の入力候補（過去に入力したもの・新しい順）
+  const recentMusic = useMemo(() => calcRecentMusic(allBrews), [allBrews])
+
   // 「よく使う」フレーバー（全ブリュー＋カフェ記録から集計）
   const [frequentFlavors, setFrequentFlavors] = useState<string[]>([])
   useEffect(() => {
@@ -203,6 +210,8 @@ export default function BrewPage() {
       setNote(b.note ?? '')
       setPhotoDataUrl(b.photoDataUrl)
       setScene(b.scene ?? '')
+      setMusicTitle(b.musicTitle ?? '')
+      setMusicArtist(b.musicArtist ?? '')
     }
   }, [])
 
@@ -227,6 +236,8 @@ export default function BrewPage() {
     setPourCount(d.pourCount)
     setNote(d.note)
     setPhotoDataUrl(d.photoDataUrl)
+    setMusicTitle(d.musicTitle ?? '')
+    setMusicArtist(d.musicArtist ?? '')
     setShowDetail(d.showDetail)
     setSide(d.side ?? 'A') // 古い下書きには無いので Side A から再開する
   }, [])
@@ -275,11 +286,11 @@ export default function BrewPage() {
   const buildDraft = useCallback((): BrewDraft => ({
     brewedAtLocal, method, beanId, recipeId, doseG, waterG, grindSize, tempC, rating,
     flavors, scene, drinkStyle, cupping, equipmentIds, totalTimeSec, pourCount,
-    note, photoDataUrl, showDetail, side,
+    note, photoDataUrl, musicTitle, musicArtist, showDetail, side,
   }), [
     brewedAtLocal, method, beanId, recipeId, doseG, waterG, grindSize, tempC, rating,
     flavors, scene, drinkStyle, cupping, equipmentIds, totalTimeSec, pourCount,
-    note, photoDataUrl, showDetail, side,
+    note, photoDataUrl, musicTitle, musicArtist, showDetail, side,
   ])
 
   // 「入力が変わったか」の判定に使う鍵。面の切り替えや詳細の開閉は**見た目の状態**であって
@@ -368,6 +379,8 @@ export default function BrewPage() {
     cuppingAverage: calcCuppingAverage(cupping),
     caffeineAmount: estimatedCaffeine,
     photoDataUrl,
+    musicTitle:  musicTitle.trim()  || undefined,
+    musicArtist: musicArtist.trim() || undefined,
     note: note.trim() || undefined,
   })
 
@@ -606,6 +619,37 @@ export default function BrewPage() {
                 onChange={e => setPourCount(e.target.value ? Number(e.target.value) : undefined)}
                 placeholder="—"
                 className="w-full bg-transparent text-[#F7EFE6] text-xl font-semibold outline-none placeholder-[#4a3a2a] tabular-nums"
+              />
+            </div>
+          </div>
+        )
+
+      case 'music':
+        return (
+          <div key="music" className="bg-[#2E2018] rounded-xl p-4 flex flex-col gap-3">
+            <p className="text-xs text-[#CE9C68] flex items-center gap-1.5">
+              <MusicIcon size={14} /> 聴いていた曲
+            </p>
+            <div>
+              <label className="text-[11px] text-[#6b5a4a] mb-1 block">曲名</label>
+              <OriginInput
+                value={musicTitle}
+                onChange={setMusicTitle}
+                placeholder="例: Take Five"
+                master={[]}
+                recentOrigins={recentMusic.titles}
+                suggestionIcon={<MusicIcon size={13} />}
+              />
+            </div>
+            <div>
+              <label className="text-[11px] text-[#6b5a4a] mb-1 block">アーティスト</label>
+              <OriginInput
+                value={musicArtist}
+                onChange={setMusicArtist}
+                placeholder="例: The Dave Brubeck Quartet"
+                master={[]}
+                recentOrigins={recentMusic.artists}
+                suggestionIcon={<MusicIcon size={13} />}
               />
             </div>
           </div>

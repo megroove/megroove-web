@@ -1,8 +1,13 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
+import type { BrewBlockId } from './helpers'
 import {
+  BREW_BLOCK_LABELS,
+  BREW_BLOCK_SIDE,
   SaveTimeoutError,
   calcFrequentRecipes,
+  calcRecentMusic,
   calcResidualCaffeine,
+  loadBrewLayout,
   clampTweakValue,
   estimateCaffeine,
   predictBedtimeResidual,
@@ -234,5 +239,102 @@ describe('resolveVinyl', () => {
     for (const { id } of VINYL_COLORS) {
       expect(resolveVinyl(id).rim).toMatch(/^#[0-9A-Fa-f]{6}$/)
     }
+  })
+})
+
+describe('calcRecentMusic', () => {
+  const b = (brewedAt: string, musicTitle?: string, musicArtist?: string) =>
+    ({ brewedAt, musicTitle, musicArtist })
+
+  it('新しい順に返し、重複はまとめる', () => {
+    const r = calcRecentMusic([
+      b('2026-09-01T09:00:00.000Z', 'Take Five', 'Brubeck'),
+      b('2026-09-03T09:00:00.000Z', 'So What', 'Miles Davis'),
+      b('2026-09-02T09:00:00.000Z', 'Take Five', 'Brubeck'),
+    ])
+    expect(r.titles).toEqual(['So What', 'Take Five'])
+    expect(r.artists).toEqual(['Miles Davis', 'Brubeck'])
+  })
+
+  it('未入力・空白だけの値は候補にしない', () => {
+    const r = calcRecentMusic([
+      b('2026-09-01T09:00:00.000Z', undefined, 'Brubeck'),
+      b('2026-09-02T09:00:00.000Z', '   ', '  '),
+      b('2026-09-03T09:00:00.000Z', 'So What'),
+    ])
+    expect(r.titles).toEqual(['So What'])
+    expect(r.artists).toEqual(['Brubeck'])
+  })
+
+  it('前後の空白は落として比べる', () => {
+    const r = calcRecentMusic([
+      b('2026-09-01T09:00:00.000Z', 'So What'),
+      b('2026-09-02T09:00:00.000Z', '  So What  '),
+    ])
+    expect(r.titles).toEqual(['So What'])
+  })
+
+  it('件数の上限で切る', () => {
+    const many = Array.from({ length: 30 }, (_, i) =>
+      b(`2026-09-${String(i + 1).padStart(2, '0')}T09:00:00.000Z`, `曲${i}`))
+    expect(calcRecentMusic(many, 5).titles).toHaveLength(5)
+  })
+
+  it('記録が無ければ空', () => {
+    expect(calcRecentMusic([])).toEqual({ titles: [], artists: [] })
+  })
+})
+
+describe('loadBrewLayout', () => {
+  it('既定でもすべてのブロックがどこかのゾーンに入る', () => {
+    // 既定値に載せ忘れたブロックがあると、新規ユーザーには一生表示されず
+    // カスタマイズ画面にも出てこない（scene が実際にこの穴に落ちていた）
+    const layout = loadBrewLayout()
+    const present = new Set([...layout.main, ...layout.detail, ...layout.hidden])
+    for (const id of Object.keys(BREW_BLOCK_LABELS) as BrewBlockId[]) {
+      expect(present.has(id)).toBe(true)
+    }
+  })
+
+  it('すべてのブロックに面（Side A / B）が割り当たっている', () => {
+    for (const id of Object.keys(BREW_BLOCK_LABELS) as BrewBlockId[]) {
+      expect(['A', 'B']).toContain(BREW_BLOCK_SIDE[id])
+    }
+  })
+})
+
+describe('loadBrewLayout（保存済み設定がある既存ユーザー）', () => {
+  afterEach(() => { vi.unstubAllGlobals() })
+
+  const stub = (stored: unknown) => {
+    vi.stubGlobal('localStorage', {
+      getItem: () => JSON.stringify(stored),
+      setItem: () => {},
+    })
+  }
+
+  it('保存済み設定に無い新ブロックは detail に補完される', () => {
+    // music を追加する前の世代の設定（scene も無い）
+    stub({
+      main:   ['recipe', 'dose_water', 'grind_temp', 'rating', 'flavors'],
+      detail: ['cupping', 'equipment', 'extraction', 'note', 'photo'],
+      hidden: [],
+    })
+    const layout = loadBrewLayout()
+    expect(layout.detail).toContain('music')
+    expect(layout.detail).toContain('scene')
+    // 既存の並びは壊さない
+    expect(layout.main).toEqual(['recipe', 'dose_water', 'grind_temp', 'rating', 'flavors'])
+  })
+
+  it('利用者が非表示にしたブロックは掘り返さない', () => {
+    stub({
+      main:   ['recipe'],
+      detail: ['note'],
+      hidden: ['photo'],
+    })
+    const layout = loadBrewLayout()
+    expect(layout.hidden).toEqual(['photo'])
+    expect(layout.detail).not.toContain('photo')
   })
 })

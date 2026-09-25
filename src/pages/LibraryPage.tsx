@@ -317,7 +317,7 @@ function BrewTab({ displayMode }: { displayMode: DisplayMode }) {
       if (q) {
         const bean = b.beanId ? beanMap.get(b.beanId) : undefined
         const haystack = [
-          bean?.name, bean?.origin, b.note, ...b.flavors,
+          bean?.name, bean?.origin, b.note, b.musicTitle, b.musicArtist, ...b.flavors,
         ].filter(Boolean).join(' ').toLowerCase()
         if (!haystack.includes(q)) return false
       }

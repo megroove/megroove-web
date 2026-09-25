@@ -332,6 +332,8 @@ export interface BrewDraft {
   pourCount?: number
   note: string
   photoDataUrl?: string
+  musicTitle?: string
+  musicArtist?: string
   showDetail: boolean
   side?: BrewSide   // 後から追加（任意）。古い下書きは Side A から再開する
 }
@@ -633,6 +635,28 @@ export function clampTweakValue(key: QuickTweakKey, value: number, fallback: num
   return +Math.min(max, Math.max(min, value)).toFixed(1)
 }
 
+// 聴いていた曲の入力候補: 過去に入力した曲名・アーティストを新しい順に返す。
+// 産地やカフェ名と同じく「2回目からはタップで入る」ようにするためのもの。
+export function calcRecentMusic(
+  brews: { musicTitle?: string; musicArtist?: string; brewedAt: string }[],
+  max = 20,
+): { titles: string[]; artists: string[] } {
+  const sorted = [...brews].sort((a, b) => b.brewedAt.localeCompare(a.brewedAt))
+  const pick = (get: (b: typeof sorted[number]) => string | undefined) => {
+    const seen = new Set<string>()
+    for (const b of sorted) {
+      const v = get(b)?.trim()
+      if (v) seen.add(v)
+      if (seen.size >= max) break
+    }
+    return [...seen]
+  }
+  return {
+    titles:  pick(b => b.musicTitle),
+    artists: pick(b => b.musicArtist),
+  }
+}
+
 // ─── Brew Layout Settings (localStorage) ─────────────────────────────────────
 
 export type BrewBlockId =
@@ -647,6 +671,7 @@ export type BrewBlockId =
   | 'extraction'
   | 'note'
   | 'photo'
+  | 'music'
 
 export const BREW_BLOCK_LABELS: Record<BrewBlockId, string> = {
   recipe:     'レシピ',
@@ -660,6 +685,7 @@ export const BREW_BLOCK_LABELS: Record<BrewBlockId, string> = {
   extraction: '抽出',
   note:       'メモ',
   photo:      '写真',
+  music:      '聴いていた曲',
 }
 
 // シーン（単一選択）と飲み方（複数選択）の定番チップ
@@ -685,6 +711,7 @@ export const BREW_BLOCK_SIDE: Record<BrewBlockId, BrewSide> = {
   cupping:    'B',
   note:       'B',
   photo:      'B',
+  music:      'B',
 }
 
 export interface BrewLayoutSettings {
@@ -702,29 +729,31 @@ export const DEFAULT_BREW_LAYOUT: BrewLayoutSettings = {
 
 const ALL_BREW_BLOCKS: BrewBlockId[] = [
   'recipe', 'dose_water', 'grind_temp', 'rating', 'flavors', 'scene',
-  'cupping', 'equipment', 'extraction', 'note', 'photo',
+  'cupping', 'equipment', 'extraction', 'note', 'photo', 'music',
 ]
 
 const BREW_LAYOUT_KEY = 'megroove-brew-layout'
 
+// どのゾーンにも無いブロックを detail に足して補完する（前方互換）。
+// 保存済みの設定だけでなく**既定値にも適用する**: 既定に載せ忘れたブロックがあると、
+// 新規ユーザーにはその項目が一生表示されず、カスタマイズ画面にも出てこないため
+// （実際に `scene`（シーン・飲み方）がこの穴に落ちていた）。
+function withMissingBlocks(layout: BrewLayoutSettings): BrewLayoutSettings {
+  const present = new Set([...layout.main, ...layout.detail, ...layout.hidden])
+  const missing = ALL_BREW_BLOCKS.filter(id => !present.has(id))
+  return missing.length > 0 ? { ...layout, detail: [...layout.detail, ...missing] } : layout
+}
+
 export function loadBrewLayout(): BrewLayoutSettings {
   try {
     const raw = localStorage.getItem(BREW_LAYOUT_KEY)
-    if (raw) {
-      const parsed = JSON.parse(raw) as BrewLayoutSettings
-      const presentIds = new Set([...parsed.main, ...parsed.detail, ...parsed.hidden])
-      const missing = ALL_BREW_BLOCKS.filter(id => !presentIds.has(id))
-      if (missing.length > 0) {
-        return { ...parsed, detail: [...parsed.detail, ...missing] }
-      }
-      return parsed
-    }
+    if (raw) return withMissingBlocks(JSON.parse(raw) as BrewLayoutSettings)
   } catch { /* ignore */ }
-  return {
+  return withMissingBlocks({
     main:   [...DEFAULT_BREW_LAYOUT.main],
     detail: [...DEFAULT_BREW_LAYOUT.detail],
     hidden: [],
-  }
+  })
 }
 
 export function saveBrewLayout(layout: BrewLayoutSettings): void {

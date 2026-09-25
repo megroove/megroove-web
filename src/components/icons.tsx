@@ -125,6 +125,17 @@ export function GearIcon(props: IconProps) {
   )
 }
 
+// 音符（聴いていた曲）。盤と同じく「回っているもの」の仲間として細いラインで描く
+export function MusicIcon(props: IconProps) {
+  return (
+    <Svg {...props}>
+      <path d="M9 18V6.5l10-2V16" />
+      <circle cx="6.5" cy="18" r="2.5" />
+      <circle cx="16.5" cy="16" r="2.5" />
+    </Svg>
+  )
+}
+
 export function CameraIcon(props: IconProps) {
   return (
     <Svg {...props}>

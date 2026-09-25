@@ -15,7 +15,7 @@ import FlavorChips from '../components/brew/FlavorChips'
 import SaveAnimation from '../components/brew/SaveAnimation'
 import RecordDisk from '../components/brew/RecordDisk'
 import { useToast, notifyDataRestored } from '../components/Toast'
-import { CupIcon } from '../components/icons'
+import { CupIcon, MusicIcon } from '../components/icons'
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
@@ -337,6 +337,23 @@ export default function BrewDetailPage() {
                 </span>
               </div>
             )}
+          </Section>
+        )}
+
+        {/* 聴いていた曲（どちらか一方だけでも表示する） */}
+        {(brew.musicTitle || brew.musicArtist) && (
+          <Section title="聴いていた曲">
+            <div className="flex items-start gap-2">
+              <span className="text-[#CE9C68] mt-0.5 shrink-0"><MusicIcon size={15} /></span>
+              <div className="min-w-0">
+                {brew.musicTitle && (
+                  <p className="text-sm text-[#F7EFE6] break-words">{brew.musicTitle}</p>
+                )}
+                {brew.musicArtist && (
+                  <p className="text-xs text-[#CE9C68] mt-0.5 break-words">{brew.musicArtist}</p>
+                )}
+              </div>
+            </div>
           </Section>
         )}
 

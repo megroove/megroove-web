@@ -162,6 +162,10 @@ export interface Brew {
   cuppingAverage?: number    // カッピング5軸の平均（保存時に計算）
   caffeineAmount?: number    // カフェイン量 (mg)。粉量から自動推定
   photoDataUrl?: string      // 写真（base64 JPEG）
+  // 聴いていた曲（任意）。レコード×コーヒーの世界観の記録で、分析には使わない。
+  // 個人の嗜好情報のため、データ提供（匿名化）の対象には**しない**（allowlist 方式なので既定で除外）
+  musicTitle?: string
+  musicArtist?: string
   note?: string
   createdAt: string
 }
