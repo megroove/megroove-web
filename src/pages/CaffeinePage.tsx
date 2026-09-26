@@ -7,6 +7,8 @@ import {
   withSaveTimeout, saveErrorMessage,
 } from '../db'
 import type { CaffeineCategory } from '../db'
+import CaffeineTrend from '../components/caffeine/CaffeineTrend'
+import type { IntakePoint } from '../components/caffeine/trends'
 import CaffeineGraph from '../components/caffeine/CaffeineGraph'
 import SleepSection from '../components/caffeine/SleepSection'
 import { CupIcon, CafeIcon, DrinkIcon } from '../components/icons'
@@ -29,6 +31,8 @@ type IntakeEntry = {
 export default function CaffeinePage() {
   const showToast = useToast()
   const [intakeEntries, setIntakeEntries] = useState<IntakeEntry[]>([])
+  // 傾向（直近7日）用。今日のログより広い範囲を持つので別に保持する
+  const [trendPoints, setTrendPoints] = useState<IntakePoint[]>([])
   const [settings, setSettings] = useState(loadSettings)
   const [now, setNow] = useState(() => new Date())
   const [reloadKey, setReloadKey] = useState(0)
@@ -49,6 +53,10 @@ export default function CaffeinePage() {
 
   useEffect(() => {
     const cutoff = Date.now() - 24 * 60 * 60 * 1000
+
+    // 傾向は直近7日。日の途中で切らないよう、6日前の0時を起点にする
+    const t = new Date()
+    const trendCutoff = new Date(t.getFullYear(), t.getMonth(), t.getDate() - 6).getTime()
 
     Promise.all([getAllBrews(), getAllCafeVisits(), getAllCaffeineIntakes()]).then(([brews, visits, others]) => {
       const brewEntries: IntakeEntry[] = brews
@@ -85,6 +93,20 @@ export default function CaffeinePage() {
         .sort((a, b) => b.brewedAt.localeCompare(a.brewedAt))
 
       setIntakeEntries(merged)
+
+      // 傾向用（コーヒー・カフェ・その他の飲み物をすべて合算する）
+      const inTrend = (iso: string) => new Date(iso).getTime() >= trendCutoff
+      setTrendPoints([
+        ...brews
+          .filter(b => b.caffeineAmount != null && inTrend(b.brewedAt))
+          .map(b => ({ caffeineAmount: b.caffeineAmount!, at: b.brewedAt })),
+        ...visits
+          .filter(v => v.caffeineAmount != null && inTrend(v.visitedAt))
+          .map(v => ({ caffeineAmount: v.caffeineAmount!, at: v.visitedAt })),
+        ...others
+          .filter(o => inTrend(o.consumedAt))
+          .map(o => ({ caffeineAmount: o.caffeineAmount, at: o.consumedAt })),
+      ])
     }).catch(() => {/* カフェイン履歴の読込失敗時はグラフを空で表示 */})
   }, [reloadKey])
 
@@ -279,6 +301,12 @@ export default function CaffeinePage() {
           <p className="text-[10px] text-[#6b5a4a] mt-1">睡眠への感じ方には個人差があります</p>
         </div>
         <span className={`text-sm font-medium ${bedtimeColor}`}>{bedtimeLabel}</span>
+      </div>
+
+      {/* あなたの傾向（直近7日）。§12 に従い、数値の提示にとどめ助言はしない */}
+      <div className="flex flex-col gap-3">
+        <h3 className="text-sm font-semibold text-[#CE9C68] uppercase tracking-wider">あなたの傾向</h3>
+        <CaffeineTrend points={trendPoints} now={now} />
       </div>
 
       {/* その他の飲み物を追加（コーヒー以外のカフェイン） */}
