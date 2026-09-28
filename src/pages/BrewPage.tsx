@@ -895,7 +895,7 @@ export default function BrewPage() {
               </div>
             </div>
           ) : (
-            <p className="text-xs text-[#6b5a4a] text-center">
+            <p className="text-xs text-[#A8916F] text-center">
               いま保存すると、就寝時（{caffeineSettings.bedtimeHour.toString().padStart(2,'0')}:{caffeineSettings.bedtimeMinute.toString().padStart(2,'0')}）の推定残留量は約{Math.round(bedtimePrediction)}mg（個人差があります）
             </p>
           )

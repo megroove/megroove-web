@@ -251,7 +251,7 @@ export default function QuickBrewSheet({
 
         {/* 就寝時の推定残留量（推定・目安。5mg 未満は出さない） */}
         {prediction && prediction.mg >= 5 && (
-          <p className="text-[11px] text-[#6b5a4a] text-center">
+          <p className="text-[11px] text-[#A8916F] text-center">
             いま飲むと、就寝時（{prediction.hour.toString().padStart(2, '0')}:{prediction.minute.toString().padStart(2, '0')}）の推定残留量は約{Math.round(prediction.mg)}mg
             （目標 {prediction.targetMg}mg・個人差があります）
           </p>

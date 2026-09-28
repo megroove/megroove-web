@@ -237,7 +237,7 @@ export default function CaffeinePage() {
             style={{ left: `${guidePct}%` }}
           />
         </div>
-        <p className="text-xs text-[#4a3a2a] mt-1.5">
+        <p className="text-xs text-[#A8916F] mt-1.5">
           参考: 健康な成人では 1日 400mg 程度までが目安とされています（EFSA・食品安全委員会）
         </p>
         {todayIntake > 400 && (
@@ -298,7 +298,7 @@ export default function CaffeinePage() {
           {exceedsTarget && (
             <p className="text-xs text-amber-400 mt-1">目標 {settings.bedtimeTargetMg}mg を上回る見込みです（推定）</p>
           )}
-          <p className="text-[10px] text-[#6b5a4a] mt-1">睡眠への感じ方には個人差があります</p>
+          <p className="text-[10px] text-[#A8916F] mt-1">睡眠への感じ方には個人差があります</p>
         </div>
         <span className={`text-sm font-medium ${bedtimeColor}`}>{bedtimeLabel}</span>
       </div>
@@ -422,7 +422,7 @@ export default function CaffeinePage() {
               ＋
             </button>
           </div>
-          <p className="text-xs text-[#4a3a2a] text-center mt-1">0〜200mg。就寝時に残したくない量を、あなたの体感に合わせて設定してください（感じ方には個人差があります）</p>
+          <p className="text-xs text-[#A8916F] text-center mt-1">0〜200mg。就寝時に残したくない量を、あなたの体感に合わせて設定してください（感じ方には個人差があります）</p>
         </div>
 
         {/* 睡眠の記録（補助機能・オプトイン） */}
@@ -445,7 +445,7 @@ export default function CaffeinePage() {
       {/* 睡眠セクション（ON のときだけ表示。OFF でもデータは保持される） */}
       {settings.sleepTrackingEnabled && <SleepSection settings={settings} />}
 
-      <div className="text-xs text-[#4a3a2a] text-center pb-2 flex flex-col gap-1.5 leading-relaxed">
+      <div className="text-xs text-[#A8916F] text-center pb-2 flex flex-col gap-1.5 leading-relaxed">
         <p>
           カフェイン量はコーヒー粉 1g あたり約 12mg、カフェドリンクは種類とサイズからの推定値です。
           残留量は半減期 5.5 時間の一般的なモデルによる概算で、実際の代謝には大きな個人差があります。

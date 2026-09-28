@@ -1194,7 +1194,7 @@ export default function HomePage() {
             </div>
 
             {cafeQuickPrediction && cafeQuickPrediction.mg >= 5 && (
-              <p className="text-[11px] text-[#6b5a4a] text-center">
+              <p className="text-[11px] text-[#A8916F] text-center">
                 いま飲むと、就寝時（{cafeQuickPrediction.hour.toString().padStart(2, '0')}:{cafeQuickPrediction.minute.toString().padStart(2, '0')}）の推定残留量は約{Math.round(cafeQuickPrediction.mg)}mg（個人差があります）
               </p>
             )}

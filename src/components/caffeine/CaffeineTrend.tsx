@@ -134,7 +134,7 @@ export default function CaffeineTrend({ points, days = 7, now }: Props) {
       </div>
 
       {/* 推定であることと出典（§12）。解釈や助言はしない */}
-      <p className="text-[10px] text-[#4a3a2a] leading-relaxed">
+      <p className="text-[10px] text-[#A8916F] leading-relaxed">
         いずれも記録された摂取量の集計です。カフェイン量は粉量やドリンクの種類からの推定値で、
         実際の含有量や代謝には個人差があります。1日 400mg は健康な成人の一般的な目安（EFSA・食品安全委員会）で、
         医学的な助言ではありません。

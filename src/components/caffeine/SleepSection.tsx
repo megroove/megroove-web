@@ -121,14 +121,14 @@ export default function SleepSection({ settings }: { settings: AppSettings }) {
                 <p className="text-[10px] text-[#6b5a4a] mt-1 leading-snug">目標以下だった夜の翌朝<br />（{stats.low.n}日）</p>
               </div>
             </div>
-            <p className="text-[10px] text-[#4a3a2a] mt-2 leading-relaxed">
+            <p className="text-[10px] text-[#A8916F] mt-2 leading-relaxed">
               就寝 {pad(settings.bedtimeHour)}:{pad(settings.bedtimeMinute)}・半減期5.5時間の推定残留量で前夜を二分し、
               翌朝の睡眠評価（1〜3）の平均を並べたものです。数値の集計であり、睡眠には多くの要因があります。
               因果関係を示すものでも、医学的助言でもありません。
             </p>
           </>
         ) : (
-          <p className="text-xs text-[#4a3a2a] leading-relaxed">
+          <p className="text-xs text-[#A8916F] leading-relaxed">
             記録がたまると、ここに傾向（数値）が表示されます。
             {stats && (
               <>（現在: 目標超の夜 {stats.high.n}日 / 目標以下の夜 {stats.low.n}日。各グループ最低 {stats.minPerBucket}日ずつで表示）</>
