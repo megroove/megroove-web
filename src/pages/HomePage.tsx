@@ -7,6 +7,8 @@ import FlavorChips from '../components/brew/FlavorChips'
 import SaveAnimation from '../components/brew/SaveAnimation'
 import QuickBrewSheet from '../components/brew/QuickBrewSheet'
 import EmptyState from '../components/EmptyState'
+import HomeHero from '../components/home/HomeHero'
+import TodayStats from '../components/home/TodayStats'
 import type { QuickPreset, QuickSaveInput } from '../components/brew/QuickBrewSheet'
 import { useToast } from '../components/Toast'
 import { getAllBrews, getAllBeans, getAllCafeVisits, getAllEquipment, getAllCaffeineIntakes, getAllRecipes, putBrew, putCafeVisit, deleteBrew, getBrewCount, getSleepLog, putSleepLog } from '../db'
@@ -22,7 +24,7 @@ import {
   withSaveTimeout, saveErrorMessage,
 } from '../db'
 import {
-  GearIcon, CupIcon, CafeIcon, TrophyIcon, CameraIcon, DownloadIcon, MoonIcon,
+  CupIcon, CafeIcon, TrophyIcon, CameraIcon, DownloadIcon, MoonIcon,
 } from '../components/icons'
 
 // ─── 型定義 ──────────────────────────────────────────────────────────────────
@@ -661,61 +663,23 @@ export default function HomePage() {
         </div>
       )}
 
-      {/* ロゴ＋設定アイコン */}
-      <div className="relative flex flex-col items-center gap-3 pt-2">
-        <RecordDisk size={96} />
-        <div className="text-center">
-          <h1 className="text-2xl font-semibold text-[#F7EFE6]">Megroove</h1>
-          <p className="text-[#CE9C68] text-sm mt-0.5">{greetingByHour(new Date().getHours())}</p>
-        </div>
-        <button
-          type="button"
-          onClick={() => navigate('/settings')}
-          aria-label="設定"
-          className="absolute top-2 right-0 w-10 h-10 flex items-center justify-center text-[#6b5a4a] active:opacity-60 rounded-full"
-        >
-          <GearIcon size={22} />
-        </button>
-      </div>
-
-      {/* 初回（記録ゼロ）だけの導入。記録が付いたら自動で消える（常設しない） */}
-      {!loading && !hasRecords && (
-        <p className="text-center text-sm text-[#CE9C68] -mb-1">
-          ようこそ。下のボタンから、最初の一杯を記録できます ↓
-        </p>
-      )}
-
-      {/* アクションボタン（記録開始の主動線。大きく＋用途をサブ文言で明示） */}
-      <div className="grid grid-cols-2 gap-3">
-        <button
-          type="button"
-          onClick={() => navigate('/brew')}
-          className="bg-[#993C1D] text-[#F7EFE6] rounded-2xl py-5 flex flex-col items-center justify-center gap-1.5 active:opacity-80"
-        >
-          <CupIcon size={28} />
-          <span className="text-base font-semibold">淹れる</span>
-          <span className="text-[11px] text-[#F7EFE6]/70">自宅の一杯</span>
-        </button>
-        <button
-          type="button"
-          onClick={() => navigate('/cafe')}
-          className="bg-[#4a3828] text-[#F7EFE6] rounded-2xl py-5 flex flex-col items-center justify-center gap-1.5 active:opacity-80"
-        >
-          <CafeIcon size={28} />
-          <span className="text-base font-semibold">カフェを記録</span>
-          <span className="text-[11px] text-[#F7EFE6]/70">お店の一杯</span>
-        </button>
-      </div>
+      <HomeHero
+        greeting={greetingByHour(new Date().getHours())}
+        hasRecords={hasRecords}
+        onBrew={() => navigate('/brew')}
+        onCafe={() => navigate('/cafe')}
+        onSettings={() => navigate('/settings')}
+      />
 
       {/* いつもの一杯（クイック記録） */}
       {quickPresets.length > 0 && lastBrew && (
         <button
           type="button"
           onClick={() => setShowQuickSheet(true)}
-          className="-mt-3 w-full bg-[#2E2018] rounded-xl px-4 py-2.5 flex items-center justify-between gap-3 active:opacity-80"
+          className="w-full min-h-11 bg-[#2E2018] rounded-xl px-4 py-2.5 flex items-center justify-between gap-3 active:opacity-80"
         >
           <span className="text-sm text-[#CE9C68] font-medium shrink-0">いつもの一杯</span>
-          <span className="text-xs text-[#6b5a4a] truncate">
+          <span className="text-xs text-[#A8916F] truncate">
             {lastBrew.bean?.name ?? 'ホームブリュー'}
             {lastBrew.brew.doseG != null && lastBrew.brew.waterG != null
               ? ` · ${lastBrew.brew.doseG}g / ${lastBrew.brew.waterG}g`
@@ -724,44 +688,48 @@ export default function HomePage() {
         </button>
       )}
 
-      {/* また、あのカフェの一杯（カフェ版クイック記録） */}
-      {lastVisit && (
-        <button
-          type="button"
-          onClick={() => { setCafeQuickRating(0); setShowCafeQuickSheet(true) }}
-          className={`${lastBrew ? '-mt-4' : '-mt-3'} w-full bg-[#2E2018] rounded-xl px-4 py-2.5 flex items-center justify-between gap-3 active:opacity-80`}
-        >
-          <span className="text-sm text-[#CE9C68] font-medium shrink-0">また、あのカフェの一杯</span>
-          <span className="text-xs text-[#6b5a4a] truncate">
-            {lastVisit.cafeName}
-            {lastVisit.drinkName
-              ? ` · ${lastVisit.drinkName}`
-              : lastVisit.drinkType
-                ? ` · ${CAFE_DRINK_TYPE_LABELS[lastVisit.drinkType]}`
-                : ''}
-          </span>
-        </button>
-      )}
+      {/* 「また、あのカフェの一杯」と「針を落とす一杯」は条件付きの補助動線。
+          縦に積むと主動線（いつもの一杯）が押し下がるので、1行に並べて高さを半分にする */}
+      {(lastVisit || latestPending) && (
+        <div className="grid grid-cols-2 gap-2">
+          {lastVisit && (
+            <button
+              type="button"
+              onClick={() => { setCafeQuickRating(0); setShowCafeQuickSheet(true) }}
+              className={`${latestPending ? '' : 'col-span-2'} min-h-11 bg-[#2E2018] rounded-xl px-3 py-2 flex flex-col items-start justify-center gap-0.5 active:opacity-80`}
+            >
+              <span className="text-xs text-[#CE9C68] font-medium">また、あのカフェの一杯</span>
+              <span className="text-[11px] text-[#A8916F] truncate max-w-full">
+                {lastVisit.cafeName}
+                {lastVisit.drinkName
+                  ? ` · ${lastVisit.drinkName}`
+                  : lastVisit.drinkType
+                    ? ` · ${CAFE_DRINK_TYPE_LABELS[lastVisit.drinkType]}`
+                    : ''}
+              </span>
+            </button>
+          )}
 
-      {/* 針を落とす一杯（評価待ちのブリューに後から星をつける。あるときだけ・件数バッジや赤丸は使わない） */}
-      {latestPending && (
-        <button
-          type="button"
-          onClick={() => {
-            // 既存値（条件のみ保存なら空）を引き継いで開く。フォールドは既定で閉じる
-            setRateValue(0)
-            setShowRateDetail(false)
-            setRateFlavors(latestPending.brew.flavors ?? [])
-            setRateCupping(latestPending.brew.cupping ?? {})
-            setShowRateSheet(true)
-          }}
-          className={`${lastBrew || lastVisit ? '-mt-4' : '-mt-3'} w-full bg-[#2E2018] rounded-xl px-4 py-2.5 flex items-center justify-between gap-3 active:opacity-80`}
-        >
-          <span className="text-sm text-[#CE9C68] font-medium shrink-0">針を落とす一杯</span>
-          <span className="text-xs text-[#6b5a4a] truncate">
-            {latestPending.bean?.name ?? 'ホームブリュー'} · {formatBrewDateShort(latestPending.brew.brewedAt)}
-          </span>
-        </button>
+          {latestPending && (
+            <button
+              type="button"
+              onClick={() => {
+                // 既存値（条件のみ保存なら空）を引き継いで開く。フォールドは既定で閉じる
+                setRateValue(0)
+                setShowRateDetail(false)
+                setRateFlavors(latestPending.brew.flavors ?? [])
+                setRateCupping(latestPending.brew.cupping ?? {})
+                setShowRateSheet(true)
+              }}
+              className={`${lastVisit ? '' : 'col-span-2'} min-h-11 bg-[#2E2018] rounded-xl px-3 py-2 flex flex-col items-start justify-center gap-0.5 active:opacity-80`}
+            >
+              <span className="text-xs text-[#CE9C68] font-medium">針を落とす一杯</span>
+              <span className="text-[11px] text-[#A8916F] truncate max-w-full">
+                {latestPending.bean?.name ?? 'ホームブリュー'} · {formatBrewDateShort(latestPending.brew.brewedAt)}
+              </span>
+            </button>
+          )}
+        </div>
       )}
 
       {/* 睡眠の朝カード（ポップアップで「あとで」を選んだ日の受け皿。その日ホームに残る・静かな見せ方） */}
@@ -815,32 +783,16 @@ export default function HomePage() {
         </div>
       )}
 
-      {/* 今日のサマリ */}
+      {/* 今日のサマリ（3枚のカードではなく1枚に3分割して余白を詰める） */}
       {loading ? (
-        <div className="grid grid-cols-3 gap-3">
-          <div className="skeleton h-[72px]" />
-          <div className="skeleton h-[72px]" />
-          <div className="skeleton h-[72px]" />
-        </div>
+        <div className="skeleton h-[72px]" />
       ) : todayStats && (
-        <div className="grid grid-cols-3 gap-3">
-          <div className="bg-[#2E2018] rounded-xl px-2 py-3 text-center">
-            <p className="text-xl font-bold text-[#F7EFE6] tabular-nums">{todayStats.cups}<span className="text-xs font-normal text-[#CE9C68] ml-0.5">杯</span></p>
-            <p className="text-[10px] text-[#6b5a4a] mt-1">今日の一杯</p>
-          </div>
-          <button
-            type="button"
-            onClick={() => navigate('/caffeine')}
-            className="bg-[#2E2018] rounded-xl px-2 py-3 text-center active:opacity-80"
-          >
-            <p className="text-xl font-bold text-[#F7EFE6] tabular-nums">{todayStats.residualMg}<span className="text-xs font-normal text-[#CE9C68] ml-0.5">mg</span></p>
-            <p className="text-[10px] text-[#6b5a4a] mt-1">カフェイン残(推定)</p>
-          </button>
-          <div className="bg-[#2E2018] rounded-xl px-2 py-3 text-center">
-            <p className="text-xl font-bold text-[#F7EFE6] tabular-nums">{todayStats.streak}<span className="text-xs font-normal text-[#CE9C68] ml-0.5">日</span></p>
-            <p className="text-[10px] text-[#6b5a4a] mt-1">連続記録</p>
-          </div>
-        </div>
+        <TodayStats
+          cups={todayStats.cups}
+          residualMg={todayStats.residualMg}
+          streak={todayStats.streak}
+          onCaffeine={() => navigate('/caffeine')}
+        />
       )}
 
       {/* バックアップリマインダー */}

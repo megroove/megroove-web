@@ -17,11 +17,16 @@ interface Props {
   spinning?: boolean
   /** 盤の色。省略時は Megroove 既定 */
   vinyl?: VinylPalette
+  /** 針を上げた状態で置く（まだ淹れていないことを表す。着地アニメも出さない） */
+  armLifted?: boolean
 }
 
 // 抽出中＝レコード再生。盤が回り、針が経過に応じて外周→内周へ進む
-export default function Turntable({ elapsedSec, size = BASE, spinning = true, vinyl }: Props) {
-  const armDeg = Math.min(elapsedSec / ARM_FULL_SEC, 1) * ARM_FULL_DEG
+export default function Turntable({
+  elapsedSec, size = BASE, spinning = true, vinyl, armLifted = false,
+}: Props) {
+  // 針を上げているときは盤の外側へ退避させる（負の角度＝外周より外）
+  const armDeg = armLifted ? -16 : Math.min(elapsedSec / ARM_FULL_SEC, 1) * ARM_FULL_DEG
   const k = size / BASE
 
   return (
@@ -39,7 +44,7 @@ export default function Turntable({ elapsedSec, size = BASE, spinning = true, vi
           right: -32 * k,
           width: 64 * k,
           height: 88 * k,
-          animation: 'arm-drop 0.35s ease-in both',
+          animation: armLifted ? undefined : 'arm-drop 0.35s ease-in both',
           // px ではなく % で指定して、どのサイズでも同じ支点で回るようにする
           transformOrigin: '68.75% 13.64%',
         }}

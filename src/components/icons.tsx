@@ -125,6 +125,22 @@ export function GearIcon(props: IconProps) {
   )
 }
 
+// 再生（針を落とす＝淹れる の主CTA）。塗りの三角で「始まる」感じを出す
+export function PlayIcon({ size = 24, className }: IconProps) {
+  return (
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="currentColor"
+      className={className}
+      aria-hidden
+    >
+      <path d="M8 5.5v13l11-6.5z" />
+    </svg>
+  )
+}
+
 // 音符（聴いていた曲）。盤と同じく「回っているもの」の仲間として細いラインで描く
 export function MusicIcon(props: IconProps) {
   return (
