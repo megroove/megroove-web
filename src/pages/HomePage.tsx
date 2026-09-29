@@ -655,7 +655,7 @@ export default function HomePage() {
   const hasRanking = bestDrink !== null || topCafe !== null
 
   return (
-    <div className="flex flex-col flex-1 px-4 py-6 gap-6 overflow-y-auto">
+    <div className="flex flex-col flex-1 px-4 py-5 gap-4 overflow-y-auto">
 
       {dbError && (
         <div className="bg-[#3e1a0a] border border-[#993C1D]/40 rounded-xl px-4 py-3 text-sm text-[#CE9C68]">

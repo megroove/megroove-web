@@ -16,12 +16,9 @@ interface Props {
 export default function HomeHero({ greeting, hasRecords, onBrew, onCafe, onSettings }: Props) {
   return (
     <div className="flex flex-col gap-4">
-      {/* 見出し（左寄せ）＋ 設定 */}
-      <div className="flex items-start justify-between gap-3">
-        <div>
-          <p className="text-sm text-[#A8916F]">{greeting}</p>
-          <h1 className="text-2xl font-semibold text-[#F7EFE6] mt-0.5">Megroove</h1>
-        </div>
+      {/* 挨拶＋設定。アプリ名は盤のレーベルに印字してあるので、ここでは繰り返さない */}
+      <div className="flex items-center justify-between gap-3">
+        <p className="text-sm text-[#F7EFE6]">{greeting}</p>
         <button
           type="button"
           onClick={onSettings}

@@ -11,14 +11,18 @@ const DISC_CX = 148
 const DISC_CY = 126
 const DISC_R = 122
 
-// トーンアーム: 支点を下げ、ヘッドシェルを外周寄りに置くことで腕を寝かせる
-// （支点を高い位置に置くと腕が立ち、実機で「刺さっている」ように見えた）
-const PIVOT_X = 324
-const PIVOT_Y = 110
+// トーンアーム: 支点は盤の右上。実機のプレーヤーと同じく、腕は立て気味にして
+// 右上から盤へ差し渡す形にする（寝かせると盤の上に横たわって見える）
+const PIVOT_X = 306
+const PIVOT_Y = 52
 const HEAD_X = 219
 const HEAD_Y = 195
 // 支点→ヘッドシェルの傾き（ヘッドシェルを腕と同じ向きに倒すのに使う）
 const ARM_DEG = (Math.atan2(HEAD_Y - PIVOT_Y, HEAD_X - PIVOT_X) * 180) / Math.PI + 90
+// 線はヘッドシェルに少し食い込ませて止める（継ぎ目を見せない）
+const ARM_LEN = Math.hypot(HEAD_X - PIVOT_X, HEAD_Y - PIVOT_Y)
+const ARM_END_X = HEAD_X - ((HEAD_X - PIVOT_X) / ARM_LEN) * 14
+const ARM_END_Y = HEAD_Y - ((HEAD_Y - PIVOT_Y) / ARM_LEN) * 14
 
 interface Props {
   /** 針を上げた状態にする（まだ1件も記録が無いとき） */
@@ -73,29 +77,44 @@ export default function HomeTurntable({ armLifted = false, caption }: Props) {
           />
         ))}
 
-        {/* 中央レーベル */}
-        <circle cx={DISC_CX} cy={DISC_CY} r={48} fill="#9E4023" />
+        {/* 中央レーベル。アプリ名はここに印字する（実際のレコードのレーベルと同じ考え方）。
+            ヘッダーに見出しを置かなくて済むぶん、盤が上がり、下の情報が見えるようになる */}
+        <circle cx={DISC_CX} cy={DISC_CY} r={54} fill="#9E4023" />
+        <circle cx={DISC_CX} cy={DISC_CY} r={54} fill="none" stroke="#B0522F" strokeWidth="1" />
         <text
           x={DISC_CX}
-          y={DISC_CY - 2}
+          y={DISC_CY - 4}
           textAnchor="middle"
           fill="#F7EFE6"
-          fontSize="32"
+          fontSize="17"
           fontFamily="system-ui"
-          fontWeight="600"
+          fontWeight="700"
+          letterSpacing="0.3"
         >
-          M
+          Megroove
+        </text>
+        <text
+          x={DISC_CX}
+          y={DISC_CY + 12}
+          textAnchor="middle"
+          fill="#F7EFE6"
+          fontSize="7"
+          fontFamily="system-ui"
+          opacity="0.72"
+          letterSpacing="1.6"
+        >
+          COFFEE RECORDS
         </text>
         {/* スピンドル穴 */}
-        <circle cx={DISC_CX} cy={DISC_CY + 22} r={4} fill="#140b07" />
+        <circle cx={DISC_CX} cy={DISC_CY + 30} r={4} fill="#140b07" />
 
         {/* トーンアーム。針を上げているときは支点を軸に外へ逃がす */}
         <g transform={armLifted ? `rotate(-15 ${PIVOT_X} ${PIVOT_Y})` : undefined}>
           <line
             x1={PIVOT_X}
             y1={PIVOT_Y}
-            x2={HEAD_X + 6}
-            y2={HEAD_Y - 9}
+            x2={ARM_END_X}
+            y2={ARM_END_Y}
             stroke="#C9A47A"
             strokeWidth="5"
             strokeLinecap="round"
