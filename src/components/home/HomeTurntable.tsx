@@ -6,15 +6,17 @@ import { useId } from 'react'
 //
 // 盤の色は Megroove 既定の黒で固定する。色を選べるのは抽出中と保存演出だけ（CLAUDE.md §9）。
 
-const DISC_CX = 142
-const DISC_CY = 132
-const DISC_R = 112
+// 盤は枠の高さを増やさずに一回り大きくする（余っていた右下・左右の余白を盤に回す）
+const DISC_CX = 148
+const DISC_CY = 126
+const DISC_R = 122
 
-// トーンアーム: 右上の支点から左下へ降り、先端のヘッドシェルが盤の外周に載る
-const PIVOT_X = 312
-const PIVOT_Y = 40
-const HEAD_X = 212
-const HEAD_Y = 186
+// トーンアーム: 支点を下げ、ヘッドシェルを外周寄りに置くことで腕を寝かせる
+// （支点を高い位置に置くと腕が立ち、実機で「刺さっている」ように見えた）
+const PIVOT_X = 324
+const PIVOT_Y = 110
+const HEAD_X = 219
+const HEAD_Y = 195
 // 支点→ヘッドシェルの傾き（ヘッドシェルを腕と同じ向きに倒すのに使う）
 const ARM_DEG = (Math.atan2(HEAD_Y - PIVOT_Y, HEAD_X - PIVOT_X) * 180) / Math.PI + 90
 
@@ -32,13 +34,13 @@ export default function HomeTurntable({ armLifted = false, caption }: Props) {
 
   return (
     <div
-      className="rounded-3xl px-4 pt-4 pb-3 border border-[#3a2a1e]/60"
+      className="rounded-3xl px-3 pt-3 pb-2 border border-[#3a2a1e]/60"
       style={{
         background:
           'radial-gradient(120% 90% at 35% 30%, #3a2519 0%, #2a1911 45%, #1f120c 100%)',
       }}
     >
-      <svg viewBox="0 0 360 262" className="w-full block" aria-hidden>
+      <svg viewBox="0 0 360 252" className="w-full block" aria-hidden>
         <defs>
           {/* 盤の奥から差す淡い光。世界観の落ち着きを崩さない程度に弱く */}
           <radialGradient id={glowId} cx="50%" cy="50%" r="50%">
@@ -59,7 +61,7 @@ export default function HomeTurntable({ armLifted = false, caption }: Props) {
         <circle cx={DISC_CX} cy={DISC_CY} r={DISC_R} fill={`url(#${discId})`} />
 
         {/* 溝。外周ほど間隔を詰めて、レコードらしい密度を出す */}
-        {[106, 100, 94, 88, 82, 75, 68, 60, 52].map(r => (
+        {[116, 110, 104, 98, 92, 85, 78, 70, 62, 54].map(r => (
           <circle
             key={r}
             cx={DISC_CX}
@@ -67,25 +69,25 @@ export default function HomeTurntable({ armLifted = false, caption }: Props) {
             r={r}
             fill="none"
             stroke="#2b2320"
-            strokeWidth={r > 80 ? 1.6 : 1.2}
+            strokeWidth={r > 90 ? 1.6 : 1.2}
           />
         ))}
 
         {/* 中央レーベル */}
-        <circle cx={DISC_CX} cy={DISC_CY} r={44} fill="#9E4023" />
+        <circle cx={DISC_CX} cy={DISC_CY} r={48} fill="#9E4023" />
         <text
           x={DISC_CX}
           y={DISC_CY - 2}
           textAnchor="middle"
           fill="#F7EFE6"
-          fontSize="30"
+          fontSize="32"
           fontFamily="system-ui"
           fontWeight="600"
         >
           M
         </text>
         {/* スピンドル穴 */}
-        <circle cx={DISC_CX} cy={DISC_CY + 20} r={4} fill="#140b07" />
+        <circle cx={DISC_CX} cy={DISC_CY + 22} r={4} fill="#140b07" />
 
         {/* トーンアーム。針を上げているときは支点を軸に外へ逃がす */}
         <g transform={armLifted ? `rotate(-15 ${PIVOT_X} ${PIVOT_Y})` : undefined}>
@@ -114,7 +116,7 @@ export default function HomeTurntable({ armLifted = false, caption }: Props) {
         </g>
       </svg>
 
-      {caption && <p className="text-xs text-[#A8916F] mt-1">{caption}</p>}
+      {caption && <p className="text-xs text-[#A8916F] mt-0.5 px-1">{caption}</p>}
     </div>
   )
 }
