@@ -9,6 +9,9 @@ import QuickBrewSheet from '../components/brew/QuickBrewSheet'
 import EmptyState from '../components/EmptyState'
 import HomeHero from '../components/home/HomeHero'
 import TodayStats from '../components/home/TodayStats'
+import RecentJackets from '../components/home/RecentJackets'
+import type { RecentJacketItem } from '../components/home/RecentJackets'
+import { jacketColor } from '../components/library/jacketColor'
 import type { QuickPreset, QuickSaveInput } from '../components/brew/QuickBrewSheet'
 import { useToast } from '../components/Toast'
 import { getAllBrews, getAllBeans, getAllCafeVisits, getAllEquipment, getAllCaffeineIntakes, getAllRecipes, putBrew, putCafeVisit, deleteBrew, getBrewCount, getSleepLog, putSleepLog } from '../db'
@@ -654,6 +657,27 @@ export default function HomePage() {
 
   const hasRanking = bestDrink !== null || topCafe !== null
 
+  // 「最近の一枚」用。棚（ライブラリ）と同じ色の導き方をそのまま使う
+  const recentJackets: RecentJacketItem[] = recent.slice(0, 4).map(item =>
+    item.kind === 'brew'
+      ? {
+          id: item.brew.id,
+          photoUrl: item.brew.photoDataUrl,
+          color: jacketColor(item.bean?.origin || item.bean?.name, item.bean?.roastLevel),
+          rating: item.brew.rating,
+          dateLabel: formatBrewDateShort(item.brew.brewedAt),
+          onClick: () => navigate(`/library/${item.brew.id}`),
+        }
+      : {
+          id: item.visit.id,
+          photoUrl: item.visit.photoDataUrl,
+          color: jacketColor(item.visit.beanOrigin || item.visit.cafeName),
+          rating: item.visit.rating,
+          dateLabel: formatBrewDateShort(item.visit.visitedAt),
+          onClick: () => navigate(`/cafe/${item.visit.id}`),
+        },
+  )
+
   return (
     <div className="flex flex-col flex-1 px-4 py-5 gap-4 overflow-y-auto">
 
@@ -793,6 +817,11 @@ export default function HomePage() {
           streak={todayStats.streak}
           onCaffeine={() => navigate('/caffeine')}
         />
+      )}
+
+      {/* 最近の一枚（ジャケットが増える楽しさを、棚を開く前に見せる） */}
+      {hasRecords && (
+        <RecentJackets items={recentJackets} onSeeAll={() => navigate('/library')} />
       )}
 
       {/* バックアップリマインダー */}
@@ -1043,59 +1072,6 @@ export default function HomePage() {
             <span className="text-sm">お気に入りの器具・写真を飾る</span>
           </button>
         )}
-      </div>
-      )}
-
-      {/* 最近の記録（記録があるときだけ表示。初回は畳む） */}
-      {hasRecords && (
-      <div className="flex flex-col gap-2">
-        <p className="text-xs text-[#CE9C68] uppercase tracking-wider">最近の記録</p>
-        {/* このセクションは hasRecords が true のときだけ描かれるので、空の分岐は持たない
-            （記録ゼロのときは画面上部の導入CTAが受け持つ） */}
-        <div className="flex flex-col gap-2">
-            {recent.map(item =>
-              item.kind === 'brew' ? (
-                <button
-                  key={item.brew.id}
-                  type="button"
-                  onClick={() => navigate(`/library/${item.brew.id}`)}
-                  className="w-full bg-[#2E2018] rounded-xl px-4 py-3 text-left active:opacity-80 flex items-center justify-between"
-                >
-                  <div>
-                    <p className="text-[#F7EFE6] text-sm font-medium">
-                      {item.bean?.name ?? <span className="text-[#6b5a4a]">{item.brew.method === 'drip_bag' ? '銘柄なし' : '豆の記録なし'}</span>}
-                    </p>
-                    <p className="text-xs text-[#6b5a4a] mt-0.5 flex items-center gap-1">
-                      <CupIcon size={12} className="shrink-0" />
-                      {item.bean ? `${ROAST_LEVEL_LABELS[item.bean.roastLevel]} · ` : ''}
-                      {formatBrewDateShort(item.brew.brewedAt)}
-                    </p>
-                  </div>
-                  <StarDisplay rating={item.brew.rating} />
-                </button>
-              ) : (
-                <button
-                  key={item.visit.id}
-                  type="button"
-                  onClick={() => navigate(`/cafe/${item.visit.id}`)}
-                  className="w-full bg-[#2E2018] rounded-xl px-4 py-3 text-left active:opacity-80 flex items-center justify-between"
-                >
-                  <div>
-                    <p className="text-[#F7EFE6] text-sm font-medium">{item.visit.cafeName}</p>
-                    <p className="text-xs text-[#6b5a4a] mt-0.5 flex items-center gap-1">
-                      <CafeIcon size={12} className="shrink-0" />
-                      {item.visit.drinkName
-                        ? `${item.visit.drinkName}${item.visit.drinkType ? ` · ${CAFE_DRINK_TYPE_LABELS[item.visit.drinkType]}` : ''}`
-                        : 'カフェ訪問'
-                      }
-                      {' · '}{formatBrewDateShort(item.visit.visitedAt)}
-                    </p>
-                  </div>
-                  <StarDisplay rating={item.visit.rating} />
-                </button>
-              ),
-            )}
-        </div>
       </div>
       )}
 
