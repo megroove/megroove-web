@@ -18,6 +18,7 @@ import BrewLayoutPage from './pages/BrewLayoutPage'
 import DataProvisionPage from './pages/DataProvisionPage'
 import PrivacyPage from './pages/PrivacyPage'
 import PassportPage from './pages/PassportPage'
+import YearPage from './pages/YearPage'
 import OnboardingTour, { hasCompletedOnboarding } from './components/OnboardingTour'
 import { saveErrorMessage } from './db'
 
@@ -66,6 +67,7 @@ function AppRoutes() {
         <Route path="/settings/data-provision" element={<DataProvisionPage />} />
         <Route path="/settings/privacy"        element={<PrivacyPage />} />
         <Route path="/passport"             element={<PassportPage />} />
+        <Route path="/year"                 element={<YearPage />} />
       </Routes>
       </ErrorBoundary>
     </div>

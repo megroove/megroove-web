@@ -657,6 +657,16 @@ export default function HomePage() {
 
   const hasRanking = bestDrink !== null || topCafe !== null
 
+  // 年末年始（12〜1月）だけ「1年を振り返る」導線を出す。ふだんは分析タブから入る
+  const showYearBanner = (() => {
+    const m = new Date().getMonth() // 0=1月
+    return hasRecords && (m === 11 || m === 0)
+  })()
+  // 1月は「前の年」のまとめを見たいはず
+  const yearToLookBack = new Date().getMonth() === 0
+    ? new Date().getFullYear() - 1
+    : new Date().getFullYear()
+
   // 「最近の一枚」用。棚（ライブラリ）と同じ色の導き方をそのまま使う
   const recentJackets: RecentJacketItem[] = recent.slice(0, 4).map(item =>
     item.kind === 'brew'
@@ -817,6 +827,21 @@ export default function HomePage() {
           streak={todayStats.streak}
           onCaffeine={() => navigate('/caffeine')}
         />
+      )}
+
+      {/* 1年の振り返り（年末年始だけ・静かに） */}
+      {showYearBanner && (
+        <button
+          type="button"
+          onClick={() => navigate('/year')}
+          className="w-full bg-[#2E2018] rounded-xl px-4 py-3 flex items-center justify-between gap-3 active:opacity-80 text-left"
+        >
+          <div className="min-w-0">
+            <p className="text-sm text-[#CE9C68] font-medium">{yearToLookBack}年のまとめ</p>
+            <p className="text-xs text-[#A8916F] mt-0.5 truncate">1年の記録を1枚にまとめました</p>
+          </div>
+          <span className="text-[#CE9C68] text-sm shrink-0">→</span>
+        </button>
       )}
 
       {/* 最近の一枚（ジャケットが増える楽しさを、棚を開く前に見せる） */}

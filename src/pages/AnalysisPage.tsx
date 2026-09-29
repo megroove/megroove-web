@@ -387,6 +387,21 @@ export default function AnalysisPage() {
         emptyMessage="今年の記録がありません"
       />
 
+      {/* Year in Coffee への入口（記録がある年だけ） */}
+      {totals.cups > 0 && (
+        <button
+          type="button"
+          onClick={() => navigate('/year')}
+          className="w-full bg-[#2E2018] rounded-xl px-4 py-4 flex items-center justify-between gap-3 active:opacity-80 text-left"
+        >
+          <div className="min-w-0">
+            <p className="text-sm text-[#F7EFE6] font-medium">Year in Coffee</p>
+            <p className="text-xs text-[#A8916F] mt-0.5">1年の記録を1枚にまとめて保存できます</p>
+          </div>
+          <span className="text-[#CE9C68] text-sm shrink-0">→</span>
+        </button>
+      )}
+
       {/* 累計 */}
       {totals.cups > 0 && (
         <section className="flex flex-col gap-3">
