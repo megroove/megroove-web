@@ -8,18 +8,24 @@ import {
   formatBrewDateShort,
 } from '../db'
 import { DATA_RESTORED_EVENT } from '../components/Toast'
-import { CupIcon, CafeIcon, ListIcon, GridIcon, DiscIcon, SearchIcon } from '../components/icons'
+import { CupIcon, CafeIcon, ListIcon, GridIcon, SearchIcon } from '../components/icons'
+import Jacket from '../components/library/Jacket'
+import { jacketColor } from '../components/library/jacketColor'
 
 // ─── 表示モード ────────────────────────────────────────────────────────────────
 
-type DisplayMode = 'list' | 'card' | 'record'
+// 棚（ジャケット）を既定にする。丸い「レコード表示」は廃止し、盤はホームと抽出中に役割を譲る
+type DisplayMode = 'jacket' | 'list'
 const DISPLAY_MODE_KEY = 'megroove-library-view'
 
 function loadDisplayMode(): DisplayMode {
-  const v = localStorage.getItem(DISPLAY_MODE_KEY)
-  if (v === 'card' || v === 'record') return v
-  return 'list'
+  // 'list' を選んでいた人はそのまま。旧 'card'（写真グリッド）と 'record'（丸い盤）は
+  // どちらもグリッド系なので、後継であるジャケットに寄せる
+  return localStorage.getItem(DISPLAY_MODE_KEY) === 'list' ? 'list' : 'jacket'
 }
+
+// 一度に描く枚数。記録が増えても開いた瞬間が重くならないよう、続きは「もっと見る」で足す
+const PAGE_SIZE = 60
 
 // ─── 共通コンポーネント ────────────────────────────────────────────────────────
 
@@ -91,109 +97,6 @@ function StarDisplay({ rating }: { rating?: number }) {
 }
 
 // カードグリッド（写真トップ・縦長長方形）
-function PhotoGridCard({
-  photoUrl, name, sub, date, rating, onClick,
-}: {
-  photoUrl?: string; name: string; sub?: string; date: string; rating?: number; onClick: () => void
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className="flex flex-col bg-[#2E2018] rounded-xl overflow-hidden w-full text-left active:opacity-80"
-    >
-      {/* 写真エリア（3:4 縦長） */}
-      <div className="w-full aspect-[3/4] bg-[#1a0a05] relative overflow-hidden">
-        {photoUrl ? (
-          <img src={photoUrl} alt="" className="w-full h-full object-cover" />
-        ) : (
-          <div className="absolute inset-0 flex items-center justify-center text-[#2e1a0a]">
-            <CupIcon size={48} />
-          </div>
-        )}
-      </div>
-      {/* テキストエリア */}
-      <div className="p-2.5">
-        <p className="text-[10px] text-[#6b5a4a] truncate">{date}</p>
-        <p className="text-sm text-[#F7EFE6] font-medium truncate leading-tight mt-0.5">{name}</p>
-        {sub && <p className="text-[10px] text-[#CE9C68] truncate mt-0.5">{sub}</p>}
-        {rating ? (
-          <p className="text-[10px] text-[#CE9C68] tracking-tight mt-1">{'★'.repeat(rating)}</p>
-        ) : null}
-      </div>
-    </button>
-  )
-}
-
-// レコードグリッド（アナログレコード型）
-function VinylCard({
-  photoUrl, name, sub, rating, unrated, onClick,
-}: {
-  photoUrl?: string; name: string; sub?: string; rating?: number; unrated?: boolean; onClick: () => void
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className="flex flex-col items-center gap-2 w-full active:opacity-80"
-    >
-      {/* レコード盤 */}
-      <div className="relative w-full aspect-square">
-        <div className="w-full h-full rounded-full overflow-hidden relative">
-          {/* 写真 or プレースホルダーを盤面全体に敷く */}
-          {photoUrl ? (
-            <img src={photoUrl} alt="" className="absolute inset-0 w-full h-full object-cover" />
-          ) : (
-            <div className="absolute inset-0 bg-[#0d0603]" />
-          )}
-
-          {/* 溝（写真の上に薄く重ねる） */}
-          <svg
-            viewBox="0 0 100 100"
-            className="absolute inset-0 w-full h-full pointer-events-none"
-            aria-hidden
-          >
-            {[47, 43, 39, 35, 31, 27, 23, 19, 15, 11].map(r => (
-              <circle
-                key={r}
-                cx="50"
-                cy="50"
-                r={r}
-                fill="none"
-                stroke={photoUrl ? 'rgba(0,0,0,0.28)' : '#1e1208'}
-                strokeWidth={photoUrl ? '0.9' : '0.7'}
-              />
-            ))}
-            {/* 写真なし時の中央ラベル色 */}
-            {!photoUrl && (
-              <circle cx="50" cy="50" r="19" fill="#993C1D" />
-            )}
-            {/* 写真なし時のアイコン代替（円） */}
-            {!photoUrl && (
-              <circle cx="50" cy="50" r="4" fill="#F7EFE6" opacity="0.6" />
-            )}
-          </svg>
-
-          {/* スピンドル穴 */}
-          <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-            <div className={`w-2 h-2 rounded-full ${photoUrl ? 'bg-black/50' : 'bg-[#0d0603]'}`} />
-          </div>
-        </div>
-      </div>
-      {/* テキスト */}
-      <div className="w-full text-center px-1">
-        <p className="text-xs text-[#F7EFE6] font-medium truncate leading-snug">{name}</p>
-        {sub && <p className="text-[10px] text-[#6b5a4a] truncate mt-0.5">{sub}</p>}
-        {rating ? (
-          <p className="text-[10px] text-[#CE9C68] tracking-tight">{'★'.repeat(rating)}</p>
-        ) : unrated ? (
-          <p className="text-[10px] text-[#6b5a4a] tracking-tight">未再生</p>
-        ) : null}
-      </div>
-    </button>
-  )
-}
-
 // ─── ブリューカード（リスト） ──────────────────────────────────────────────────
 
 function BrewCard({ brew, bean, onClick }: { brew: Brew; bean?: Bean; onClick: () => void }) {
@@ -326,7 +229,13 @@ function BrewTab({ displayMode }: { displayMode: DisplayMode }) {
     })
   }, [brews, ratingFilter, beanFilter, search, beanMap])
 
-  const groups = useMemo(() => groupByMonth(filtered, b => b.brewedAt), [filtered])
+  // 一度に全件描かない。絞り込みを変えたら先頭から数え直す
+  const [shown, setShown] = useState(PAGE_SIZE)
+  useEffect(() => { setShown(PAGE_SIZE) }, [ratingFilter, beanFilter, search])
+
+  const visible = useMemo(() => filtered.slice(0, shown), [filtered, shown])
+  const groups = useMemo(() => groupByMonth(visible, b => b.brewedAt), [visible])
+  const remaining = filtered.length - visible.length
 
   // 絞り込み0件からの復帰。検索・評価・豆のすべてを初期状態に戻す
   const clearFilters = () => {
@@ -411,34 +320,20 @@ function BrewTab({ displayMode }: { displayMode: DisplayMode }) {
                       />
                     ))}
                   </div>
-                ) : displayMode === 'card' ? (
+                ) : (
                   <div className="grid grid-cols-2 gap-3">
                     {group.items.map(brew => {
                       const bean = brew.beanId ? beanMap.get(brew.beanId) : undefined
-                      const sub = bean ? ROAST_LEVEL_LABELS[bean.roastLevel] : undefined
+                      const fallback = brew.method === 'drip_bag' ? '銘柄なし' : '豆なし'
+                      // 色は産地から。産地が無ければ豆名で代用する（どちらも無ければ既定色）
                       return (
-                        <PhotoGridCard
+                        <Jacket
                           key={brew.id}
                           photoUrl={brew.photoDataUrl}
-                          name={bean?.name ?? (brew.method === 'drip_bag' ? '銘柄なし' : '豆なし')}
-                          sub={sub}
-                          date={formatBrewDateShort(brew.brewedAt)}
-                          rating={brew.rating}
-                          onClick={() => navigate(`/library/${brew.id}`)}
-                        />
-                      )
-                    })}
-                  </div>
-                ) : (
-                  <div className="grid grid-cols-2 gap-4">
-                    {group.items.map(brew => {
-                      const bean = brew.beanId ? beanMap.get(brew.beanId) : undefined
-                      return (
-                        <VinylCard
-                          key={brew.id}
-                          photoUrl={brew.photoDataUrl}
-                          name={bean?.name ?? (brew.method === 'drip_bag' ? '銘柄なし' : '豆なし')}
-                          sub={formatBrewDateShort(brew.brewedAt)}
+                          color={jacketColor(bean?.origin || bean?.name, bean?.roastLevel)}
+                          title={bean?.origin ?? bean?.name ?? fallback}
+                          subtitle={bean?.origin ? bean.name : undefined}
+                          caption={`${bean ? ROAST_LEVEL_LABELS[bean.roastLevel] + ' · ' : ''}${formatBrewDateShort(brew.brewedAt)}`}
                           rating={brew.rating}
                           unrated={!brew.rating}
                           onClick={() => navigate(`/library/${brew.id}`)}
@@ -449,6 +344,16 @@ function BrewTab({ displayMode }: { displayMode: DisplayMode }) {
                 )}
               </div>
             ))}
+
+            {remaining > 0 && (
+              <button
+                type="button"
+                onClick={() => setShown(n => n + PAGE_SIZE)}
+                className="w-full min-h-11 rounded-xl border border-[#3e3020] text-sm text-[#CE9C68] active:opacity-70"
+              >
+                もっと見る（あと{remaining}件）
+              </button>
+            )}
           </div>
         )}
       </div>
@@ -493,7 +398,12 @@ function CafeTab({ displayMode }: { displayMode: DisplayMode }) {
     })
   }, [visits, ratingFilter, search])
 
-  const groups = useMemo(() => groupByMonth(filtered, v => v.visitedAt), [filtered])
+  const [shown, setShown] = useState(PAGE_SIZE)
+  useEffect(() => { setShown(PAGE_SIZE) }, [ratingFilter, search])
+
+  const visible = useMemo(() => filtered.slice(0, shown), [filtered, shown])
+  const groups = useMemo(() => groupByMonth(visible, v => v.visitedAt), [visible])
+  const remaining = filtered.length - visible.length
 
   // 絞り込み0件からの復帰（カフェタブは検索と評価の2つ）
   const clearFilters = () => {
@@ -543,35 +453,20 @@ function CafeTab({ displayMode }: { displayMode: DisplayMode }) {
                       />
                     ))}
                   </div>
-                ) : displayMode === 'card' ? (
+                ) : (
                   <div className="grid grid-cols-2 gap-3">
                     {group.items.map(visit => {
                       const sub = visit.drinkName
                         ?? (visit.drinkType ? CAFE_DRINK_TYPE_LABELS[visit.drinkType] : undefined)
+                      // カフェ記録は焙煎度を持たないので、色は産地かカフェ名から（濃さは一定）
                       return (
-                        <PhotoGridCard
+                        <Jacket
                           key={visit.id}
                           photoUrl={visit.photoDataUrl}
-                          name={visit.cafeName}
-                          sub={sub}
-                          date={formatBrewDateShort(visit.visitedAt)}
-                          rating={visit.rating}
-                          onClick={() => navigate(`/cafe/${visit.id}`)}
-                        />
-                      )
-                    })}
-                  </div>
-                ) : (
-                  <div className="grid grid-cols-2 gap-4">
-                    {group.items.map(visit => {
-                      const sub = visit.drinkName
-                        ?? (visit.drinkType ? CAFE_DRINK_TYPE_LABELS[visit.drinkType] : undefined)
-                      return (
-                        <VinylCard
-                          key={visit.id}
-                          photoUrl={visit.photoDataUrl}
-                          name={visit.cafeName}
-                          sub={sub}
+                          color={jacketColor(visit.beanOrigin || visit.cafeName)}
+                          title={visit.cafeName}
+                          subtitle={sub}
+                          caption={formatBrewDateShort(visit.visitedAt)}
                           rating={visit.rating}
                           onClick={() => navigate(`/cafe/${visit.id}`)}
                         />
@@ -581,6 +476,16 @@ function CafeTab({ displayMode }: { displayMode: DisplayMode }) {
                 )}
               </div>
             ))}
+
+            {remaining > 0 && (
+              <button
+                type="button"
+                onClick={() => setShown(n => n + PAGE_SIZE)}
+                className="w-full min-h-11 rounded-xl border border-[#3e3020] text-sm text-[#CE9C68] active:opacity-70"
+              >
+                もっと見る（あと{remaining}件）
+              </button>
+            )}
           </div>
         )}
       </div>
@@ -610,17 +515,18 @@ export default function LibraryPage() {
         <h2 className="text-xl font-semibold text-[#F7EFE6]">ライブラリ</h2>
         {/* 表示モード切り替え */}
         <div className="flex gap-0.5 bg-[#2e2018] rounded-xl p-1">
-          {(['list', 'card', 'record'] as DisplayMode[]).map(m => (
+          {(['jacket', 'list'] as DisplayMode[]).map(m => (
             <button
               key={m}
               type="button"
               onClick={() => changeMode(m)}
-              className={`w-9 h-7 flex items-center justify-center rounded-lg transition-colors ${
-                displayMode === m ? 'bg-[#993C1D] text-[#F7EFE6]' : 'text-[#6b5a4a]'
+              aria-pressed={displayMode === m}
+              className={`w-10 h-9 flex items-center justify-center rounded-lg transition-colors ${
+                displayMode === m ? 'bg-[#993C1D] text-[#F7EFE6]' : 'text-[#A8916F]'
               }`}
-              aria-label={m === 'list' ? 'リスト表示' : m === 'card' ? 'カード表示' : 'レコード表示'}
+              aria-label={m === 'jacket' ? '棚（ジャケット）表示' : 'リスト表示'}
             >
-              {m === 'list' ? <ListIcon size={16} /> : m === 'card' ? <GridIcon size={16} /> : <DiscIcon size={16} />}
+              {m === 'jacket' ? <GridIcon size={16} /> : <ListIcon size={16} />}
             </button>
           ))}
         </div>
