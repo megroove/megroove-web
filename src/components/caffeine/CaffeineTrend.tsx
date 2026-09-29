@@ -26,10 +26,10 @@ export default function CaffeineTrend({ points, days = 7, now }: Props) {
   if (!summary.hasEnoughData) {
     return (
       <div className="bg-[#2E2018] rounded-xl p-5 text-center">
-        <p className="text-sm text-[#6b5a4a]">
+        <p className="text-sm text-[#F7EFE6]">
           記録が{MIN_DAYS_WITH_RECORD}日分たまると、ここに傾向が出ます
         </p>
-        <p className="text-xs text-[#4a3a2a] mt-1">
+        <p className="text-xs text-[#A8916F] mt-1">
           いまは{summary.daysWithRecord}日分です
         </p>
       </div>
@@ -45,7 +45,7 @@ export default function CaffeineTrend({ points, days = 7, now }: Props) {
       <div className="bg-[#2E2018] rounded-xl p-4">
         <div className="flex items-baseline justify-between gap-3 mb-3">
           <p className="text-xs text-[#CE9C68]">この{days}日間の摂取量</p>
-          <p className="text-xs text-[#6b5a4a]">
+          <p className="text-xs text-[#A8916F]">
             記録のあった日の平均 <span className="text-[#F7EFE6] tabular-nums">{summary.avgMgPerRecordedDay}</span>mg
           </p>
         </div>
@@ -64,7 +64,7 @@ export default function CaffeineTrend({ points, days = 7, now }: Props) {
           <div className="flex items-end justify-between gap-1.5 h-28">
             {daily.map(d => (
               <div key={d.date} className="flex-1 flex flex-col items-center justify-end h-full gap-1">
-                <span className="text-[10px] text-[#6b5a4a] tabular-nums">
+                <span className="text-[10px] text-[#A8916F] tabular-nums">
                   {d.mg > 0 ? d.mg : ''}
                 </span>
                 <div
@@ -83,7 +83,7 @@ export default function CaffeineTrend({ points, days = 7, now }: Props) {
           {daily.map(d => (
             <span
               key={d.date}
-              className={`flex-1 text-center text-[10px] ${d.isToday ? 'text-[#CE9C68]' : 'text-[#6b5a4a]'}`}
+              className={`flex-1 text-center text-[10px] ${d.isToday ? 'text-[#CE9C68]' : 'text-[#A8916F]'}`}
             >
               {d.label}
             </span>
@@ -95,7 +95,7 @@ export default function CaffeineTrend({ points, days = 7, now }: Props) {
       <div className="bg-[#2E2018] rounded-xl p-4">
         <div className="flex items-baseline justify-between gap-3 mb-3">
           <p className="text-xs text-[#CE9C68]">飲んでいる時間帯</p>
-          <p className="text-xs text-[#6b5a4a]">
+          <p className="text-xs text-[#A8916F]">
             15時以降が <span className="text-[#F7EFE6] tabular-nums">{Math.round(summary.afterMiddayRatio * 100)}</span>%
           </p>
         </div>
@@ -123,11 +123,11 @@ export default function CaffeineTrend({ points, days = 7, now }: Props) {
                 style={{ background: ['#CE9C68', '#B4794A', '#993C1D', '#5E2412'][i] }}
               />
               <span className="text-[#F7EFE6]">{s.label}</span>
-              <span className="text-[#4a3a2a] text-[10px]">{s.note}</span>
-              <span className="ml-auto text-[#6b5a4a] tabular-nums">
+              <span className="text-[#A8916F] text-[10px]">{s.note}</span>
+              <span className="ml-auto text-[#F7EFE6] tabular-nums">
                 {Math.round(s.ratio * 100)}%
               </span>
-              <span className="text-[#4a3a2a] tabular-nums w-14 text-right">{s.mg}mg</span>
+              <span className="text-[#A8916F] tabular-nums w-14 text-right">{s.mg}mg</span>
             </div>
           ))}
         </div>

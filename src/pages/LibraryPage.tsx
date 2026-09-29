@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo, useCallback } from 'react'
+import EmptyState from '../components/EmptyState'
 import { useNavigate, useLocation } from 'react-router-dom'
 import type { Brew, Bean, CafeVisit } from '../db'
 import {
@@ -327,6 +328,13 @@ function BrewTab({ displayMode }: { displayMode: DisplayMode }) {
 
   const groups = useMemo(() => groupByMonth(filtered, b => b.brewedAt), [filtered])
 
+  // 絞り込み0件からの復帰。検索・評価・豆のすべてを初期状態に戻す
+  const clearFilters = () => {
+    setSearch('')
+    setRatingFilter('all')
+    setBeanFilter('all')
+  }
+
   return (
     <>
       {dbError && (
@@ -378,15 +386,17 @@ function BrewTab({ displayMode }: { displayMode: DisplayMode }) {
         {loading ? (
           <LoadingSkeleton />
         ) : brews.length === 0 ? (
-          <div className="flex flex-col items-center justify-center h-48 gap-3">
-            <p className="text-[#CE9C68] text-sm">まだ記録がありません</p>
-            <button type="button" onClick={() => navigate('/brew')}
-              className="text-[#993C1D] font-semibold text-sm">
-              最初の一杯を記録する →
-            </button>
-          </div>
+          <EmptyState
+            title="まだ棚が空です"
+            description="淹れた一杯を記録すると、ここに1枚ずつ並びます"
+            action={{ label: '最初の一杯を記録する', onClick: () => navigate('/brew') }}
+          />
         ) : filtered.length === 0 ? (
-          <div className="text-center py-12 text-[#6b5a4a] text-sm">条件に一致する記録がありません</div>
+          // 行き止まりにしない: 1タップで絞り込みを解除して一覧に戻れるようにする
+          <EmptyState
+            title="この条件に合う記録はありません"
+            action={{ label: '絞り込みを解除', onClick: clearFilters }}
+          />
         ) : (
           <div className="flex flex-col gap-3">
             {groups.map(group => (
@@ -485,6 +495,12 @@ function CafeTab({ displayMode }: { displayMode: DisplayMode }) {
 
   const groups = useMemo(() => groupByMonth(filtered, v => v.visitedAt), [filtered])
 
+  // 絞り込み0件からの復帰（カフェタブは検索と評価の2つ）
+  const clearFilters = () => {
+    setSearch('')
+    setRatingFilter('all')
+  }
+
   return (
     <>
       <SearchBox value={search} onChange={setSearch} placeholder="カフェ名・ドリンク・メモで検索" />
@@ -504,15 +520,16 @@ function CafeTab({ displayMode }: { displayMode: DisplayMode }) {
         {loading ? (
           <LoadingSkeleton />
         ) : visits.length === 0 ? (
-          <div className="flex flex-col items-center justify-center h-48 gap-3">
-            <p className="text-[#CE9C68] text-sm">まだカフェの記録がありません</p>
-            <button type="button" onClick={() => navigate('/cafe')}
-              className="text-[#993C1D] font-semibold text-sm">
-              カフェ訪問を記録する →
-            </button>
-          </div>
+          <EmptyState
+            title="カフェの記録はまだありません"
+            description="お店で飲んだ一杯も、同じ棚に残せます"
+            action={{ label: 'カフェの一杯を記録する', onClick: () => navigate('/cafe') }}
+          />
         ) : filtered.length === 0 ? (
-          <div className="text-center py-12 text-[#6b5a4a] text-sm">条件に一致する記録がありません</div>
+          <EmptyState
+            title="この条件に合う記録はありません"
+            action={{ label: '絞り込みを解除', onClick: clearFilters }}
+          />
         ) : (
           <div className="flex flex-col gap-3">
             {groups.map(group => (

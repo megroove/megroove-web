@@ -6,6 +6,7 @@ import CuppingSliders from '../components/brew/CuppingSliders'
 import FlavorChips from '../components/brew/FlavorChips'
 import SaveAnimation from '../components/brew/SaveAnimation'
 import QuickBrewSheet from '../components/brew/QuickBrewSheet'
+import EmptyState from '../components/EmptyState'
 import type { QuickPreset, QuickSaveInput } from '../components/brew/QuickBrewSheet'
 import { useToast } from '../components/Toast'
 import { getAllBrews, getAllBeans, getAllCafeVisits, getAllEquipment, getAllCaffeineIntakes, getAllRecipes, putBrew, putCafeVisit, deleteBrew, getBrewCount, getSleepLog, putSleepLog } from '../db'
@@ -1097,12 +1098,9 @@ export default function HomePage() {
       {hasRecords && (
       <div className="flex flex-col gap-2">
         <p className="text-xs text-[#CE9C68] uppercase tracking-wider">最近の記録</p>
-        {recent.length === 0 ? (
-          <div className="bg-[#2E2018] rounded-xl p-4 text-center text-[#6b5a4a] text-sm">
-            まだ記録がありません
-          </div>
-        ) : (
-          <div className="flex flex-col gap-2">
+        {/* このセクションは hasRecords が true のときだけ描かれるので、空の分岐は持たない
+            （記録ゼロのときは画面上部の導入CTAが受け持つ） */}
+        <div className="flex flex-col gap-2">
             {recent.map(item =>
               item.kind === 'brew' ? (
                 <button
@@ -1145,8 +1143,7 @@ export default function HomePage() {
                 </button>
               ),
             )}
-          </div>
-        )}
+        </div>
       </div>
       )}
 
@@ -1339,9 +1336,11 @@ export default function HomePage() {
             </div>
             <div className="overflow-y-auto p-4 flex flex-col gap-2">
               {beans.length === 0 ? (
-                <p className="text-[#4a3a2a] text-sm text-center py-6">
-                  豆が登録されていません。ストックから追加してください。
-                </p>
+                <EmptyState
+                  title="登録した豆がありません"
+                  description="ストックに豆を登録すると、ここから推しの一袋を選べます"
+                  action={{ label: 'ストックを開く', onClick: () => navigate('/stock') }}
+                />
               ) : (
                 beans.map(bean => (
                   <button
@@ -1409,9 +1408,11 @@ export default function HomePage() {
             <div className="overflow-y-auto p-4 flex flex-col gap-3">
               {itemPickerTab === 'equipment' ? (
                 equipment.length === 0 ? (
-                  <p className="text-[#4a3a2a] text-sm text-center py-6">
-                    器具が登録されていません。ストックから追加してください。
-                  </p>
+                  <EmptyState
+                    title="登録した器具がありません"
+                    description="ストックに器具を登録すると、ここからお気に入りを選べます"
+                    action={{ label: 'ストックを開く', onClick: () => navigate('/stock') }}
+                  />
                 ) : (
                   <>
                     {equipment.map(eq => (

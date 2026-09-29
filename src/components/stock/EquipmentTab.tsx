@@ -4,6 +4,7 @@ import { getAllEquipment, putEquipment, deleteEquipment, newId, nowISO, EQUIPMEN
 import { Field, TextInput, ChipSelect, DeleteButton, ModalSheet, SaveButton } from './FormHelpers'
 import { useToast } from '../Toast'
 import PhotoField from '../PhotoField'
+import EmptyState from '../EmptyState'
 
 const EQUIPMENT_TYPES: EquipmentType[] = ['dripper', 'server', 'grinder', 'kettle', 'scale', 'other']
 
@@ -128,7 +129,10 @@ export default function EquipmentTab() {
   return (
     <div className="flex-1 overflow-y-auto px-4 py-4">
       {equipment.length === 0 ? (
-        <p className="text-[#6b5a4a] text-sm text-center py-8">まだ器具が登録されていません</p>
+        <EmptyState
+          title="器具を登録すると、記録画面でチップから選べます"
+          description="ドリッパー・ミル・ケトルなど、よく使うものだけで十分です"
+        />
       ) : (
         <div className="flex flex-col gap-3 mb-4">
           {equipment.map(item => (

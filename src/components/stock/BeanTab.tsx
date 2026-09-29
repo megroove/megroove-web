@@ -10,6 +10,7 @@ import { useToast } from '../Toast'
 import OriginInput from '../OriginInput'
 import PhotoField from '../PhotoField'
 import { ClockIcon } from '../icons'
+import EmptyState from '../EmptyState'
 
 const ROAST_LEVELS: RoastLevel[] = ['light', 'light-medium', 'medium', 'medium-dark', 'dark']
 
@@ -282,7 +283,10 @@ export default function BeanTab() {
   return (
     <div className="flex-1 overflow-y-auto px-4 py-4">
       {beans.length === 0 ? (
-        <p className="text-[#6b5a4a] text-sm text-center py-8">まだ豆が登録されていません</p>
+        <EmptyState
+          title="豆を登録すると、記録が一段早くなります"
+          description="焙煎日からの経過日数と、残りのグラム数が自動で追えます"
+        />
       ) : (
         <div className="flex flex-col gap-3 mb-4">
           {activeBeans.map(bean => (

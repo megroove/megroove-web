@@ -6,6 +6,7 @@ import {
 } from '../../db'
 import { Field, TextInput, NumberInput, DeleteButton, ModalSheet, SaveButton } from './FormHelpers'
 import { useToast } from '../Toast'
+import EmptyState from '../EmptyState'
 
 function RecipeForm({
   initial, equipment, onSave, onDelete, onCancel,
@@ -166,7 +167,10 @@ export default function RecipeTab() {
   return (
     <div className="flex-1 overflow-y-auto px-4 py-4">
       {recipes.length === 0 ? (
-        <p className="text-[#6b5a4a] text-sm text-center py-8">まだレシピが登録されていません</p>
+        <EmptyState
+          title="いつもの淹れ方をレシピにできます"
+          description="粉量・湯量・挽き目・湯温をまとめておくと、次から1タップで呼び出せます"
+        />
       ) : (
         <div className="flex flex-col gap-3 mb-4">
           {recipes.map(r => (
