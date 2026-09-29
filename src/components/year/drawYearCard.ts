@@ -77,34 +77,35 @@ export function drawYearCard(canvas: HTMLCanvasElement, stats: YearStats): void 
   canvas.width = CARD_SIZE
   canvas.height = CARD_SIZE
   const P = 72
+  const RIGHT = CARD_SIZE - P
 
   // 背景
   ctx.fillStyle = BG
   ctx.fillRect(0, 0, CARD_SIZE, CARD_SIZE)
-  const glow = ctx.createRadialGradient(CARD_SIZE * 0.72, CARD_SIZE * 0.26, 40, CARD_SIZE * 0.72, CARD_SIZE * 0.26, CARD_SIZE * 0.6)
+  const glow = ctx.createRadialGradient(CARD_SIZE * 0.74, CARD_SIZE * 0.22, 40, CARD_SIZE * 0.74, CARD_SIZE * 0.22, CARD_SIZE * 0.6)
   glow.addColorStop(0, 'rgba(138,90,52,0.26)')
   glow.addColorStop(1, 'rgba(138,90,52,0)')
   ctx.fillStyle = glow
   ctx.fillRect(0, 0, CARD_SIZE, CARD_SIZE)
 
-  // 見出し
-  ctx.textAlign = 'left'
   ctx.textBaseline = 'alphabetic'
+
+  // ── 見出し ──────────────────────────────────────────────────────────────
+  ctx.textAlign = 'left'
   ctx.fillStyle = TAN
-  ctx.font = `600 30px ${FONT}`
+  ctx.font = `600 28px ${FONT}`
   ctx.letterSpacing = '6px'
-  ctx.fillText('YEAR IN COFFEE', P, P + 36)
+  ctx.fillText('YEAR IN COFFEE', P, 104)
   ctx.letterSpacing = '0px'
 
   ctx.fillStyle = CREAM
-  ctx.font = `700 132px ${FONT}`
-  ctx.fillText(String(stats.year), P - 6, P + 170)
+  ctx.font = `700 126px ${FONT}`
+  ctx.fillText(String(stats.year), P - 6, 228)
 
-  // 盤（右上から少しはみ出させて「盤が入っている」感じを出す）
-  drawDisc(ctx, CARD_SIZE - P - 40, P + 210, 190, stats.year)
+  // 盤。右にわずかにはみ出させて「盤が入っている」感じを出す
+  drawDisc(ctx, 960, 238, 166, stats.year)
 
-  // 数値4つ
-  const statsY = 470
+  // ── 数値4つ ─────────────────────────────────────────────────────────────
   const cells: [string, string][] = [
     [String(stats.cups), '杯'],
     [formatDose(stats.doseSumG), '豆'],
@@ -114,91 +115,108 @@ export function drawYearCard(canvas: HTMLCanvasElement, stats: YearStats): void 
   const cellW = (CARD_SIZE - P * 2) / cells.length
   cells.forEach(([value, label], i) => {
     const x = P + cellW * i
-    ctx.textAlign = 'left'
     ctx.fillStyle = CREAM
-    ctx.font = `700 62px ${FONT}`
-    ctx.fillText(value, x, statsY)
+    ctx.font = `700 60px ${FONT}`
+    ctx.fillText(value, x, 428)
     ctx.fillStyle = TAN
-    ctx.font = `400 26px ${FONT}`
-    ctx.fillText(label, x, statsY + 38)
+    ctx.font = `400 24px ${FONT}`
+    ctx.fillText(label, x, 464)
   })
 
   // 自宅／お店の内訳
   ctx.fillStyle = TAN
-  ctx.font = `400 26px ${FONT}`
+  ctx.font = `400 24px ${FONT}`
   ctx.fillText(
     `自宅 ${stats.homeCups}・お店 ${stats.cafeCups}` + (stats.spend > 0 ? `（¥${stats.spend.toLocaleString()}）` : ''),
-    P, statsY + 84,
+    P, 502,
   )
 
-  // 区切り線
+  // 月別の杯数。数値のかたまりの一部なので、ここに置いて下は空ける
+  const barTop = 524
+  const barH = 40
+  const barMax = Math.max(1, ...stats.monthlyCups)
+  const barW = (CARD_SIZE - P * 2) / 12
+  stats.monthlyCups.forEach((n, i) => {
+    const h = (n / barMax) * barH
+    ctx.fillStyle = n > 0 ? CORAL : LINE
+    ctx.fillRect(P + barW * i, barTop + (barH - h), barW - 10, Math.max(n > 0 ? 3 : 2, h))
+  })
+
   ctx.strokeStyle = LINE
   ctx.lineWidth = 2
   ctx.beginPath()
-  ctx.moveTo(P, statsY + 118)
-  ctx.lineTo(CARD_SIZE - P, statsY + 118)
+  ctx.moveTo(P, 596)
+  ctx.lineTo(RIGHT, 596)
   ctx.stroke()
 
-  // トラックリスト（よく飲んだ豆 Top5 を LP の裏ジャケに見立てる）
-  let y = statsY + 178
+  // ── トラックリスト（よく飲んだ豆 Top5 を LP の裏ジャケに見立てる） ──────
   ctx.fillStyle = TAN
-  ctx.font = `600 26px ${FONT}`
+  ctx.font = `600 24px ${FONT}`
   ctx.letterSpacing = '4px'
-  ctx.fillText('SIDE A — MOST PLAYED', P, y - 40)
+  ctx.fillText('SIDE A — MOST PLAYED', P, 638)
   ctx.letterSpacing = '0px'
 
   if (stats.tracks.length === 0) {
     ctx.fillStyle = TAN
-    ctx.font = `400 30px ${FONT}`
-    ctx.fillText('豆を登録すると、ここに並びます', P, y)
+    ctx.font = `400 28px ${FONT}`
+    ctx.fillText('豆を登録すると、ここに並びます', P, 690)
   } else {
     stats.tracks.forEach((t, i) => {
+      const y = 686 + i * 50
+
+      ctx.textAlign = 'left'
       ctx.fillStyle = TAN
-      ctx.font = `600 30px ${FONT}`
+      ctx.font = `600 28px ${FONT}`
       ctx.fillText(`A${i + 1}`, P, y)
 
-      ctx.fillStyle = CREAM
-      ctx.font = `500 34px ${FONT}`
       const countText = `${t.count}杯`
       ctx.textAlign = 'right'
-      ctx.fillStyle = TAN
-      ctx.font = `400 28px ${FONT}`
-      ctx.fillText(countText, CARD_SIZE - P, y)
+      ctx.font = `400 26px ${FONT}`
+      const countW = ctx.measureText(countText).width
+      ctx.fillText(countText, RIGHT, y)
 
       ctx.textAlign = 'left'
       ctx.fillStyle = CREAM
-      ctx.font = `500 34px ${FONT}`
-      const maxW = CARD_SIZE - P * 2 - 80 - ctx.measureText(countText).width - 40
-      ctx.fillText(fitText(ctx, t.name, maxW), P + 76, y)
-
-      y += 58
+      ctx.font = `500 30px ${FONT}`
+      ctx.fillText(fitText(ctx, t.name, CARD_SIZE - P * 2 - 72 - countW - 30), P + 72, y)
     })
   }
 
-  // ベストの一杯
+  // ── ベストの一杯（1年の主役なので、下に独立した枠として置く） ───────────
   if (stats.best) {
+    ctx.textAlign = 'left'
+    ctx.strokeStyle = LINE
+    ctx.lineWidth = 2
+    ctx.beginPath()
+    ctx.moveTo(P, 924)
+    ctx.lineTo(RIGHT, 924)
+    ctx.stroke()
+
     ctx.fillStyle = TAN
-    ctx.font = `400 26px ${FONT}`
-    ctx.fillText(
-      `ベストの一杯: ${fitText(ctx, stats.best.name, 520)}  ${'★'.repeat(stats.best.rating)}  ${stats.best.month}月`,
-      P, CARD_SIZE - P - 92,
-    )
+    ctx.font = `600 22px ${FONT}`
+    ctx.letterSpacing = '3px'
+    ctx.fillText('BEST OF THE YEAR', P, 962)
+    ctx.letterSpacing = '0px'
+
+    // 星と月は右に逃がし、名前に幅を譲る
+    const meta = `${'★'.repeat(stats.best.rating)}  ${stats.best.month}月`
+    ctx.textAlign = 'right'
+    ctx.fillStyle = CORAL
+    ctx.font = `500 26px ${FONT}`
+    const metaW = ctx.measureText(meta).width
+    ctx.fillText(meta, RIGHT, 1004)
+
+    ctx.textAlign = 'left'
+    ctx.fillStyle = CREAM
+    ctx.font = `600 32px ${FONT}`
+    ctx.fillText(fitText(ctx, stats.best.name, CARD_SIZE - P * 2 - metaW - 30), P, 1004)
   }
 
-  // 月別の杯数（小さなバー12本）
-  const barTop = CARD_SIZE - P - 68
-  const barMax = Math.max(1, ...stats.monthlyCups)
-  const barW = (CARD_SIZE - P * 2) / 12
-  stats.monthlyCups.forEach((n, i) => {
-    const h = (n / barMax) * 44
-    ctx.fillStyle = n > 0 ? CORAL : LINE
-    ctx.fillRect(P + barW * i, barTop + (44 - h), barW - 10, Math.max(n > 0 ? 3 : 2, h))
-  })
-
-  // フッター
+  // ── フッター ────────────────────────────────────────────────────────────
+  ctx.textAlign = 'left'
   ctx.fillStyle = TAN
-  ctx.font = `400 24px ${FONT}`
+  ctx.font = `400 22px ${FONT}`
   ctx.letterSpacing = '3px'
-  ctx.fillText('MEGROOVE', P, CARD_SIZE - 28)
+  ctx.fillText('MEGROOVE', P, 1048)
   ctx.letterSpacing = '0px'
 }
