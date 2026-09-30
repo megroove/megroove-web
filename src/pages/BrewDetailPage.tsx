@@ -16,11 +16,18 @@ import SaveAnimation from '../components/brew/SaveAnimation'
 import RecordDisk from '../components/brew/RecordDisk'
 import { useToast, notifyDataRestored } from '../components/Toast'
 import { CupIcon, MusicIcon } from '../components/icons'
+import DetailJacket from '../components/library/DetailJacket'
+import { jacketColor } from '../components/library/jacketColor'
 
-function Section({ title, children }: { title: string; children: React.ReactNode }) {
+// 見出しは日本語を主に、英字は小さく添えるだけ（ライナーノーツらしさは出すが、
+// 何の欄かは日本語が受け持つ。A面/B面 と同じ作法）
+function Section({ title, en, children }: { title: string; en?: string; children: React.ReactNode }) {
   return (
     <div className="bg-[#2E2018] rounded-xl p-4">
-      <p className="text-xs text-[#CE9C68] mb-3 uppercase tracking-wider">{title}</p>
+      <p className="text-xs text-[#CE9C68] mb-3 flex items-baseline gap-2">
+        <span className="font-semibold tracking-wider">{title}</span>
+        {en && <span className="text-[10px] text-[#A8916F] tracking-[0.2em]">{en}</span>}
+      </p>
       {children}
     </div>
   )
@@ -28,9 +35,9 @@ function Section({ title, children }: { title: string; children: React.ReactNode
 
 function Row({ label, value }: { label: string; value: React.ReactNode }) {
   return (
-    <div className="flex justify-between items-baseline py-1.5 border-b border-[#3e3020] last:border-0">
-      <span className="text-xs text-[#6b5a4a]">{label}</span>
-      <span className="text-sm text-[#F7EFE6] font-medium tabular-nums">{value}</span>
+    <div className="flex justify-between items-baseline gap-3 py-1.5 border-b border-[#3e3020] last:border-0">
+      <span className="text-xs text-[#A8916F] shrink-0">{label}</span>
+      <span className="text-sm text-[#F7EFE6] font-medium tabular-nums text-right">{value}</span>
     </div>
   )
 }
@@ -172,15 +179,25 @@ export default function BrewDetailPage() {
       </div>
 
       <div className="flex-1 overflow-y-auto px-4 py-5 flex flex-col gap-4">
-        {/* 日時 */}
-        <div>
-          <p className="text-[#F7EFE6] text-lg font-semibold">{formatBrewDate(brew.brewedAt)}</p>
-          {brew.rating && (
-            <p className="text-[#CE9C68] text-xl mt-1">
-              {'★'.repeat(brew.rating)}{'☆'.repeat(5 - brew.rating)}
-            </p>
-          )}
-        </div>
+        {/* ジャケット。1杯の記録を「1枚のレコード」として提示する */}
+        <DetailJacket
+          photoUrl={brew.photoDataUrl}
+          color={jacketColor(bean?.origin || bean?.name, bean?.roastLevel)}
+          title={bean?.name ?? (brew.method === 'drip_bag' ? '銘柄なし' : 'ホームブリュー')}
+          subtitle={bean && brew.method !== 'drip_bag'
+            ? [
+                bean.origin,
+                ROAST_LEVEL_LABELS[bean.roastLevel],
+                bean.roastedAt ? `焙煎から${daysSinceRoast(bean.roastedAt)}日` : null,
+              ].filter(Boolean).join(' · ')
+            : undefined}
+          dateLabel={formatBrewDate(brew.brewedAt)}
+          rating={brew.rating}
+          onOpenPhoto={brew.photoDataUrl ? () => setLightboxOpen(true) : undefined}
+        />
+        {lightboxOpen && brew.photoDataUrl && (
+          <PhotoLightbox src={brew.photoDataUrl} onClose={() => setLightboxOpen(false)} />
+        )}
 
         {/* 未評価＝まだ針を落としていない盤。ここで星をつけると「再生」される（急かさず、楽しみとして） */}
         {!brew.rating && (
@@ -189,7 +206,7 @@ export default function BrewDetailPage() {
               <RecordDisk size={26} />
               <span>まだ針を落としていない一杯</span>
             </div>
-            <p className="text-xs text-[#6b5a4a] text-center leading-relaxed">
+            <p className="text-xs text-[#A8916F] text-center leading-relaxed">
               飲んでみて、どうでしたか？<br />星をつけると、この盤に針が落ちます
             </p>
             <StarRating value={rateValue} onChange={setRateValue} />
@@ -198,19 +215,19 @@ export default function BrewDetailPage() {
             <button
               type="button"
               onClick={() => setShowRateDetail(v => !v)}
-              className="flex items-center justify-between w-full text-[#CE9C68] py-1 mt-1"
+              className="text-xs text-[#A8916F] min-h-11 px-2 active:opacity-70"
             >
-              <span className="text-sm">詳しく評価する</span>
-              <span className="text-xs">{showRateDetail ? '▲ 閉じる' : '▽ 開く'}</span>
+              {showRateDetail ? '▲ 閉じる' : '▽ 詳しく評価する'}
             </button>
+
             {showRateDetail && (
-              <div className="w-full flex flex-col gap-5">
+              <div className="w-full flex flex-col gap-4 pt-1">
                 <div>
-                  <p className="text-xs text-[#CE9C68] mb-3">フレーバー</p>
+                  <p className="text-xs text-[#CE9C68] mb-2">フレーバー</p>
                   <FlavorChips selected={rateFlavors} onChange={setRateFlavors} frequent={frequentFlavors} />
                 </div>
                 <div>
-                  <p className="text-xs text-[#CE9C68] mb-4">カッピング</p>
+                  <p className="text-xs text-[#CE9C68] mb-2">カッピング</p>
                   <CuppingSliders value={rateCupping} onChange={setRateCupping} />
                 </div>
               </div>
@@ -220,54 +237,33 @@ export default function BrewDetailPage() {
               type="button"
               onClick={handleAddRating}
               disabled={!rateValue || savingRate}
-              className="w-full bg-[#993C1D] text-[#F7EFE6] py-3 rounded-2xl text-sm font-semibold active:opacity-80 disabled:opacity-40"
+              className="w-full bg-[#993C1D] text-[#F7EFE6] py-3 rounded-xl text-sm font-semibold active:opacity-80 disabled:opacity-40"
             >
-              {savingRate ? '保存中...' : '評価する'}
+              {savingRate ? '保存中...' : '針を落とす'}
             </button>
           </div>
         )}
 
-        {/* 写真 */}
-        {brew.photoDataUrl && (
-          <>
-            <button
-              type="button"
-              onClick={() => setLightboxOpen(true)}
-              className="rounded-xl overflow-hidden w-full active:opacity-80"
-            >
-              <img
-                src={brew.photoDataUrl}
-                alt="記録の写真"
-                className="w-full object-cover max-h-72"
-              />
-            </button>
-            {lightboxOpen && (
-              <PhotoLightbox src={brew.photoDataUrl} onClose={() => setLightboxOpen(false)} />
-            )}
-          </>
-        )}
-
-        {/* 豆（ドリップバッグは「銘柄」として名前のみ表示） */}
-        {bean && (
-          brew.method === 'drip_bag' ? (
-            <Section title="銘柄">
-              <p className="text-[#F7EFE6] font-semibold">{bean.name}</p>
-            </Section>
-          ) : (
-            <Section title="豆">
-              <p className="text-[#F7EFE6] font-semibold mb-1">{bean.name}</p>
-              <p className="text-sm text-[#CE9C68]">
-                {ROAST_LEVEL_LABELS[bean.roastLevel]}
-                {bean.roastedAt ? ` · 焙煎から${daysSinceRoast(bean.roastedAt)}日` : ''}
-                {bean.origin ? ` · ${bean.origin}` : ''}
-              </p>
-            </Section>
-          )
-        )}
-
-        {/* 抽出条件 */}
-        <Section title="抽出条件">
+        {/* ── クレジット: 何を使って淹れたか ─────────────────────────────── */}
+        <Section title="素材と道具" en="CREDITS">
+          {bean && brew.method !== 'drip_bag' && (
+            <>
+              {bean.origin && <Row label="産地" value={bean.origin} />}
+              {bean.farm && <Row label="農園" value={bean.farm} />}
+              {bean.variety && <Row label="品種" value={bean.variety} />}
+              {bean.process && <Row label="精製" value={bean.process} />}
+            </>
+          )}
+          {recipe && <Row label="レシピ" value={recipe.name} />}
+          {equipmentNames.length > 0 && <Row label="器具" value={equipmentNames.join('・')} />}
           {brew.method === 'drip_bag' && <Row label="抽出方法" value={BREW_METHOD_LABELS.drip_bag} />}
+          {!bean && !recipe && equipmentNames.length === 0 && brew.method !== 'drip_bag' && (
+            <p className="text-sm text-[#A8916F]">記録されていません</p>
+          )}
+        </Section>
+
+        {/* ── 録音データ: どう淹れたか ──────────────────────────────────── */}
+        <Section title="抽出データ" en="RECORDING">
           {brew.doseG !== undefined && brew.waterG !== undefined ? (
             <Row
               label="粉量 / 湯量 / 比率"
@@ -278,8 +274,6 @@ export default function BrewDetailPage() {
           )}
           {brew.grindSize !== undefined && <Row label="挽き目" value={brew.grindSize} />}
           {brew.tempC !== undefined && <Row label="湯温" value={`${brew.tempC}°C`} />}
-          {recipe && <Row label="レシピ" value={recipe.name} />}
-          {equipmentNames.length > 0 && <Row label="器具" value={equipmentNames.join('・')} />}
           {brew.totalTimeSec !== undefined && (
             <Row
               label="総抽出時間"
@@ -289,78 +283,74 @@ export default function BrewDetailPage() {
           {brew.pourCount !== undefined && <Row label="注湯回数" value={`${brew.pourCount}回`} />}
         </Section>
 
-        {/* フレーバー */}
-        {brew.flavors.length > 0 && (
-          <Section title="フレーバー">
-            <div className="flex flex-wrap gap-2">
-              {brew.flavors.map(f => (
-                <span key={f} className="bg-[#3e3020] text-[#CE9C68] text-sm px-3 py-1 rounded-full">
-                  {f}
-                </span>
-              ))}
-            </div>
-          </Section>
-        )}
-
-        {/* シーン・飲み方 */}
-        {(brew.scene || (brew.drinkStyle?.length ?? 0) > 0) && (
-          <Section title="シーン・飲み方">
-            <div className="flex flex-wrap gap-2">
-              {brew.scene && (
-                <span className="bg-[#993C1D]/25 text-[#CE9C68] text-sm px-3 py-1 rounded-full">
-                  {brew.scene}
-                </span>
-              )}
-              {brew.drinkStyle?.map(s => (
-                <span key={s} className="bg-[#3e3020] text-[#CE9C68] text-sm px-3 py-1 rounded-full">
-                  {s}
-                </span>
-              ))}
-            </div>
-          </Section>
-        )}
-
-        {/* カッピング */}
-        {hasCupping && (
-          <Section title="カッピング">
-            {(Object.entries(CUPPING_LABELS) as [keyof typeof CUPPING_LABELS, string][]).map(
-              ([key, label]) =>
-                brew.cupping[key] !== undefined ? (
-                  <Row key={key} label={label} value={brew.cupping[key]!.toFixed(1)} />
-                ) : null
+        {/* ── レビュー: どう感じたか ────────────────────────────────────── */}
+        {(brew.flavors.length > 0 || hasCupping || brew.scene || (brew.drinkStyle?.length ?? 0) > 0) && (
+          <Section title="味わいの記録" en="REVIEW">
+            {brew.flavors.length > 0 && (
+              <div className="flex flex-wrap gap-2">
+                {brew.flavors.map(f => (
+                  <span key={f} className="bg-[#3e3020] text-[#CE9C68] text-sm px-3 py-1 rounded-full">
+                    {f}
+                  </span>
+                ))}
+              </div>
             )}
-            {brew.cuppingAverage !== undefined && (
-              <div className="mt-2 pt-2 border-t border-[#3e3020] flex justify-between">
-                <span className="text-xs text-[#CE9C68]">平均</span>
-                <span className="text-sm text-[#993C1D] font-semibold">
-                  {brew.cuppingAverage.toFixed(2)}
-                </span>
+
+            {(brew.scene || (brew.drinkStyle?.length ?? 0) > 0) && (
+              <div className={`flex flex-wrap gap-2 ${brew.flavors.length > 0 ? 'mt-2' : ''}`}>
+                {brew.scene && (
+                  <span className="bg-[#993C1D]/25 text-[#CE9C68] text-sm px-3 py-1 rounded-full">
+                    {brew.scene}
+                  </span>
+                )}
+                {brew.drinkStyle?.map(st => (
+                  <span key={st} className="bg-[#3e3020] text-[#CE9C68] text-sm px-3 py-1 rounded-full">
+                    {st}
+                  </span>
+                ))}
+              </div>
+            )}
+
+            {hasCupping && (
+              <div className={brew.flavors.length > 0 || brew.scene ? 'mt-3 pt-1' : ''}>
+                {(Object.entries(CUPPING_LABELS) as [keyof typeof CUPPING_LABELS, string][]).map(
+                  ([key, label]) =>
+                    brew.cupping[key] !== undefined ? (
+                      <Row key={key} label={label} value={brew.cupping[key]!.toFixed(1)} />
+                    ) : null
+                )}
+                {brew.cuppingAverage !== undefined && (
+                  <div className="mt-2 pt-2 border-t border-[#3e3020] flex justify-between">
+                    <span className="text-xs text-[#CE9C68]">平均</span>
+                    <span className="text-sm text-[#993C1D] font-semibold">
+                      {brew.cuppingAverage.toFixed(2)}
+                    </span>
+                  </div>
+                )}
               </div>
             )}
           </Section>
         )}
 
-        {/* 聴いていた曲（どちらか一方だけでも表示する） */}
-        {(brew.musicTitle || brew.musicArtist) && (
-          <Section title="聴いていた曲">
-            <div className="flex items-start gap-2">
-              <span className="text-[#CE9C68] mt-0.5 shrink-0"><MusicIcon size={15} /></span>
-              <div className="min-w-0">
-                {brew.musicTitle && (
-                  <p className="text-sm text-[#F7EFE6] break-words">{brew.musicTitle}</p>
-                )}
-                {brew.musicArtist && (
-                  <p className="text-xs text-[#CE9C68] mt-0.5 break-words">{brew.musicArtist}</p>
-                )}
+        {/* ── ライナーノーツ: その日の言葉と音楽 ────────────────────────── */}
+        {(brew.note || brew.musicTitle || brew.musicArtist) && (
+          <Section title="その日のこと" en="LINER NOTES">
+            {brew.note && (
+              <p className="text-sm text-[#F7EFE6] whitespace-pre-wrap leading-relaxed">{brew.note}</p>
+            )}
+            {(brew.musicTitle || brew.musicArtist) && (
+              <div className={`flex items-start gap-2 ${brew.note ? 'mt-3 pt-3 border-t border-[#3e3020]' : ''}`}>
+                <span className="text-[#CE9C68] mt-0.5 shrink-0"><MusicIcon size={15} /></span>
+                <div className="min-w-0">
+                  {brew.musicTitle && (
+                    <p className="text-sm text-[#F7EFE6] break-words">{brew.musicTitle}</p>
+                  )}
+                  {brew.musicArtist && (
+                    <p className="text-xs text-[#CE9C68] mt-0.5 break-words">{brew.musicArtist}</p>
+                  )}
+                </div>
               </div>
-            </div>
-          </Section>
-        )}
-
-        {/* メモ */}
-        {brew.note && (
-          <Section title="メモ">
-            <p className="text-sm text-[#F7EFE6] whitespace-pre-wrap leading-relaxed">{brew.note}</p>
+            )}
           </Section>
         )}
 
