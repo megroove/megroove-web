@@ -10,7 +10,10 @@ import {
 import { DATA_RESTORED_EVENT } from '../components/Toast'
 import { CupIcon, CafeIcon, ListIcon, GridIcon, SearchIcon } from '../components/icons'
 import Jacket from '../components/library/Jacket'
+import MonthAlbum from '../components/library/MonthAlbum'
 import { jacketColor } from '../components/library/jacketColor'
+import { calcMonthAlbums } from '../components/library/monthAlbumStats'
+import type { MonthAlbumSource } from '../components/library/monthAlbumStats'
 
 // ─── 表示モード ────────────────────────────────────────────────────────────────
 
@@ -64,15 +67,6 @@ function SearchBox({ value, onChange, placeholder }: {
           </button>
         )}
       </div>
-    </div>
-  )
-}
-
-function MonthHeader({ label, count }: { label: string; count: number }) {
-  return (
-    <div className="flex items-baseline justify-between pt-1">
-      <p className="text-xs text-[#CE9C68] font-semibold tracking-wider">{label}</p>
-      <p className="text-[10px] text-[#6b5a4a]">{count}件</p>
     </div>
   )
 }
@@ -237,6 +231,22 @@ function BrewTab({ displayMode }: { displayMode: DisplayMode }) {
   const groups = useMemo(() => groupByMonth(visible, b => b.brewedAt), [visible])
   const remaining = filtered.length - visible.length
 
+  // 月の要約は**表示中のぶんではなく絞り込み後の全件**から作る
+  // （段階読み込みで60件を超えると、枚数が「いま表示している数」になってしまうため）
+  const albums = useMemo(() => calcMonthAlbums(
+    filtered.map((b): MonthAlbumSource => {
+      const bean = b.beanId ? beanMap.get(b.beanId) : undefined
+      return {
+        id: b.id,
+        at: b.brewedAt,
+        rating: b.rating,
+        photoDataUrl: b.photoDataUrl,
+        seed: bean?.origin || bean?.name,
+        roastLevel: bean?.roastLevel,
+      }
+    }),
+  ), [filtered, beanMap])
+
   // 絞り込み0件からの復帰。検索・評価・豆のすべてを初期状態に戻す
   const clearFilters = () => {
     setSearch('')
@@ -258,7 +268,7 @@ function BrewTab({ displayMode }: { displayMode: DisplayMode }) {
       <div className="px-4 pb-2 flex gap-2 overflow-x-auto no-scrollbar">
         {BREW_RATING_FILTERS.map(key => (
           <button key={key} type="button" onClick={() => setRatingFilter(key)}
-            className={`flex-shrink-0 px-3 py-1.5 rounded-full text-sm transition-colors ${
+            className={`flex-shrink-0 min-h-11 px-4 rounded-full text-sm transition-colors ${
               ratingFilter === key ? 'bg-[#993C1D] text-[#F7EFE6]' : 'bg-[#2E2018] text-[#CE9C68]'
             }`}
           >
@@ -271,8 +281,8 @@ function BrewTab({ displayMode }: { displayMode: DisplayMode }) {
       {usedBeans.length >= 2 && (
         <div className="px-4 pb-3 flex gap-2 overflow-x-auto no-scrollbar">
           <button type="button" onClick={() => setBeanFilter('all')}
-            className={`flex-shrink-0 px-3 py-1 rounded-full text-xs transition-colors ${
-              beanFilter === 'all' ? 'bg-[#3e3020] text-[#F7EFE6]' : 'bg-transparent text-[#6b5a4a]'
+            className={`flex-shrink-0 min-h-11 px-3 rounded-full text-xs transition-colors ${
+              beanFilter === 'all' ? 'bg-[#3e3020] text-[#F7EFE6]' : 'bg-transparent text-[#A8916F]'
             }`}
           >
             すべての豆
@@ -280,8 +290,8 @@ function BrewTab({ displayMode }: { displayMode: DisplayMode }) {
           {usedBeans.map(bean => (
             <button key={bean.id} type="button"
               onClick={() => setBeanFilter(bean.id === beanFilter ? 'all' : bean.id)}
-              className={`flex-shrink-0 px-3 py-1 rounded-full text-xs transition-colors ${
-                beanFilter === bean.id ? 'bg-[#3e3020] text-[#F7EFE6]' : 'bg-transparent text-[#6b5a4a]'
+              className={`flex-shrink-0 min-h-11 px-3 rounded-full text-xs transition-colors ${
+                beanFilter === bean.id ? 'bg-[#3e3020] text-[#F7EFE6]' : 'bg-transparent text-[#A8916F]'
               }`}
             >
               {bean.name}
@@ -310,7 +320,7 @@ function BrewTab({ displayMode }: { displayMode: DisplayMode }) {
           <div className="flex flex-col gap-3">
             {groups.map(group => (
               <div key={group.label} className="flex flex-col gap-3">
-                <MonthHeader label={group.label} count={group.items.length} />
+                <MonthAlbum album={albums.get(group.label) ?? { label: group.label, count: group.items.length, avgRating: null }} />
                 {displayMode === 'list' ? (
                   <div className="flex flex-col gap-3">
                     {group.items.map(brew => (
@@ -405,6 +415,16 @@ function CafeTab({ displayMode }: { displayMode: DisplayMode }) {
   const groups = useMemo(() => groupByMonth(visible, v => v.visitedAt), [visible])
   const remaining = filtered.length - visible.length
 
+  const albums = useMemo(() => calcMonthAlbums(
+    filtered.map((v): MonthAlbumSource => ({
+      id: v.id,
+      at: v.visitedAt,
+      rating: v.rating,
+      photoDataUrl: v.photoDataUrl,
+      seed: v.beanOrigin || v.cafeName,
+    })),
+  ), [filtered])
+
   // 絞り込み0件からの復帰（カフェタブは検索と評価の2つ）
   const clearFilters = () => {
     setSearch('')
@@ -417,7 +437,7 @@ function CafeTab({ displayMode }: { displayMode: DisplayMode }) {
       <div className="px-4 pb-2 flex gap-2 overflow-x-auto no-scrollbar">
         {CAFE_RATING_FILTERS.map(key => (
           <button key={key} type="button" onClick={() => setRatingFilter(key)}
-            className={`flex-shrink-0 px-3 py-1.5 rounded-full text-sm transition-colors ${
+            className={`flex-shrink-0 min-h-11 px-4 rounded-full text-sm transition-colors ${
               ratingFilter === key ? 'bg-[#993C1D] text-[#F7EFE6]' : 'bg-[#2E2018] text-[#CE9C68]'
             }`}
           >
@@ -444,7 +464,7 @@ function CafeTab({ displayMode }: { displayMode: DisplayMode }) {
           <div className="flex flex-col gap-3">
             {groups.map(group => (
               <div key={group.label} className="flex flex-col gap-3">
-                <MonthHeader label={group.label} count={group.items.length} />
+                <MonthAlbum album={albums.get(group.label) ?? { label: group.label, count: group.items.length, avgRating: null }} />
                 {displayMode === 'list' ? (
                   <div className="flex flex-col gap-3">
                     {group.items.map(visit => (
@@ -536,14 +556,22 @@ export default function LibraryPage() {
       <div className="flex border-b border-[#2e2018] mb-1">
         {(['brew', 'cafe'] as LibTab[]).map(t => (
           <button key={t} type="button" onClick={() => setTab(t)}
-            className={`w-1/2 py-2.5 text-sm font-medium transition-colors border-b-2 flex items-center justify-center gap-1.5 ${
+            aria-pressed={tab === t}
+            className={`w-1/2 min-h-11 py-2.5 text-sm font-medium transition-colors border-b-2 flex items-center justify-center gap-1.5 ${
               tab === t
                 ? 'text-[#CE9C68] border-[#993C1D]'
-                : 'text-[#6b5a4a] border-transparent'
+                : 'text-[#A8916F] border-transparent'
             }`}
           >
             {t === 'brew' ? <CupIcon size={15} /> : <CafeIcon size={15} />}
             {t === 'brew' ? 'ブリュー' : 'カフェ'}
+            {/* A面/B面 は世界観の小さな符牒。選択中にだけ静かに添え、
+                「何のタブか」は「ブリュー」「カフェ」の語が受け持つ（読めない人の邪魔をしない） */}
+            {tab === t && (
+              <span className="text-[10px] text-[#A8916F] font-normal">
+                {t === 'brew' ? 'A面' : 'B面'}
+              </span>
+            )}
           </button>
         ))}
       </div>
