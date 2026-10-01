@@ -15,6 +15,8 @@ interface Props {
   message?: string
   /** 「豆に合わせる」で盤の色を導くための焙煎度 */
   roastLevel?: RoastLevel
+  /** はじめて記録した産地（国）。あれば演出に一言添える。時間は延ばさない */
+  newCountry?: string
 }
 
 function Confetti() {
@@ -55,7 +57,7 @@ function Confetti() {
 }
 
 export default function SaveAnimation({
-  brewCount, onDone, rated = true, message = '一杯を記録しました', roastLevel,
+  brewCount, onDone, rated = true, message = '一杯を記録しました', roastLevel, newCountry,
 }: Props) {
   const isMilestone = MILESTONES.has(brewCount)
   // 盤の色はユーザーの設定に従う（抽出中の画面と同じ値）
@@ -111,7 +113,11 @@ export default function SaveAnimation({
         </div>
         <div className="text-center" style={{ animation: 'disk-in 0.45s 0.3s ease-out both' }}>
           <p className="text-[#F7EFE6] text-base font-medium">棚にそっと置きました</p>
-          <p className="text-[#6b5a4a] text-xs mt-1">味の評価は、飲んでからでも</p>
+          {newCountry ? (
+            <p className="text-[#CE9C68] text-sm mt-1">はじめての{newCountry}</p>
+          ) : (
+            <p className="text-[#A8916F] text-xs mt-1">味の評価は、飲んでからでも</p>
+          )}
         </div>
         <p
           className="absolute bottom-16 text-xs text-[#6b5a4a]"
@@ -167,6 +173,14 @@ export default function SaveAnimation({
       >
         {message}
       </p>
+      {newCountry && (
+        <p
+          className="text-[#CE9C68] text-sm"
+          style={{ animation: 'disk-in 0.45s 0.9s ease-out both' }}
+        >
+          はじめての{newCountry}
+        </p>
+      )}
       {/* 余韻を延ばした分、急ぐ人向けに「タップで進む」を遅れて淡く表示 */}
       <p
         className="absolute bottom-16 text-xs text-[#6b5a4a]"

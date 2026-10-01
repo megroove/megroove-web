@@ -24,6 +24,7 @@ import EquipmentSection from '../components/brew/EquipmentSection'
 import SaveAnimation from '../components/brew/SaveAnimation'
 import ExtractionTimeInput from '../components/brew/ExtractionTimeInput'
 import RecordDisk from '../components/brew/RecordDisk'
+import { isNewCountry } from '../components/passport/passportStats'
 import BrewingOverlay from '../components/brew/BrewingOverlay'
 import { useToast } from '../components/Toast'
 import OriginInput from '../components/OriginInput'
@@ -142,6 +143,7 @@ export default function BrewPage() {
   const [showSaveAnim, setShowSaveAnim] = useState(false)
   const [savedBrewCount, setSavedBrewCount] = useState(0)
   const [savedRated, setSavedRated] = useState(true) // 保存時に評価が付いていたか（演出の出し分け用）
+  const [savedNewCountry, setSavedNewCountry] = useState<string | undefined>() // はじめての産地なら演出に添える
   const [saving, setSaving] = useState(false)
 
   // 入力途中の下書き（新規記録のみ）。復元表示のフラグと自動保存の基準
@@ -399,6 +401,12 @@ export default function BrewPage() {
         showToast('変更を保存しました', { type: 'success' })
         return
       }
+
+      // 「はじめての産地」の判定は保存前に行う（保存後だと今の一杯が混ざって必ず既知になる）
+      const [allVisits, allBeansNow] = await Promise.all([getAllCafeVisits(), getAllBeans()])
+      setSavedNewCountry(
+        isNewCountry(selectedBean?.origin, allBrews, allBeansNow, allVisits) ?? undefined,
+      )
 
       const count = await getBrewCount()
       const brew: Brew = {
@@ -1004,6 +1012,7 @@ export default function BrewPage() {
           brewCount={savedBrewCount}
           rated={savedRated}
           roastLevel={selectedBean?.roastLevel}
+          newCountry={savedNewCountry}
           onDone={handleAnimDone}
         />
       )}

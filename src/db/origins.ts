@@ -85,3 +85,61 @@ export const COFFEE_ORIGINS: string[] = [
   '東ティモール',
   'ネパール',
 ]
+
+// ─── 産地パスポート用の国マスター ─────────────────────────────────────────
+// 上の COFFEE_ORIGINS は「国＋地域」の入力候補。パスポートでは**国の単位**で集める
+// （「エチオピア イルガチェフェ」も「エチオピア シダモ」も、同じ国のスタンプにまとめたい）。
+
+export const CONTINENTS = ['アフリカ', '中東', '中南米', 'カリブ', '北米・オセアニア', 'アジア'] as const
+export type Continent = typeof CONTINENTS[number]
+
+export interface CoffeeCountry {
+  name: string
+  continent: Continent
+}
+
+export const COFFEE_COUNTRIES: CoffeeCountry[] = [
+  { name: 'エチオピア',       continent: 'アフリカ' },
+  { name: 'ケニア',           continent: 'アフリカ' },
+  { name: 'タンザニア',       continent: 'アフリカ' },
+  { name: 'ルワンダ',         continent: 'アフリカ' },
+  { name: 'ブルンジ',         continent: 'アフリカ' },
+  { name: 'ウガンダ',         continent: 'アフリカ' },
+  { name: 'コンゴ民主共和国', continent: 'アフリカ' },
+  { name: 'マラウイ',         continent: 'アフリカ' },
+  { name: 'ザンビア',         continent: 'アフリカ' },
+  { name: 'カメルーン',       continent: 'アフリカ' },
+  { name: 'イエメン',         continent: '中東' },
+  { name: 'コロンビア',       continent: '中南米' },
+  { name: 'ブラジル',         continent: '中南米' },
+  { name: 'グアテマラ',       continent: '中南米' },
+  { name: 'コスタリカ',       continent: '中南米' },
+  { name: 'パナマ',           continent: '中南米' },
+  { name: 'ホンジュラス',     continent: '中南米' },
+  { name: 'エルサルバドル',   continent: '中南米' },
+  { name: 'ニカラグア',       continent: '中南米' },
+  { name: 'メキシコ',         continent: '中南米' },
+  { name: 'ペルー',           continent: '中南米' },
+  { name: 'ボリビア',         continent: '中南米' },
+  { name: 'エクアドル',       continent: '中南米' },
+  { name: 'ベネズエラ',       continent: '中南米' },
+  { name: 'ジャマイカ',       continent: 'カリブ' },
+  { name: 'キューバ',         continent: 'カリブ' },
+  { name: 'ドミニカ共和国',   continent: 'カリブ' },
+  { name: 'ハイチ',           continent: 'カリブ' },
+  { name: 'プエルトリコ',     continent: 'カリブ' },
+  { name: 'ハワイ',           continent: '北米・オセアニア' },
+  { name: 'パプアニューギニア', continent: '北米・オセアニア' },
+  { name: 'オーストラリア',   continent: '北米・オセアニア' },
+  { name: 'インドネシア',     continent: 'アジア' },
+  { name: 'ベトナム',         continent: 'アジア' },
+  { name: 'タイ',             continent: 'アジア' },
+  { name: 'ミャンマー',       continent: 'アジア' },
+  { name: 'ラオス',           continent: 'アジア' },
+  { name: 'フィリピン',       continent: 'アジア' },
+  { name: '中国',             continent: 'アジア' },
+  { name: '台湾',             continent: 'アジア' },
+  { name: 'インド',           continent: 'アジア' },
+  { name: '東ティモール',     continent: 'アジア' },
+  { name: 'ネパール',         continent: 'アジア' },
+]

@@ -12,6 +12,7 @@ import TodayStats from '../components/home/TodayStats'
 import RecentJackets from '../components/home/RecentJackets'
 import type { RecentJacketItem } from '../components/home/RecentJackets'
 import { jacketColor } from '../components/library/jacketColor'
+import { calcPassport } from '../components/passport/passportStats'
 import type { QuickPreset, QuickSaveInput } from '../components/brew/QuickBrewSheet'
 import { useToast } from '../components/Toast'
 import { getAllBrews, getAllBeans, getAllCafeVisits, getAllEquipment, getAllCaffeineIntakes, getAllRecipes, putBrew, putCafeVisit, deleteBrew, getBrewCount, getSleepLog, putSleepLog } from '../db'
@@ -265,6 +266,8 @@ export default function HomePage() {
   const [showBackupIntro, setShowBackupIntro] = useState(false)
   const [quickExporting, setQuickExporting] = useState(false)
   const [todayStats, setTodayStats] = useState<{ cups: number; residualMg: number; streak: number } | null>(null)
+  // 産地パスポートの進捗。ホームには1行だけ出す（「あと少し」が目に入ることが狙い）
+  const [passportProgress, setPassportProgress] = useState<{ visited: number; total: number } | null>(null)
   const [onThisDay, setOnThisDay] = useState<OnThisDayItem | null>(null)
 
   // 「前回と同じ一杯」クイック記録
@@ -340,6 +343,14 @@ export default function HomePage() {
         setLastBrew(last
           ? { brew: last, bean: last.beanId ? beanMap.get(last.beanId) : undefined }
           : null)
+
+        // 産地パスポートの進捗（出会った国がゼロのうちは出さない）
+        const passport = calcPassport(brews, beansList, visits)
+        setPassportProgress(
+          passport.visitedCount > 0
+            ? { visited: passport.visitedCount, total: passport.totalCountries }
+            : null,
+        )
 
         // クイック記録のプリセット（前回と同じ ＋ よく使うレシピ上位2）
         setQuickPresets(buildQuickPresets(brews, recipesList, beanMap))
@@ -847,6 +858,28 @@ export default function HomePage() {
       {/* 最近の一枚（ジャケットが増える楽しさを、棚を開く前に見せる） */}
       {hasRecords && (
         <RecentJackets items={recentJackets} onSeeAll={() => navigate('/library')} />
+      )}
+
+      {/* 産地パスポートの進捗（1行だけ。集めている実感を目に入れる） */}
+      {passportProgress && (
+        <button
+          type="button"
+          onClick={() => navigate('/passport')}
+          className="w-full min-h-11 bg-[#2E2018] rounded-xl px-4 py-2.5 flex items-center justify-between gap-3 active:opacity-80"
+        >
+          <span className="text-sm text-[#CE9C68] font-medium shrink-0">産地パスポート</span>
+          <span className="flex items-center gap-2 min-w-0">
+            <span className="w-20 h-1.5 rounded-full bg-[#1a0a05] overflow-hidden shrink-0">
+              <span
+                className="block h-full rounded-full bg-[#993C1D]"
+                style={{ width: `${(passportProgress.visited / passportProgress.total) * 100}%` }}
+              />
+            </span>
+            <span className="text-xs text-[#A8916F] tabular-nums shrink-0">
+              {passportProgress.visited} / {passportProgress.total}
+            </span>
+          </span>
+        </button>
       )}
 
       {/* バックアップリマインダー */}
