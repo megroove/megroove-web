@@ -8,26 +8,26 @@ import {
 import type { ContinentProgress, PassportStamp } from '../components/passport/passportStats'
 import { calcPassport, listBeansMissingOrigin } from '../components/passport/passportStats'
 import { jacketColor } from '../components/library/jacketColor'
-import { flagFor } from '../components/passport/flag'
+import { stampGlyph } from '../components/passport/flag'
 import OriginInput from '../components/OriginInput'
 import EmptyState from '../components/EmptyState'
 import { useToast } from '../components/Toast'
 import { GlobeIcon } from '../components/icons'
 
-// 押されたスタンプ。国旗を出し、描けない環境では頭文字に退避する（flag.ts 参照）。
+// 押されたスタンプ。国旗（ハワイは州花のハイビスカス）を出し、描けない環境では頭文字に退避する（flag.ts 参照）。
 // 地色は産地ごとに変わる（棚のジャケットと同じ導き方）
 function Stamp({ stamp }: { stamp: PassportStamp }) {
   const color = jacketColor(stamp.country)
-  const flag = flagFor(stamp.country)
+  const glyph = stampGlyph(stamp.country)
   return (
     <div className="bg-[#2E2018] rounded-xl p-2.5 flex flex-col items-center gap-1.5">
       <div
         className="w-14 h-14 rounded-full flex items-center justify-center border-2"
         style={{ background: color.bg, borderColor: '#CE9C68' }}
       >
-        {flag ? (
-          // 国名はすぐ下に出ているので、読み上げでは旗を飛ばす
-          <span className="text-[26px] leading-none" aria-hidden="true">{flag}</span>
+        {glyph ? (
+          // 国名はすぐ下に出ているので、読み上げでは絵柄を飛ばす
+          <span className="text-[26px] leading-none" aria-hidden="true">{glyph}</span>
         ) : (
           <span className="text-lg font-bold" style={{ color: color.text }}>
             {stamp.country.slice(0, 2)}

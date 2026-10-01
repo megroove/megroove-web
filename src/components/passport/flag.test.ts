@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { COFFEE_COUNTRIES } from '../../db'
-import { flagFor, toFlagEmoji } from './flag'
+import { stampGlyph, toFlagEmoji } from './flag'
 
 describe('toFlagEmoji', () => {
   it('国コードを国旗絵文字に変換する', () => {
@@ -44,12 +44,12 @@ describe('国マスターの国コード', () => {
   })
 })
 
-describe('flagFor', () => {
+describe('stampGlyph', () => {
   // canvas の無い環境（= このテスト）では「描けない」と判定され、頭文字表示に退避する。
-  // 国旗が出ない端末でスタンプが空白にならないことの担保。
+  // 絵柄が出ない端末でスタンプが空白にならないことの担保。
   it('描画判定ができない環境では null を返す（頭文字に戻す）', () => {
-    expect(flagFor('コロンビア')).toBeNull()
-    expect(flagFor('ハワイ')).toBeNull()
-    expect(flagFor('知らない国')).toBeNull()
+    expect(stampGlyph('コロンビア')).toBeNull()
+    expect(stampGlyph('ハワイ')).toBeNull()   // 国旗なし＝ハイビスカスだが、描けなければ同じく退避
+    expect(stampGlyph('知らない国')).toBeNull()
   })
 })

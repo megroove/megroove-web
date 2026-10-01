@@ -1,6 +1,6 @@
 import { COFFEE_COUNTRIES } from '../../db'
 
-// スタンプの国旗。
+// スタンプの絵柄（国旗、および国旗を持たない産地の代替絵文字）。
 //
 // 国旗は画像ファイルを持たず、Unicode の「地域表示記号」のペア（'CO' → 🇨🇴）で出す。
 // 43か国ぶんの SVG を抱えずに済み、CSP（img-src 'self' data: blob:）にも触れない。
@@ -22,6 +22,18 @@ export function toFlagEmoji(code: string | undefined): string | null {
 }
 
 const COUNTRY_CODE = new Map(COFFEE_COUNTRIES.map(c => [c.name, c.code]))
+
+/**
+ * 国旗を持たない産地の代替絵柄。
+ * ハワイは州であって国ではないため国旗絵文字が無い。州花のハイビスカスを当てる
+ * （フラの絵文字は Unicode に存在せず、💃 は多くのフォントでフラメンコの踊り子に見えるため使わない）。
+ */
+const GLYPH_OVERRIDE: Record<string, string> = {
+  'ハワイ': '\u{1F33A}', // 🌺 ハイビスカス
+}
+
+// 未割り当てのコードポイント。どのフォントも豆腐（□）で描くので、幅の比較の基準にする
+const TOFU = '\u{10FFFF}'
 
 // 測定用のキャンバス。undefined = 未作成、null = 使えない環境
 let ctx: CanvasRenderingContext2D | null | undefined
@@ -54,8 +66,23 @@ export function canRenderFlag(flag: string): boolean {
   return ok
 }
 
-/** 表示できるときだけ国旗を返す。できなければ null（呼び出し側は頭文字に戻す） */
-export function flagFor(country: string): string | null {
+/**
+ * 国旗以外の単体絵文字が本当に描けるか（豆腐になっていないか）。
+ * 未割り当てのコードポイントと同じ幅なら、フォントに無くて豆腐に落ちていると見なす。
+ */
+export function canRenderEmoji(emoji: string): boolean {
+  const cached = renderable.get(emoji)
+  if (cached !== undefined) return cached
+  const width = measure(emoji)
+  const ok = width > 0 && width !== measure(TOFU)
+  renderable.set(emoji, ok)
+  return ok
+}
+
+/** スタンプに出す絵柄。描けないときは null（呼び出し側は頭文字に戻す） */
+export function stampGlyph(country: string): string | null {
+  const override = GLYPH_OVERRIDE[country]
+  if (override) return canRenderEmoji(override) ? override : null
   const flag = toFlagEmoji(COUNTRY_CODE.get(country))
   return flag && canRenderFlag(flag) ? flag : null
 }
