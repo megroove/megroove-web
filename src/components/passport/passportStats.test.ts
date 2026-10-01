@@ -94,6 +94,22 @@ describe('calcPassport', () => {
     expect(africa.unvisited).not.toContain('エチオピア')
   })
 
+  it('スタンプに稀少度が乗る', () => {
+    expect(p.stamps.find(s => s.country === 'エチオピア')!.rarity).toBe('bronze')
+  })
+
+  it('稀少度ごとの進捗を返す', () => {
+    const bronze = p.byRarity.find(r => r.rarity === 'bronze')!
+    expect(bronze.visited).toBe(3)          // エチオピア・ケニア・ブラジル
+    expect(bronze.total).toBeGreaterThan(2)
+    const platinum = p.byRarity.find(r => r.rarity === 'platinum')!
+    expect(platinum.visited).toBe(0)
+    expect(platinum.total).toBeGreaterThan(0)
+    // 合計は全体と一致する
+    expect(p.byRarity.reduce((n, r) => n + r.total, 0)).toBe(p.totalCountries)
+    expect(p.byRarity.reduce((n, r) => n + r.visited, 0)).toBe(p.visitedCount)
+  })
+
   it('出会った国の数と総数を返す', () => {
     expect(p.visitedCount).toBe(3)            // エチオピア・ケニア・ブラジル
     expect(p.totalCountries).toBeGreaterThan(40)
@@ -104,6 +120,7 @@ describe('calcPassport', () => {
     expect(empty.visitedCount).toBe(0)
     expect(empty.stamps).toEqual([])
     expect(empty.byContinent.every(c => c.visited === 0)).toBe(true)
+    expect(empty.byRarity.every(r => r.visited === 0 && r.total > 0)).toBe(true)
   })
 })
 

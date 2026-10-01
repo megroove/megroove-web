@@ -3,6 +3,7 @@ import type { RoastLevel } from '../../db'
 import { loadSettings, resolveVinyl } from '../../db'
 import RecordDisk from './RecordDisk'
 import VinylGloss from './VinylGloss'
+import { RARITY_STYLE, rarityOf } from '../passport/rarity'
 
 const MILESTONES = new Set([1, 10, 30, 50, 100, 200, 365, 500, 1000])
 
@@ -52,6 +53,31 @@ function Confetti() {
           }}
         />
       ))}
+    </div>
+  )
+}
+
+// はじめての産地の一言。ゴールド/プラチナのときだけ階級を添える
+// （どの産地でも階級を出すと、ブロンズが「はずれ」に見えてしまう）
+function NewCountryLine({ country, className, style }: {
+  country: string
+  className?: string
+  style?: React.CSSProperties
+}) {
+  const rarity = rarityOf(country)
+  const rank = rarity ? RARITY_STYLE[rarity] : null
+  const notable = rarity === 'gold' || rarity === 'platinum'
+  return (
+    <div className={`flex flex-col items-center gap-1.5 ${className ?? ''}`} style={style}>
+      <p className="text-[#CE9C68] text-sm">はじめての{country}</p>
+      {notable && rank && (
+        <span
+          className="text-[11px] font-semibold px-2.5 py-0.5 rounded-full border"
+          style={{ color: rank.color, borderColor: rank.color + '80', boxShadow: rank.shadow }}
+        >
+          {rank.label}の産地
+        </span>
+      )}
     </div>
   )
 }
@@ -114,7 +140,7 @@ export default function SaveAnimation({
         <div className="text-center" style={{ animation: 'disk-in 0.45s 0.3s ease-out both' }}>
           <p className="text-[#F7EFE6] text-base font-medium">棚にそっと置きました</p>
           {newCountry ? (
-            <p className="text-[#CE9C68] text-sm mt-1">はじめての{newCountry}</p>
+            <NewCountryLine country={newCountry} className="mt-1" />
           ) : (
             <p className="text-[#A8916F] text-xs mt-1">味の評価は、飲んでからでも</p>
           )}
@@ -174,12 +200,10 @@ export default function SaveAnimation({
         {message}
       </p>
       {newCountry && (
-        <p
-          className="text-[#CE9C68] text-sm"
+        <NewCountryLine
+          country={newCountry}
           style={{ animation: 'disk-in 0.45s 0.9s ease-out both' }}
-        >
-          はじめての{newCountry}
-        </p>
+        />
       )}
       {/* 余韻を延ばした分、急ぐ人向けに「タップで進む」を遅れて淡く表示 */}
       <p

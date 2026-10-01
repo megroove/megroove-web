@@ -5,25 +5,27 @@ import {
   getAllBrews, getAllBeans, getAllCafeVisits, putBean,
   withSaveTimeout, saveErrorMessage,
 } from '../db'
-import type { ContinentProgress, PassportStamp } from '../components/passport/passportStats'
+import type { ContinentProgress, PassportStamp, RarityProgress } from '../components/passport/passportStats'
 import { calcPassport, listBeansMissingOrigin } from '../components/passport/passportStats'
 import { jacketColor } from '../components/library/jacketColor'
 import { stampGlyph } from '../components/passport/flag'
+import { RARITY_STYLE, rarityOf } from '../components/passport/rarity'
 import OriginInput from '../components/OriginInput'
 import EmptyState from '../components/EmptyState'
 import { useToast } from '../components/Toast'
 import { GlobeIcon } from '../components/icons'
 
 // 押されたスタンプ。国旗（ハワイは州花のハイビスカス）を出し、描けない環境では頭文字に退避する（flag.ts 参照）。
-// 地色は産地ごとに変わる（棚のジャケットと同じ導き方）
+// 地色は産地ごとに変わり（棚のジャケットと同じ導き方）、縁は稀少度の金属色になる
 function Stamp({ stamp }: { stamp: PassportStamp }) {
   const color = jacketColor(stamp.country)
   const glyph = stampGlyph(stamp.country)
+  const rank = RARITY_STYLE[stamp.rarity]
   return (
     <div className="bg-[#2E2018] rounded-xl p-2.5 flex flex-col items-center gap-1.5">
       <div
         className="w-14 h-14 rounded-full flex items-center justify-center border-2"
-        style={{ background: color.bg, borderColor: '#CE9C68' }}
+        style={{ background: color.bg, borderColor: rank.color, boxShadow: rank.shadow }}
       >
         {glyph ? (
           // 国名はすぐ下に出ているので、読み上げでは絵柄を飛ばす
@@ -44,12 +46,34 @@ function Stamp({ stamp }: { stamp: PassportStamp }) {
   )
 }
 
-// まだ押されていない枠。押しつけがましくならないよう、静かな破線で置く
+// まだ押されていない枠。押しつけがましくならないよう静かな破線だが、
+// **稀少度の色だけは乗せる**（どの当たりが残っているかが見えるほうが追いかけたくなる）
 function EmptySlot({ country }: { country: string }) {
+  const rarity = rarityOf(country)
+  const ring = rarity ? RARITY_STYLE[rarity].color + '66' : '#3e3020'
   return (
     <div className="rounded-xl p-2.5 flex flex-col items-center gap-1.5 opacity-70">
-      <div className="w-14 h-14 rounded-full border-2 border-dashed border-[#3e3020]" />
+      <div className="w-14 h-14 rounded-full border-2 border-dashed" style={{ borderColor: ring }} />
       <p className="text-[11px] text-[#A8916F] text-center leading-tight line-clamp-2">{country}</p>
+    </div>
+  )
+}
+
+// 稀少度ごとの進捗。階級名は必ずテキストで出す（色だけで語らない・§9）
+function RarityRow({ progress }: { progress: RarityProgress }) {
+  const rank = RARITY_STYLE[progress.rarity]
+  const done = progress.visited >= progress.total
+  return (
+    <div className="flex items-center gap-2.5">
+      <span
+        className="w-3.5 h-3.5 rounded-full border-2 shrink-0"
+        style={{ borderColor: rank.color, boxShadow: rank.shadow, background: done ? rank.color : 'transparent' }}
+      />
+      <span className="text-xs font-semibold shrink-0" style={{ color: rank.color }}>{rank.label}</span>
+      <span className="text-[11px] text-[#A8916F] flex-1 truncate">{rank.hint}</span>
+      <span className="text-xs text-[#F7EFE6] tabular-nums shrink-0">
+        {progress.visited}<span className="text-[#A8916F]"> / {progress.total}</span>
+      </span>
     </div>
   )
 }
@@ -183,6 +207,14 @@ export default function PassportPage() {
           </div>
           <div className="h-2 rounded-full bg-[#1a0a05] overflow-hidden">
             <div className="h-full rounded-full bg-[#993C1D]" style={{ width: `${pct}%` }} />
+          </div>
+
+          {/* 稀少度の内訳。上の階級ほど出会いにくい＝見つけたときの当たりが大きい */}
+          <div className="border-t border-[#3e3020] pt-3 flex flex-col gap-2">
+            {passport.byRarity.map(r => <RarityRow key={r.rarity} progress={r} />)}
+            <p className="text-[10px] text-[#A8916F] leading-relaxed mt-0.5">
+              稀少度は日本で豆を入手できる難しさの目安です。43か国はすべて実際にコーヒーを生産しています。
+            </p>
           </div>
         </div>
 

@@ -1,5 +1,5 @@
-import type { Bean, Brew, CafeVisit, Continent } from '../../db'
-import { COFFEE_COUNTRIES, CONTINENTS } from '../../db'
+import type { Bean, Brew, CafeVisit, Continent, Rarity } from '../../db'
+import { COFFEE_COUNTRIES, CONTINENTS, RARITIES } from '../../db'
 
 // 産地パスポートの集計。
 //
@@ -28,6 +28,8 @@ export function toCountry(origin: string | undefined): string | null {
 export interface PassportStamp {
   country: string
   continent: Continent
+  /** 入手のしやすさ。見つけにくい産地ほど上の階級になる */
+  rarity: Rarity
   /** 杯数（未評価も数える） */
   count: number
   /** 評価済みだけの平均。無ければ null */
@@ -47,9 +49,17 @@ export interface ContinentProgress {
   unvisited: string[]
 }
 
+/** 稀少度ごとの進捗。「プラチナ 0/7」のように、残っている当たりを見せる */
+export interface RarityProgress {
+  rarity: Rarity
+  visited: number
+  total: number
+}
+
 export interface PassportSummary {
   stamps: PassportStamp[]
   byContinent: ContinentProgress[]
+  byRarity: RarityProgress[]
   visitedCount: number
   totalCountries: number
   /** マスターに無い書き方で記録された産地（スタンプにはできないが、記録はある） */
@@ -94,13 +104,14 @@ export function calcPassport(brews: Brew[], beans: Bean[], visits: CafeVisit[]):
     byCountry.set(country, cur)
   }
 
-  const continentOf = new Map(COFFEE_COUNTRIES.map(c => [c.name, c.continent]))
+  const metaOf = new Map(COFFEE_COUNTRIES.map(c => [c.name, c]))
 
   const stamps: PassportStamp[] = [...byCountry.entries()].map(([country, { recs, regions }]) => {
     const ratings = recs.map(r => r.rating).filter((n): n is number => typeof n === 'number' && n > 0)
     return {
       country,
-      continent: continentOf.get(country)!,
+      continent: metaOf.get(country)!.continent,
+      rarity: metaOf.get(country)!.rarity,
       count: recs.length,
       avgRating: ratings.length > 0
         ? Math.round((ratings.reduce((a, b) => a + b, 0) / ratings.length) * 10) / 10
@@ -123,9 +134,16 @@ export function calcPassport(brews: Brew[], beans: Bean[], visits: CafeVisit[]):
     }
   })
 
+  const byRarity: RarityProgress[] = RARITIES.map(rarity => ({
+    rarity,
+    visited: stamps.filter(s => s.rarity === rarity).length,
+    total: COFFEE_COUNTRIES.filter(c => c.rarity === rarity).length,
+  }))
+
   return {
     stamps,
     byContinent,
+    byRarity,
     visitedCount: stamps.length,
     totalCountries: COFFEE_COUNTRIES.length,
     unknownOrigins: [...unknown].sort(),
