@@ -1,9 +1,14 @@
 import { describe, expect, it } from 'vitest'
 import type { Bean, Brew, CafeVisit } from '../../db'
-import { calcPassport, isNewCountry, listBeansMissingOrigin, toCountry } from './passportStats'
+import { calcPassport, listBeansMissingOrigin, newCountriesFor, toCountry } from './passportStats'
 
 const bean = (id: string, name: string, origin?: string): Bean => ({
   id, name, origin, roastLevel: 'medium', createdAt: '2026-01-01T00:00:00.000Z',
+})
+
+/** ブレンド豆。origin は代表産地（先頭）、origins が構成産地 */
+const blendBean = (id: string, name: string, origins: string[]): Bean => ({
+  id, name, origin: origins[0], origins, roastLevel: 'medium', createdAt: '2026-01-01T00:00:00.000Z',
 })
 
 const brew = (over: Partial<Brew> & { brewedAt: string }): Brew => ({
@@ -124,6 +129,53 @@ describe('calcPassport', () => {
   })
 })
 
+describe('calcPassport（ブレンド）', () => {
+  const beans = [
+    blendBean('b1', 'ハウスブレンド', ['ブラジル', 'コロンビア', 'エチオピア']),
+    bean('b2', 'シングル', 'コロンビア ウイラ'),
+  ]
+  const brews = [
+    brew({ brewedAt: '2026-03-01T09:00:00.000Z', beanId: 'b1', rating: 4 }),
+    brew({ brewedAt: '2026-03-02T09:00:00.000Z', beanId: 'b2', rating: 5 }),
+  ]
+  const p = calcPassport(brews, beans, [])
+
+  it('ブレンドの構成産地すべてにスタンプが付く', () => {
+    expect(p.visitedCount).toBe(3) // ブラジル・コロンビア・エチオピア
+    expect(p.stamps.map(s => s.country).sort()).toEqual(['エチオピア', 'コロンビア', 'ブラジル'])
+  })
+
+  it('ブレンドでだけ出会った国は single=false', () => {
+    expect(p.stamps.find(s => s.country === 'ブラジル')!.single).toBe(false)
+    expect(p.stamps.find(s => s.country === 'エチオピア')!.single).toBe(false)
+  })
+
+  it('シングルでも飲んだ国は single=true（ブレンドにも入っていても完成扱い）', () => {
+    expect(p.stamps.find(s => s.country === 'コロンビア')!.single).toBe(true)
+  })
+
+  it('シングルで味わった国の数を内数で返す', () => {
+    expect(p.singleCount).toBe(1)
+    expect(p.visitedCount - p.singleCount).toBe(2)
+  })
+
+  it('1杯のブレンドは構成産地それぞれで1杯と数える', () => {
+    expect(p.stamps.find(s => s.country === 'ブラジル')!.count).toBe(1)
+    expect(p.stamps.find(s => s.country === 'コロンビア')!.count).toBe(2) // ブレンド＋シングル
+  })
+
+  it('カフェ記録はブレンド扱いにしない（店が構成を開示しないため）', () => {
+    const r = calcPassport([], [], [visit({ visitedAt: '2026-05-01T09:00:00.000Z', beanOrigin: 'ケニア' })])
+    expect(r.stamps.find(s => s.country === 'ケニア')!.single).toBe(true)
+  })
+
+  it('構成産地が1件だけならブレンド扱いしない', () => {
+    const one = [blendBean('b9', 'ほぼシングル', ['ペルー'])]
+    const r = calcPassport([brew({ brewedAt: '2026-01-01T00:00:00.000Z', beanId: 'b9' })], one, [])
+    expect(r.stamps.find(s => s.country === 'ペルー')!.single).toBe(true)
+  })
+})
+
 describe('listBeansMissingOrigin', () => {
   it('記録に使われていて産地が未登録の豆だけを返す', () => {
     const beans = [
@@ -149,23 +201,35 @@ describe('listBeansMissingOrigin', () => {
   })
 })
 
-describe('isNewCountry', () => {
+describe('newCountriesFor', () => {
   const beans = [bean('b1', '豆A', 'エチオピア イルガチェフェ')]
   const brews = [brew({ brewedAt: '2026-01-01T00:00:00.000Z', beanId: 'b1' })]
 
-  it('すでに記録のある国なら null', () => {
-    expect(isNewCountry('エチオピア シダモ', brews, beans, [])).toBeNull()
+  it('すでに記録のある国は返さない', () => {
+    expect(newCountriesFor(['エチオピア シダモ'], brews, beans, [])).toEqual([])
   })
 
-  it('はじめての国なら国名を返す', () => {
-    expect(isNewCountry('ケニア ニエリ', brews, beans, [])).toBe('ケニア')
+  it('はじめての国を返す', () => {
+    expect(newCountriesFor(['ケニア ニエリ'], brews, beans, [])).toEqual(['ケニア'])
+  })
+
+  it('ブレンドでは複数の国を同時に返す', () => {
+    expect(newCountriesFor(['ブラジル', 'コロンビア'], brews, beans, [])).toEqual(['ブラジル', 'コロンビア'])
+  })
+
+  it('既知の国とはじめての国が混ざっても、はじめてのぶんだけ返す', () => {
+    expect(newCountriesFor(['エチオピア', 'ブラジル'], brews, beans, [])).toEqual(['ブラジル'])
+  })
+
+  it('同じ国を指す表記が重なっても1つにまとめる', () => {
+    expect(newCountriesFor(['ブラジル セラード', 'ブラジル モジアナ'], brews, beans, [])).toEqual(['ブラジル'])
   })
 
   it('マスターに無い産地では祝わない', () => {
-    expect(isNewCountry('謎の産地', brews, beans, [])).toBeNull()
+    expect(newCountriesFor(['謎の産地'], brews, beans, [])).toEqual([])
   })
 
-  it('産地が無ければ null', () => {
-    expect(isNewCountry(undefined, brews, beans, [])).toBeNull()
+  it('産地が無ければ空', () => {
+    expect(newCountriesFor([], brews, beans, [])).toEqual([])
   })
 })

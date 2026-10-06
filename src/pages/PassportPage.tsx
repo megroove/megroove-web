@@ -16,7 +16,10 @@ import { useToast } from '../components/Toast'
 import { GlobeIcon } from '../components/icons'
 
 // 押されたスタンプ。国旗（ハワイは州花のハイビスカス）を出し、描けない環境では頭文字に退避する（flag.ts 参照）。
-// 地色は産地ごとに変わり（棚のジャケットと同じ導き方）、縁は稀少度の金属色になる
+// 地色は産地ごとに変わり（棚のジャケットと同じ導き方）、縁は稀少度の金属色になる。
+//
+// ブレンドでしか出会っていない国は「半分押された判子」にする。薄まりではなく
+// 「いつかシングルで味わってスタンプを完成させる」という次の目標にするため。
 function Stamp({ stamp }: { stamp: PassportStamp }) {
   const color = jacketColor(stamp.country)
   const glyph = stampGlyph(stamp.country)
@@ -25,7 +28,14 @@ function Stamp({ stamp }: { stamp: PassportStamp }) {
     <div className="bg-[#2E2018] rounded-xl p-2.5 flex flex-col items-center gap-1.5">
       <div
         className="w-14 h-14 rounded-full flex items-center justify-center border-2"
-        style={{ background: color.bg, borderColor: rank.color, boxShadow: rank.shadow }}
+        style={{
+          background: color.bg,
+          borderColor: rank.color,
+          // 完成したスタンプだけが金属の装飾（ゴールドの輝き・プラチナの二重リング）をまとう
+          boxShadow: stamp.single ? rank.shadow : undefined,
+          borderStyle: stamp.single ? 'solid' : 'dashed',
+          opacity: stamp.single ? 1 : 0.6,
+        }}
       >
         {glyph ? (
           // 国名はすぐ下に出ているので、読み上げでは絵柄を飛ばす
@@ -42,6 +52,9 @@ function Stamp({ stamp }: { stamp: PassportStamp }) {
       <p className="text-[10px] text-[#A8916F]">
         {stamp.count}杯{stamp.avgRating != null && <> · ★{stamp.avgRating}</>}
       </p>
+      {!stamp.single && (
+        <p className="text-[10px] text-[#CE9C68] -mt-1">ブレンド</p>
+      )}
     </div>
   )
 }
@@ -209,6 +222,15 @@ export default function PassportPage() {
             <div className="h-full rounded-full bg-[#993C1D]" style={{ width: `${pct}%` }} />
           </div>
 
+          {/* シングルで味わった国は内数で見せる。ブレンドだけの国は「次の目標」として残る */}
+          {passport.visitedCount > passport.singleCount ? (
+            <p className="text-[11px] text-[#A8916F]">
+              シングルで味わった <span className="text-[#F7EFE6] tabular-nums">{passport.singleCount}</span>
+              {' · '}ブレンドでだけ{' '}
+              <span className="text-[#F7EFE6] tabular-nums">{passport.visitedCount - passport.singleCount}</span>
+            </p>
+          ) : null}
+
           {/* 稀少度の内訳。上の階級ほど出会いにくい＝見つけたときの当たりが大きい */}
           <div className="border-t border-[#3e3020] pt-3 flex flex-col gap-2">
             {passport.byRarity.map(r => <RarityRow key={r.rarity} progress={r} />)}
@@ -227,6 +249,7 @@ export default function PassportPage() {
               </p>
               <p className="text-xs text-[#A8916F] mt-1 leading-relaxed">
                 登録すると、その杯数ぶんスタンプが増えます。袋の表示や購入ページで確認できます。
+                ブレンドの豆は、ストックの豆編集から複数の産地を入れられます。
               </p>
             </div>
 

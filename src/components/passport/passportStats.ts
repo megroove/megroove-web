@@ -1,5 +1,5 @@
 import type { Bean, Brew, CafeVisit, Continent, Rarity } from '../../db'
-import { COFFEE_COUNTRIES, CONTINENTS, RARITIES } from '../../db'
+import { COFFEE_COUNTRIES, CONTINENTS, RARITIES, beanOrigins, isBlendBean } from '../../db'
 
 // 産地パスポートの集計。
 //
@@ -30,6 +30,11 @@ export interface PassportStamp {
   continent: Continent
   /** 入手のしやすさ。見つけにくい産地ほど上の階級になる */
   rarity: Rarity
+  /**
+   * シングルオリジンで味わったか。false ＝ ブレンドの構成産地としてしか出会っていない。
+   * 「ブレンドで出会った → シングルで味わう」の2段階にして、ブレンドを薄まりではなく次の目標にする
+   */
+  single: boolean
   /** 杯数（未評価も数える） */
   count: number
   /** 評価済みだけの平均。無ければ null */
@@ -62,6 +67,8 @@ export interface PassportSummary {
   byRarity: RarityProgress[]
   visitedCount: number
   totalCountries: number
+  /** シングルオリジンで味わった国の数（visitedCount の内数） */
+  singleCount: number
   /** マスターに無い書き方で記録された産地（スタンプにはできないが、記録はある） */
   unknownOrigins: string[]
 }
@@ -70,17 +77,26 @@ interface OriginRecord {
   origin: string
   at: string
   rating?: number
+  /** ブレンドの構成産地として出会った記録か */
+  viaBlend: boolean
 }
 
 function collectOrigins(brews: Brew[], beans: Bean[], visits: CafeVisit[]): OriginRecord[] {
   const beanMap = new Map(beans.map(b => [b.id, b]))
   const out: OriginRecord[] = []
   for (const b of brews) {
-    const origin = b.beanId ? beanMap.get(b.beanId)?.origin : undefined
-    if (origin?.trim()) out.push({ origin: origin.trim(), at: b.brewedAt, rating: b.rating })
+    const bean = b.beanId ? beanMap.get(b.beanId) : undefined
+    const viaBlend = isBlendBean(bean)
+    // ブレンドは構成産地ぶんに展開する（1杯で複数の国に出会いうる）
+    for (const origin of beanOrigins(bean)) {
+      out.push({ origin, at: b.brewedAt, rating: b.rating, viaBlend })
+    }
   }
   for (const v of visits) {
-    if (v.beanOrigin?.trim()) out.push({ origin: v.beanOrigin.trim(), at: v.visitedAt, rating: v.rating })
+    // カフェ記録の産地は単一のまま（店が構成を開示しないことが多いため）
+    if (v.beanOrigin?.trim()) {
+      out.push({ origin: v.beanOrigin.trim(), at: v.visitedAt, rating: v.rating, viaBlend: false })
+    }
   }
   return out
 }
@@ -112,6 +128,7 @@ export function calcPassport(brews: Brew[], beans: Bean[], visits: CafeVisit[]):
       country,
       continent: metaOf.get(country)!.continent,
       rarity: metaOf.get(country)!.rarity,
+      single: recs.some(r => !r.viaBlend),
       count: recs.length,
       avgRating: ratings.length > 0
         ? Math.round((ratings.reduce((a, b) => a + b, 0) / ratings.length) * 10) / 10
@@ -145,6 +162,7 @@ export function calcPassport(brews: Brew[], beans: Bean[], visits: CafeVisit[]):
     byContinent,
     byRarity,
     visitedCount: stamps.length,
+    singleCount: stamps.filter(s => s.single).length,
     totalCountries: COFFEE_COUNTRIES.length,
     unknownOrigins: [...unknown].sort(),
   }
@@ -163,27 +181,31 @@ export function listBeansMissingOrigin(
     if (b.beanId) used.set(b.beanId, (used.get(b.beanId) ?? 0) + 1)
   }
   return beans
-    .filter(b => used.has(b.id) && !b.origin?.trim())
+    .filter(b => used.has(b.id) && beanOrigins(b).length === 0)
     .map(b => ({ bean: b, count: used.get(b.id)! }))
     .sort((a, b) => b.count - a.count || a.bean.name.localeCompare(b.bean.name))
 }
 
 /**
- * これから記録しようとしている産地が「はじめての国」かどうか。
+ * これから記録しようとしている産地のうち「はじめての国」を返す。
+ * ブレンドは1杯で複数の国が同時に初めてになりうるので配列で返す。
  * 保存演出に一言添えるために使う。
  */
-export function isNewCountry(
-  origin: string | undefined,
+export function newCountriesFor(
+  origins: string[],
   brews: Brew[],
   beans: Bean[],
   visits: CafeVisit[],
-): string | null {
-  const country = toCountry(origin)
-  if (!country) return null
+): string[] {
   const known = new Set(
     collectOrigins(brews, beans, visits)
       .map(r => toCountry(r.origin))
       .filter((c): c is string => c !== null),
   )
-  return known.has(country) ? null : country
+  const out: string[] = []
+  for (const origin of origins) {
+    const country = toCountry(origin)
+    if (country && !known.has(country) && !out.includes(country)) out.push(country)
+  }
+  return out
 }

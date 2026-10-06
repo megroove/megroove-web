@@ -1,6 +1,6 @@
 import { useEffect, useMemo } from 'react'
-import type { RoastLevel } from '../../db'
-import { loadSettings, resolveVinyl } from '../../db'
+import type { RoastLevel, Rarity } from '../../db'
+import { loadSettings, resolveVinyl, RARITIES } from '../../db'
 import RecordDisk from './RecordDisk'
 import VinylGloss from './VinylGloss'
 import { RARITY_STYLE, rarityOf } from '../passport/rarity'
@@ -16,8 +16,9 @@ interface Props {
   message?: string
   /** 「豆に合わせる」で盤の色を導くための焙煎度 */
   roastLevel?: RoastLevel
-  /** はじめて記録した産地（国）。あれば演出に一言添える。時間は延ばさない */
-  newCountry?: string
+  /** はじめて記録した産地（国）。あれば演出に一言添える。時間は延ばさない。
+   *  ブレンドは1杯で複数の国が同時に初めてになりうるので配列で受ける */
+  newCountries?: string[]
 }
 
 function Confetti() {
@@ -59,17 +60,26 @@ function Confetti() {
 
 // はじめての産地の一言。ゴールド/プラチナのときだけ階級を添える
 // （どの産地でも階級を出すと、ブロンズが「はずれ」に見えてしまう）
-function NewCountryLine({ country, className, style }: {
-  country: string
+function NewCountryLine({ countries, className, style }: {
+  countries: string[]
   className?: string
   style?: React.CSSProperties
 }) {
-  const rarity = rarityOf(country)
+  // 3か国以上を並べると演出が文字だらけになるので、そこからは数で言う
+  const label = countries.length <= 2 ? countries.join('・') : `${countries.length}か国`
+  // 階級は一番上のものを代表に出す（ブレンドで複数の国に同時に出会ったとき）
+  const rarity = countries
+    .map(rarityOf)
+    .reduce<Rarity | null>((top, r) => {
+      if (!r) return top
+      if (!top) return r
+      return RARITIES.indexOf(r) > RARITIES.indexOf(top) ? r : top
+    }, null)
   const rank = rarity ? RARITY_STYLE[rarity] : null
   const notable = rarity === 'gold' || rarity === 'platinum'
   return (
     <div className={`flex flex-col items-center gap-1.5 ${className ?? ''}`} style={style}>
-      <p className="text-[#CE9C68] text-sm">はじめての{country}</p>
+      <p className="text-[#CE9C68] text-sm">はじめての{label}</p>
       {notable && rank && (
         <span
           className="text-[11px] font-semibold px-2.5 py-0.5 rounded-full border"
@@ -83,7 +93,7 @@ function NewCountryLine({ country, className, style }: {
 }
 
 export default function SaveAnimation({
-  brewCount, onDone, rated = true, message = '一杯を記録しました', roastLevel, newCountry,
+  brewCount, onDone, rated = true, message = '一杯を記録しました', roastLevel, newCountries = [],
 }: Props) {
   const isMilestone = MILESTONES.has(brewCount)
   // 盤の色はユーザーの設定に従う（抽出中の画面と同じ値）
@@ -139,8 +149,8 @@ export default function SaveAnimation({
         </div>
         <div className="text-center" style={{ animation: 'disk-in 0.45s 0.3s ease-out both' }}>
           <p className="text-[#F7EFE6] text-base font-medium">棚にそっと置きました</p>
-          {newCountry ? (
-            <NewCountryLine country={newCountry} className="mt-1" />
+          {newCountries.length > 0 ? (
+            <NewCountryLine countries={newCountries} className="mt-1" />
           ) : (
             <p className="text-[#A8916F] text-xs mt-1">味の評価は、飲んでからでも</p>
           )}
@@ -199,9 +209,9 @@ export default function SaveAnimation({
       >
         {message}
       </p>
-      {newCountry && (
+      {newCountries.length > 0 && (
         <NewCountryLine
-          country={newCountry}
+          countries={newCountries}
           style={{ animation: 'disk-in 0.45s 0.9s ease-out both' }}
         />
       )}

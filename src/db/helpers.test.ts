@@ -4,8 +4,10 @@ import {
   BREW_BLOCK_LABELS,
   BREW_BLOCK_SIDE,
   SaveTimeoutError,
+  beanOrigins,
   calcFrequentRecipes,
   calcRecentMusic,
+  isBlendBean,
   calcResidualCaffeine,
   loadBrewLayout,
   clampTweakValue,
@@ -336,5 +338,34 @@ describe('loadBrewLayout（保存済み設定がある既存ユーザー）', ()
     const layout = loadBrewLayout()
     expect(layout.hidden).toEqual(['photo'])
     expect(layout.detail).not.toContain('photo')
+  })
+})
+
+describe('beanOrigins / isBlendBean', () => {
+  it('シングルは産地1件を返す', () => {
+    expect(beanOrigins({ origin: 'ケニア ニエリ' })).toEqual(['ケニア ニエリ'])
+    expect(isBlendBean({ origins: undefined })).toBe(false)
+  })
+
+  it('ブレンドは構成産地を返す', () => {
+    const b = { origin: 'ブラジル', origins: ['ブラジル', 'コロンビア'] }
+    expect(beanOrigins(b)).toEqual(['ブラジル', 'コロンビア'])
+    expect(isBlendBean(b)).toBe(true)
+  })
+
+  it('構成産地が1件ならブレンド扱いしない', () => {
+    expect(isBlendBean({ origins: ['ペルー'] })).toBe(false)
+    expect(beanOrigins({ origin: 'ペルー', origins: ['ペルー'] })).toEqual(['ペルー'])
+  })
+
+  it('空文字や空白だけの産地は落とす', () => {
+    expect(beanOrigins({ origin: '   ' })).toEqual([])
+    expect(beanOrigins({ origin: 'ブラジル', origins: ['ブラジル', '  ', ''] })).toEqual(['ブラジル'])
+    expect(isBlendBean({ origins: ['ブラジル', ' '] })).toBe(false)
+  })
+
+  it('産地が無ければ空', () => {
+    expect(beanOrigins(undefined)).toEqual([])
+    expect(beanOrigins({})).toEqual([])
   })
 })

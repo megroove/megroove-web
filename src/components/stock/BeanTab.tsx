@@ -3,7 +3,7 @@ import type { Bean, Brew, RoastLevel } from '../../db'
 import {
   getAllBeans, getAllBrews, putBean, deleteBean, newId, nowISO,
   ROAST_LEVEL_LABELS, daysSinceRoast, formatBeanRemaining,
-  withSaveTimeout, saveErrorMessage,
+  withSaveTimeout, saveErrorMessage, isBlendBean,
 } from '../../db'
 import { Field, TextInput, NumberInput, DateInput, ChipSelect, DeleteButton, ModalSheet, SaveButton } from './FormHelpers'
 import { useToast } from '../Toast'
@@ -34,6 +34,8 @@ function BeanForm({
   const [amountG,     setAmountG]     = useState<number | undefined>(initial?.initialAmountG)
   const [finished,    setFinished]    = useState(Boolean(initial?.finishedAt))
   const [origin,      setOrigin]      = useState(initial?.origin      ?? '')
+  // ブレンドの構成産地。空配列＝シングル（既定）。比率は持たない（§5）
+  const [blend,       setBlend]       = useState<string[]>(initial?.origins ?? [])
   const [farm,        setFarm]        = useState(initial?.farm        ?? '')
   const [variety,     setVariety]     = useState(initial?.variety     ?? '')
   const [process,     setProcess]     = useState(initial?.process     ?? '')
@@ -48,6 +50,7 @@ function BeanForm({
     setSaving(true)
     // ID生成（crypto.randomUUID）も try の内側に入れる。安全でないコンテキスト（http）では
     // ここで例外になり、外に出すとボタンが「保存中...」のまま無言で固まる
+    const blendClean = blend.map(o => o.trim()).filter(Boolean)
     let saved: Bean | null = null
     try {
       const bean: Bean = {
@@ -58,7 +61,10 @@ function BeanForm({
         purchasedAt: purchasedAt || undefined,
         initialAmountG: amountG,
         finishedAt:  finished ? (initial?.finishedAt ?? nowISO()) : undefined,
-        origin:      origin.trim()    || undefined,
+        // ブレンドなら代表産地（先頭）を origin に、構成産地を origins に入れる。
+        // こうすると表示系（ジャケットの色・一覧の見出し）は従来どおり動く
+        origin:      (blendClean[0] ?? origin.trim()) || undefined,
+        origins:     blendClean.length >= 2 ? blendClean : undefined,
         farm:        farm.trim()      || undefined,
         variety:     variety.trim()   || undefined,
         process:     process.trim()   || undefined,
@@ -137,8 +143,61 @@ function BeanForm({
         </button>
       )}
 
-      <Field label="産地">
-        <OriginInput value={origin} onChange={setOrigin} recentOrigins={recentOrigins} />
+      <Field label={blend.length > 0 ? 'ブレンドの産地' : '産地'}>
+        {blend.length > 0 ? (
+          <div className="flex flex-col gap-2">
+            {blend.map((o, i) => (
+              <div key={i} className="flex items-center gap-2">
+                <div className="flex-1">
+                  <OriginInput
+                    value={o}
+                    onChange={v => setBlend(b => b.map((x, j) => (j === i ? v : x)))}
+                    recentOrigins={recentOrigins}
+                  />
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setBlend(b => b.filter((_, j) => j !== i))}
+                  aria-label={`${i + 1}つ目の産地を削除`}
+                  className="min-h-11 min-w-11 rounded-lg text-[#A8916F] active:opacity-70"
+                >
+                  ✕
+                </button>
+              </div>
+            ))}
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={() => setBlend(b => [...b, ''])}
+                className="min-h-11 px-3 rounded-full border border-dashed border-[#CE9C68]/60 text-xs text-[#CE9C68] active:opacity-70"
+              >
+                + 産地を追加
+              </button>
+              <button
+                type="button"
+                onClick={() => { setOrigin(blend.find(o => o.trim())?.trim() ?? origin); setBlend([]) }}
+                className="min-h-11 px-3 rounded-full text-xs text-[#A8916F] active:opacity-70"
+              >
+                シングルに戻す
+              </button>
+            </div>
+            <p className="text-[11px] text-[#A8916F] leading-relaxed">
+              分かる範囲で構いません。産地パスポートには「ブレンドで出会った」として記録され、
+              あとでシングルで味わうとスタンプが完成します。
+            </p>
+          </div>
+        ) : (
+          <div className="flex flex-col gap-2">
+            <OriginInput value={origin} onChange={setOrigin} recentOrigins={recentOrigins} />
+            <button
+              type="button"
+              onClick={() => setBlend(origin.trim() ? [origin.trim(), ''] : ['', ''])}
+              className="self-start min-h-11 text-xs text-[#CE9C68] active:opacity-70"
+            >
+              + ブレンド（複数の産地）として入力
+            </button>
+          </div>
+        )}
       </Field>
 
       <div className="grid grid-cols-2 gap-3">
@@ -215,7 +274,7 @@ function BeanRow({ bean, brews, onClick, muted }: {
           <p className="text-xs text-[#CE9C68] mt-0.5">
             {ROAST_LEVEL_LABELS[bean.roastLevel]}
             {bean.roastedAt ? ` · 焙煎から${daysSinceRoast(bean.roastedAt)}日` : ''}
-            {bean.origin ? ` · ${bean.origin}` : ''}
+            {bean.origin ? ` · ${bean.origin}${isBlendBean(bean) ? ' ほか' : ''}` : ''}
           </p>
           {remaining && (
             <p className="text-xs text-[#6b5a4a] mt-0.5">{remaining}</p>

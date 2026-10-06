@@ -229,6 +229,22 @@ export function formatSecToMmSs(sec: number): string {
 // ─── Bean remaining ──────────────────────────────────────────────────────────
 
 // 内容量が未入力の豆は null（残量管理の対象外）
+/**
+ * 豆の産地をすべて返す。ブレンドなら構成産地、シングルなら1件、未登録なら空。
+ * `origin`（代表産地）と `origins`（構成産地）の二重管理を1か所に閉じるための入口。
+ */
+export function beanOrigins(bean: Pick<Bean, 'origin' | 'origins'> | undefined): string[] {
+  const list = bean?.origins?.map(o => o.trim()).filter(Boolean)
+  if (list?.length) return list
+  const single = bean?.origin?.trim()
+  return single ? [single] : []
+}
+
+/** ブレンド（構成産地が2件以上）かどうか */
+export function isBlendBean(bean: Pick<Bean, 'origins'> | undefined): boolean {
+  return (bean?.origins?.filter(o => o.trim()).length ?? 0) >= 2
+}
+
 export function calcBeanRemainingG(bean: Bean, brews: Brew[]): number | null {
   if (bean.initialAmountG === undefined) return null
   const used = brews.reduce(

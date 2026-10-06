@@ -10,7 +10,18 @@ export type RoastLevel =
 export interface Bean {
   id: string
   name: string
+  /**
+   * 産地。ブレンドのときは**代表産地（先頭の1つ）**が入る。
+   * 表示系（ジャケットの色・一覧の見出し）はこちらを見る＝ブレンド対応前のコードがそのまま動く。
+   */
   origin?: string
+  /**
+   * ブレンドの構成産地（2件以上で「ブレンド」扱い）。シングルでは未設定。
+   * 集計（産地パスポート・分析の産地数）はこちらを見る。比率は持たない
+   * （袋に書いていないことが多く、入力の手数が増えるだけなので・§2）。
+   * 読み書きは `beanOrigins()` / `isBlendBean()` を通すこと。
+   */
+  origins?: string[]
   farm?: string
   variety?: string
   process?: string

@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import type { Brew, Bean, CafeVisit } from '../db'
 import {
   getAllBrews, getAllBeans, getAllCafeVisits,
-  formatBrewDateShort, formatSecToMmSs, ROAST_LEVEL_LABELS,
+  formatBrewDateShort, formatSecToMmSs, ROAST_LEVEL_LABELS, beanOrigins,
 } from '../db'
 import RadarChart from '../components/analysis/RadarChart'
 import TrendChart from '../components/analysis/TrendChart'
@@ -151,8 +151,8 @@ export default function AnalysisPage() {
     const spend   = visits.reduce((s, v) => s + (v.price ?? 0), 0)
     const origins = new Set<string>()
     for (const b of brews) {
-      const origin = b.beanId ? beanMap.get(b.beanId)?.origin : undefined
-      if (origin) origins.add(origin)
+      // ブレンドは構成産地ぶんを数える（代表産地だけだと取りこぼす）
+      for (const o of beanOrigins(b.beanId ? beanMap.get(b.beanId) : undefined)) origins.add(o)
     }
     for (const v of visits) {
       if (v.beanOrigin) origins.add(v.beanOrigin)

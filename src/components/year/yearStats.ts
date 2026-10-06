@@ -1,4 +1,5 @@
 import type { Bean, Brew, CafeVisit } from '../../db'
+import { beanOrigins } from '../../db'
 
 // 「Year in Coffee」＝1年の記録を1枚にまとめるための集計。
 //
@@ -69,8 +70,8 @@ export function calcYearStats(
 
   const origins = new Set<string>()
   for (const b of yb) {
-    const origin = b.beanId ? beanMap.get(b.beanId)?.origin : undefined
-    if (origin) origins.add(origin)
+    // ブレンドは構成産地ぶんを数える（代表産地だけだと取りこぼす）
+    for (const o of beanOrigins(b.beanId ? beanMap.get(b.beanId) : undefined)) origins.add(o)
   }
   for (const v of yv) {
     if (v.beanOrigin) origins.add(v.beanOrigin)
