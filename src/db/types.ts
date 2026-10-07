@@ -32,6 +32,15 @@ export interface Bean {
   finishedAt?: string     // 飲み切った日時 (ISO)。設定されるとアーカイブ扱い
   decaf?: boolean         // デカフェ豆。カフェイン推定を通常の10%にする
   stockNote?: string
+  /**
+   * 同じ商品の袋をまとめる印（リピート購入）。**未設定なら自分の id が系統ID** なので、
+   * 既存データは何も書き換えずにそのまま1袋目として成立する。読み出しは `beanLineageId()` を通すこと。
+   *
+   * 袋ごとに Bean を作るのは意図的。1つの Bean を編集し回すと
+   * ①過去の記録の「焙煎から◯日」が新しい袋の日付で表示される ②残量が前の袋の消費を含んで狂う
+   * という2つの壊れ方をする（どちらも実際に起きる）。
+   */
+  lineageId?: string
   photoDataUrl?: string   // 任意。袋/パッケージ等の写真（base64 JPEG、最大800px）。無くても自然に表示する
   createdAt: string    // ISO datetime
 }

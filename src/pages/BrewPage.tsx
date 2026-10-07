@@ -12,7 +12,7 @@ import {
   saveBrewDraft, loadBrewDraft, clearBrewDraft, getBrewEquipmentIds,
   DRIP_BAG_DOSE_G, BREW_METHOD_LABELS, formatSecToMmSs,
   BREW_BLOCK_SIDE, BREW_SIDE_LABELS, BREW_SIDE_SUBTITLES, calcRecentMusic,
-  withSaveTimeout, saveErrorMessage, beanOrigins,
+  withSaveTimeout, saveErrorMessage, beanOrigins, currentBagId,
 } from '../db'
 import type { BrewDraft } from '../db'
 import StarRating from '../components/brew/StarRating'
@@ -193,8 +193,10 @@ export default function BrewPage() {
     setBedtimePrediction(predictBedtimeResidual(pastIntakes, mg, caffeineSettings)?.mg ?? null)
   }, [method, doseG, pastIntakes, isEditMode, caffeineSettings, beanId, beans])
 
-  const fillFromBrew = useCallback((b: Brew, copyEval: boolean) => {
-    setBeanId(b.beanId)
+  // bagBeans を渡すと「今の袋」に付け替える（新規記録のとき）。
+  // 編集モードでは渡さない＝その記録が実際に使った袋を保つ
+  const fillFromBrew = useCallback((b: Brew, copyEval: boolean, bagBeans?: Bean[]) => {
+    setBeanId(bagBeans ? currentBagId(b.beanId, bagBeans) : b.beanId)
     setRecipeId(b.recipeId)
     if (b.doseG !== undefined) setDoseG(b.doseG)
     if (b.waterG !== undefined) setWaterG(b.waterG)
@@ -260,7 +262,7 @@ export default function BrewPage() {
             showToast('入力中だった内容を復元しました', { type: 'success' })
           } else {
             const last = brews.at(-1)
-            if (last) fillFromBrew(last, false)
+            if (last) fillFromBrew(last, false, bs)
           }
           // 初期化完了。以後の変更を自動保存の対象にする
           draftLoadedRef.current = true
@@ -279,7 +281,10 @@ export default function BrewPage() {
       }).catch(() => {})
     } else if (fromBrewId) {
       // 再現モード: 技術パラメータ＋抽出方法を転写、評価はリセット
-      getBrew(fromBrewId).then(b => { if (b) { fillFromBrew(b, false); setMethod(b.method ?? 'pour_over') } }).catch(() => {})
+      // 再現も「今の袋」に付け替えるので、豆を一緒に読む
+      Promise.all([getBrew(fromBrewId), getAllBeans()])
+        .then(([b, bs]) => { if (b) { fillFromBrew(b, false, bs); setMethod(b.method ?? 'pour_over') } })
+        .catch(() => {})
     }
     // 通常の新規（素の /brew）は method を引き継がず常に pour_over のまま
   }, [editBrewId, fromBrewId, fillFromBrew, applyDraft, showToast])
@@ -331,7 +336,7 @@ export default function BrewPage() {
     setCupping({}); setEquipmentIds([]); setTotalTimeSec(undefined)
     setPourCount(undefined); setNote(''); setPhotoDataUrl(undefined); setShowDetail(false)
     const last = allBrews.at(-1)
-    if (last) fillFromBrew(last, false)
+    if (last) fillFromBrew(last, false, beans)
   }
 
   const selectedBean = beans.find(b => b.id === beanId)

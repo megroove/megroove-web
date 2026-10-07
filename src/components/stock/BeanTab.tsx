@@ -3,7 +3,7 @@ import type { Bean, Brew, RoastLevel } from '../../db'
 import {
   getAllBeans, getAllBrews, putBean, deleteBean, newId, nowISO,
   ROAST_LEVEL_LABELS, daysSinceRoast, formatBeanRemaining,
-  withSaveTimeout, saveErrorMessage, isBlendBean,
+  withSaveTimeout, saveErrorMessage, isBlendBean, beanLineageId, beanBagNumber,
 } from '../../db'
 import { Field, TextInput, NumberInput, DateInput, ChipSelect, DeleteButton, ModalSheet, SaveButton } from './FormHelpers'
 import { useToast } from '../Toast'
@@ -17,31 +17,47 @@ const ROAST_LEVELS: RoastLevel[] = ['light', 'light-medium', 'medium', 'medium-d
 const PROCESS_PRESETS = ['ウォッシュト', 'ナチュラル', 'ハニー', 'アナエロビック']
 
 function BeanForm({
-  initial, recentOrigins, recentFarms, recentVarieties, onSave, onDelete, onCancel,
+  initial, repurchaseOf, recentOrigins, recentFarms, recentVarieties,
+  onSave, onDelete, onCancel, onRepurchase,
 }: {
   initial?: Bean
+  /**
+   * 買い直し。これが入っていると「同じ商品の新しい袋」を作る。
+   * 商品の属性（名前・産地・品種・精製・焙煎度・内容量）は引き継ぎ、
+   * 袋の属性（焙煎日・在庫メモ）は空にする。
+   */
+  repurchaseOf?: Bean
   recentOrigins: string[]
   recentFarms: string[]
   recentVarieties: string[]
-  onSave: (b: Bean) => void
+  /** 第2引数は「前の袋を飲み切りにした」場合のその袋 */
+  onSave: (b: Bean, finishedPrevious?: Bean) => void
   onDelete?: () => void
   onCancel: () => void
+  onRepurchase?: () => void
 }) {
-  const [name,        setName]        = useState(initial?.name        ?? '')
-  const [roastLevel,  setRoastLevel]  = useState<RoastLevel>(initial?.roastLevel ?? 'medium')
+  // 買い直しは「新しい袋」なので、引き継ぐ値は商品の属性だけ
+  const base = initial ?? repurchaseOf
+  const todayISO = new Date().toISOString().slice(0, 10)
+  const [name,        setName]        = useState(base?.name          ?? '')
+  const [roastLevel,  setRoastLevel]  = useState<RoastLevel>(base?.roastLevel ?? 'medium')
   const [roastedAt,   setRoastedAt]   = useState(initial?.roastedAt   ?? '')
-  const [purchasedAt, setPurchasedAt] = useState(initial?.purchasedAt ?? '')
-  const [amountG,     setAmountG]     = useState<number | undefined>(initial?.initialAmountG)
+  const [purchasedAt, setPurchasedAt] = useState(
+    initial?.purchasedAt ?? (repurchaseOf ? todayISO : ''),
+  )
+  const [amountG,     setAmountG]     = useState<number | undefined>(base?.initialAmountG)
   const [finished,    setFinished]    = useState(Boolean(initial?.finishedAt))
-  const [origin,      setOrigin]      = useState(initial?.origin      ?? '')
+  const [origin,      setOrigin]      = useState(base?.origin        ?? '')
   // ブレンドの構成産地。空配列＝シングル（既定）。比率は持たない（§5）
-  const [blend,       setBlend]       = useState<string[]>(initial?.origins ?? [])
-  const [farm,        setFarm]        = useState(initial?.farm        ?? '')
-  const [variety,     setVariety]     = useState(initial?.variety     ?? '')
-  const [process,     setProcess]     = useState(initial?.process     ?? '')
-  const [decaf,       setDecaf]       = useState(initial?.decaf       ?? false)
+  const [blend,       setBlend]       = useState<string[]>(base?.origins ?? [])
+  const [farm,        setFarm]        = useState(base?.farm          ?? '')
+  const [variety,     setVariety]     = useState(base?.variety       ?? '')
+  const [process,     setProcess]     = useState(base?.process       ?? '')
+  const [decaf,       setDecaf]       = useState(base?.decaf         ?? false)
   const [stockNote,   setStockNote]   = useState(initial?.stockNote   ?? '')
-  const [photoDataUrl, setPhotoDataUrl] = useState<string | undefined>(initial?.photoDataUrl)
+  const [photoDataUrl, setPhotoDataUrl] = useState<string | undefined>(base?.photoDataUrl)
+  // 買い直したら前の袋は終わっている方が多いので既定 ON。並行して開けている人は外せる
+  const [finishPrev,  setFinishPrev]  = useState(true)
   const [saving,      setSaving]      = useState(false)
   const showToast = useToast()
 
@@ -52,6 +68,7 @@ function BeanForm({
     // ここで例外になり、外に出すとボタンが「保存中...」のまま無言で固まる
     const blendClean = blend.map(o => o.trim()).filter(Boolean)
     let saved: Bean | null = null
+    let archived: Bean | null = null
     try {
       const bean: Bean = {
         id:         initial?.id ?? newId(),
@@ -72,24 +89,61 @@ function BeanForm({
         stockNote:   stockNote.trim() || undefined,
         photoDataUrl: photoDataUrl    || undefined,
         createdAt:  initial?.createdAt ?? nowISO(),
+        // 買い直しなら前の袋と同じ系統に紐づける（前の袋は書き換えない）
+        lineageId:  repurchaseOf ? beanLineageId(repurchaseOf) : initial?.lineageId,
       }
       await withSaveTimeout(putBean(bean))
       saved = bean
     } catch (e) {
       console.error('[megroove] 豆の保存に失敗しました:', e)
       showToast(saveErrorMessage(e), { type: 'error' })
-    } finally {
-      setSaving(false)
     }
-    if (saved) onSave(saved)
+
+    // 前の袋を畳むのは別の try にする。ここで失敗しても
+    // 新しい袋は保存できているので、それを失わせない
+    if (saved && repurchaseOf && finishPrev && !repurchaseOf.finishedAt) {
+      try {
+        const prev = { ...repurchaseOf, finishedAt: nowISO() }
+        await withSaveTimeout(putBean(prev))
+        archived = prev
+      } catch (e) {
+        console.error('[megroove] 前の袋の飲み切りに失敗しました:', e)
+        showToast('新しい袋は保存しました。前の袋の飲み切りはストックから設定してください', { type: 'error' })
+      }
+    }
+
+    setSaving(false)
+    if (saved) onSave(saved, archived ?? undefined)
   }
 
   return (
     <div className="flex flex-col px-4 py-4 gap-4">
       <div className="flex items-center justify-between">
-        <h3 className="text-lg font-semibold text-[#F7EFE6]">{initial ? '豆を編集' : '豆を追加'}</h3>
+        <h3 className="text-lg font-semibold text-[#F7EFE6]">
+          {repurchaseOf ? '同じ豆を買い直す' : initial ? '豆を編集' : '豆を追加'}
+        </h3>
         <button type="button" onClick={onCancel} className="text-[#CE9C68] text-sm">閉じる</button>
       </div>
+
+      {repurchaseOf && (
+        <div className="bg-[#2E2018] rounded-xl p-3.5 flex flex-col gap-3">
+          <p className="text-xs text-[#A8916F] leading-relaxed">
+            新しい袋として登録します。焙煎日だけ入れ直してください。
+            前の袋の記録と残量はそのまま残ります。
+          </p>
+          {!repurchaseOf.finishedAt && (
+            <label className="flex items-center gap-2.5 min-h-11 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={finishPrev}
+                onChange={e => setFinishPrev(e.target.checked)}
+                className="w-5 h-5 accent-[#993C1D] shrink-0"
+              />
+              <span className="text-sm text-[#F7EFE6]">前の袋を飲み切りにする</span>
+            </label>
+          )}
+        </div>
+      )}
 
       <Field label="名前 *">
         <TextInput value={name} onChange={setName} placeholder="例: エチオピア イルガチェフェ" autoFocus />
@@ -249,14 +303,23 @@ function BeanForm({
 
       <div className="flex flex-col gap-2 pb-6">
         <SaveButton disabled={!name.trim()} saving={saving} onClick={handleSave} />
+        {onRepurchase && (
+          <button
+            type="button"
+            onClick={onRepurchase}
+            className="min-h-11 rounded-xl border border-[#CE9C68]/50 text-[#CE9C68] text-sm font-medium active:opacity-70"
+          >
+            同じ豆を買い直す
+          </button>
+        )}
         {onDelete && <DeleteButton label="この豆を削除" onDelete={onDelete} />}
       </div>
     </div>
   )
 }
 
-function BeanRow({ bean, brews, onClick, muted }: {
-  bean: Bean; brews: Brew[]; onClick: () => void; muted?: boolean
+function BeanRow({ bean, brews, bagNumber, onClick, muted }: {
+  bean: Bean; brews: Brew[]; bagNumber: number; onClick: () => void; muted?: boolean
 }) {
   const remaining = !bean.finishedAt ? formatBeanRemaining(bean, brews) : null
   return (
@@ -270,7 +333,15 @@ function BeanRow({ bean, brews, onClick, muted }: {
           <img src={bean.photoDataUrl} alt="" className="w-12 h-12 rounded-lg object-cover shrink-0 border border-[#3e3020]" />
         )}
         <div className="min-w-0 flex-1">
-          <p className="text-[#F7EFE6] font-medium">{bean.name}</p>
+          <div className="flex items-baseline gap-2">
+            <p className="text-[#F7EFE6] font-medium truncate">{bean.name}</p>
+            {/* 何袋目か。リピートしていることが一目で分かる */}
+            {bagNumber > 1 && (
+              <span className="text-[10px] text-[#CE9C68] border border-[#CE9C68]/40 rounded-full px-1.5 py-0.5 shrink-0">
+                {bagNumber}袋目
+              </span>
+            )}
+          </div>
           <p className="text-xs text-[#CE9C68] mt-0.5">
             {ROAST_LEVEL_LABELS[bean.roastLevel]}
             {bean.roastedAt ? ` · 焙煎から${daysSinceRoast(bean.roastedAt)}日` : ''}
@@ -292,6 +363,8 @@ export default function BeanTab() {
   const [beans, setBeans]           = useState<Bean[]>([])
   const [brews, setBrews]           = useState<Brew[]>([])
   const [editing, setEditing]       = useState<Bean | 'new' | null>(null)
+  // 買い直し中の「前の袋」。editing とは別に持つ（編集 → 買い直しへ切り替わる）
+  const [repurchasing, setRepurchasing] = useState<Bean | null>(null)
   const showToast = useToast()
 
   useEffect(() => {
@@ -299,13 +372,25 @@ export default function BeanTab() {
     getAllBrews().then(setBrews).catch(() => {})
   }, [])
 
-  const handleSave = (bean: Bean) => {
+  const upsert = (list: Bean[], bean: Bean) => {
+    const i = list.findIndex(b => b.id === bean.id)
+    if (i >= 0) { const n = [...list]; n[i] = bean; return n }
+    return [...list, bean]
+  }
+
+  const handleSave = (bean: Bean, finishedPrevious?: Bean) => {
     setBeans(prev => {
-      const i = prev.findIndex(b => b.id === bean.id)
-      if (i >= 0) { const n = [...prev]; n[i] = bean; return n }
-      return [...prev, bean]
+      let next = upsert(prev, bean)
+      if (finishedPrevious) next = upsert(next, finishedPrevious)
+      return next
     })
+    const wasRepurchase = Boolean(repurchasing)
     setEditing(null)
+    setRepurchasing(null)
+    if (wasRepurchase) {
+      const n = beanBagNumber(bean, upsert(beans, bean))
+      showToast(`「${bean.name}」の${n}袋目を登録しました`, { type: 'success' })
+    }
   }
 
   const handleDelete = async (bean: Bean) => {
@@ -349,13 +434,26 @@ export default function BeanTab() {
       ) : (
         <div className="flex flex-col gap-3 mb-4">
           {activeBeans.map(bean => (
-            <BeanRow key={bean.id} bean={bean} brews={brews} onClick={() => setEditing(bean)} />
+            <BeanRow
+              key={bean.id}
+              bean={bean}
+              brews={brews}
+              bagNumber={beanBagNumber(bean, beans)}
+              onClick={() => setEditing(bean)}
+            />
           ))}
           {finishedBeans.length > 0 && (
             <>
               <p className="text-xs text-[#6b5a4a] uppercase tracking-wider mt-2">飲み切った豆</p>
               {finishedBeans.map(bean => (
-                <BeanRow key={bean.id} bean={bean} brews={brews} muted onClick={() => setEditing(bean)} />
+                <BeanRow
+                  key={bean.id}
+                  bean={bean}
+                  brews={brews}
+                  bagNumber={beanBagNumber(bean, beans)}
+                  muted
+                  onClick={() => setEditing(bean)}
+                />
               ))}
             </>
           )}
@@ -372,13 +470,25 @@ export default function BeanTab() {
 
       <ModalSheet open={editing !== null}>
         <BeanForm
-          initial={editing === 'new' ? undefined : (editing ?? undefined)}
+          // 買い直し中は initial を渡さない（新しい袋を作るため）
+          key={repurchasing ? `repurchase-${repurchasing.id}` : editing === 'new' ? 'new' : editing?.id}
+          initial={repurchasing || editing === 'new' ? undefined : (editing ?? undefined)}
+          repurchaseOf={repurchasing ?? undefined}
           recentOrigins={recentOrigins}
           recentFarms={recentFarms}
           recentVarieties={recentVarieties}
           onSave={handleSave}
-          onDelete={editing !== 'new' && editing !== null ? () => handleDelete(editing) : undefined}
-          onCancel={() => setEditing(null)}
+          onDelete={
+            !repurchasing && editing !== 'new' && editing !== null
+              ? () => handleDelete(editing)
+              : undefined
+          }
+          onRepurchase={
+            !repurchasing && editing !== 'new' && editing !== null
+              ? () => setRepurchasing(editing)
+              : undefined
+          }
+          onCancel={() => { setEditing(null); setRepurchasing(null) }}
         />
       </ModalSheet>
     </div>

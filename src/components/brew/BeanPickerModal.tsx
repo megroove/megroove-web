@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import type { Bean, Brew, RoastLevel } from '../../db'
 import {
   getAllBeans, getAllBrews, putBean, newId, nowISO,
-  ROAST_LEVEL_LABELS, daysSinceRoast, formatBeanRemaining,
+  ROAST_LEVEL_LABELS, daysSinceRoast, formatBeanRemaining, beanBagNumber, isBlendBean,
   withSaveTimeout, saveErrorMessage,
 } from '../../db'
 import OriginInput from '../OriginInput'
@@ -269,11 +269,19 @@ export default function BeanPickerModal({ currentBeanId, mode = 'bean', onSelect
                       <img src={bean.photoDataUrl} alt="" className="w-11 h-11 rounded-lg object-cover shrink-0 border border-[#3e3020]" />
                     )}
                     <div className="min-w-0">
-                      <p className="text-[#F7EFE6] font-medium">{bean.name}</p>
+                      <div className="flex items-baseline gap-2">
+                        <p className="text-[#F7EFE6] font-medium truncate">{bean.name}</p>
+                        {/* 何袋目か。選ぶ時点で「前に飲んだ豆」だと分かる */}
+                        {beanBagNumber(bean, beans) > 1 && (
+                          <span className="text-[10px] text-[#CE9C68] border border-[#CE9C68]/40 rounded-full px-1.5 py-0.5 shrink-0">
+                            {beanBagNumber(bean, beans)}袋目
+                          </span>
+                        )}
+                      </div>
                       <p className="text-xs text-[#CE9C68] mt-0.5">
                         {ROAST_LEVEL_LABELS[bean.roastLevel]}
                         {bean.roastedAt ? ` · 焙煎から${daysSinceRoast(bean.roastedAt)}日` : ''}
-                        {bean.origin ? ` · ${bean.origin}` : ''}
+                        {bean.origin ? ` · ${bean.origin}${isBlendBean(bean) ? ' ほか' : ''}` : ''}
                       </p>
                       {(bean.finishedAt || formatBeanRemaining(bean, brews)) && (
                         <p className="text-xs text-[#6b5a4a] mt-0.5">

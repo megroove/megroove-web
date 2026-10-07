@@ -2,9 +2,9 @@ import { useState, useEffect, useMemo } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import type { Brew, Bean } from '../db'
 import {
-  getBean, getAllBrews,
+  getAllBeans, getAllBrews,
   calcRatio, formatBrewDateShort, formatSecToMmSs, formatBeanRemaining,
-  ROAST_LEVEL_LABELS, daysSinceRoast,
+  ROAST_LEVEL_LABELS, daysSinceRoast, beanBagsOf, beanBagNumber,
 } from '../db'
 import RadarChart from '../components/analysis/RadarChart'
 import AgingWindowCard from '../components/analysis/AgingWindowCard'
@@ -18,25 +18,36 @@ export default function BeanAnalysisPage() {
 
   const [bean, setBean] = useState<Bean | null>(null)
   const [allBrews, setAllBrews] = useState<Brew[]>([])
+  const [allBeans, setAllBeans] = useState<Bean[]>([])
   const [loading, setLoading] = useState(true)
   const [lightboxOpen, setLightboxOpen] = useState(false)
 
   useEffect(() => {
     if (!id) return
-    Promise.all([getBean(id), getAllBrews()])
-      .then(([b, brews]) => {
+    // 全部の豆を読むのは、同じ商品の別の袋（リピート購入）を束ねるため
+    Promise.all([getAllBeans(), getAllBrews()])
+      .then(([beans, brews]) => {
+        const b = beans.find(x => x.id === id)
         if (!b) { navigate('/analysis', { replace: true }); return }
         setBean(b)
+        setAllBeans(beans)
         setAllBrews(brews)
       })
       .catch(() => {})
       .finally(() => setLoading(false))
   }, [id, navigate])
 
-  const beanBrews = useMemo(
-    () => allBrews.filter(b => b.beanId === id),
-    [allBrews, id],
+  // 同じ商品の袋はまとめて1つの豆として分析する。
+  // 袋ごとに Bean を作っているので、束ねないと履歴が袋ごとに分断されてしまう
+  const bags = useMemo(
+    () => (bean ? beanBagsOf(bean, allBeans) : []),
+    [bean, allBeans],
   )
+
+  const beanBrews = useMemo(() => {
+    const ids = new Set(bags.map(b => b.id))
+    return allBrews.filter(b => b.beanId && ids.has(b.beanId))
+  }, [allBrews, bags])
 
   const ratings = useMemo(
     () => beanBrews.map(b => b.rating).filter((r): r is number => Boolean(r)),
@@ -61,9 +72,10 @@ export default function BeanAnalysisPage() {
     [beanBrews],
   )
 
+  // 袋ごとに焙煎日が違うので、全袋を渡して各記録を正しい焙煎日で評価させる
   const agingWindow = useMemo(
-    () => (bean ? calcAgingWindow(beanBrews, [bean]) : { buckets: [], total: 0 }),
-    [beanBrews, bean],
+    () => calcAgingWindow(beanBrews, bags),
+    [beanBrews, bags],
   )
 
   if (loading || !bean) {
@@ -101,7 +113,18 @@ export default function BeanAnalysisPage() {
             {bean.roastedAt ? ` · 焙煎から${daysSinceRoast(bean.roastedAt)}日` : ''}
             {bean.origin ? ` · ${bean.origin}` : ''}
           </p>
-          {remaining && <p className="text-xs text-[#6b5a4a] mt-0.5">{remaining}</p>}
+          {remaining && <p className="text-xs text-[#A8916F] mt-0.5">{remaining}</p>}
+          {/* リピートしている豆は、全袋をまとめて分析していることを明示する */}
+          {bags.length > 1 && (
+            <p className="text-xs text-[#CE9C68] mt-1.5">
+              <span className="border border-[#CE9C68]/40 rounded-full px-1.5 py-0.5">
+                {beanBagNumber(bean, allBeans)}袋目
+              </span>
+              <span className="text-[#A8916F] ml-2">
+                {bags.length}袋ぶん・{beanBrews.length}杯をまとめて分析しています
+              </span>
+            </p>
+          )}
         </div>
       </div>
       {lightboxOpen && bean.photoDataUrl && (

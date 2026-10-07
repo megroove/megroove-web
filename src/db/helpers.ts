@@ -229,6 +229,48 @@ export function formatSecToMmSs(sec: number): string {
 // ─── Bean remaining ──────────────────────────────────────────────────────────
 
 // 内容量が未入力の豆は null（残量管理の対象外）
+// ─── リピート購入（同じ商品の袋を束ねる） ─────────────────────────────────
+// 「何袋目か」は保存せず、系統の中の並び順から都度計算する（残量と同じ流儀）。
+
+/** 同じ商品の袋をまとめる系統ID。未設定なら自分の id が系統ID */
+export function beanLineageId(bean: Pick<Bean, 'id' | 'lineageId'>): string {
+  return bean.lineageId ?? bean.id
+}
+
+/** 並び順の鍵。購入日（無ければ登録日）→ 登録日 の順。日付の桁を揃えてから比べる */
+function bagOrderKey(b: Bean): string {
+  return `${b.purchasedAt || b.createdAt.slice(0, 10)}\u0000${b.createdAt}`
+}
+
+/** 同じ商品の袋を、買った順に並べて返す（自分を含む） */
+export function beanBagsOf(bean: Bean, beans: Bean[]): Bean[] {
+  const lineage = beanLineageId(bean)
+  return beans
+    .filter(b => beanLineageId(b) === lineage)
+    .sort((a, b) => bagOrderKey(a).localeCompare(bagOrderKey(b)))
+}
+
+/** 何袋目か（1始まり）。1袋しかなければ 1 */
+export function beanBagNumber(bean: Bean, beans: Bean[]): number {
+  const i = beanBagsOf(bean, beans).findIndex(b => b.id === bean.id)
+  return i >= 0 ? i + 1 : 1
+}
+
+/**
+ * その豆の「今の袋」。**記録された袋が飲み切りで、開いている袋が他にあれば**最新の開封袋に付け替える。
+ *
+ * 「前回と同じ」や再現で古い袋のまま新しい記録を作ると、残量がその袋に積まれ、
+ * 「焙煎から◯日」も前の袋の日付で出てしまう。まだ開いている袋ならそのまま返す
+ * （二袋並行しているときに勝手に乗り換えないため）。
+ */
+export function currentBagId(beanId: string | undefined, beans: Bean[]): string | undefined {
+  if (!beanId) return beanId
+  const bean = beans.find(b => b.id === beanId)
+  if (!bean?.finishedAt) return beanId
+  const open = beanBagsOf(bean, beans).filter(b => !b.finishedAt)
+  return open.length > 0 ? open[open.length - 1].id : beanId
+}
+
 /**
  * 豆の産地をすべて返す。ブレンドなら構成産地、シングルなら1件、未登録なら空。
  * `origin`（代表産地）と `origins`（構成産地）の二重管理を1か所に閉じるための入口。

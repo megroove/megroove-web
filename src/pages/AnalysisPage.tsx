@@ -6,6 +6,8 @@ import {
   formatBrewDateShort, formatSecToMmSs, ROAST_LEVEL_LABELS, beanOrigins,
 } from '../db'
 import RadarChart from '../components/analysis/RadarChart'
+import { calcRepeatBeans } from '../components/analysis/repeatBeans'
+import { jacketColor } from '../components/library/jacketColor'
 import TrendChart from '../components/analysis/TrendChart'
 import AgingWindowCard from '../components/analysis/AgingWindowCard'
 import {
@@ -144,6 +146,12 @@ export default function AnalysisPage() {
 
   const monthlyBrews = useMemo(() => brews.filter(isThisMonth), [brews])
   const yearlyBrews  = useMemo(() => brews.filter(isThisYear),  [brews])
+
+  // リピートしている豆（2袋以上買った豆）。星より正直な「本当に好きな豆」の指標
+  const repeats = useMemo(
+    () => calcRepeatBeans([...beanMap.values()], brews),
+    [beanMap, brews],
+  )
 
   // 累計統計
   const totals = useMemo(() => {
@@ -400,6 +408,47 @@ export default function AnalysisPage() {
           </div>
           <span className="text-[#CE9C68] text-sm shrink-0">→</span>
         </button>
+      )}
+
+      {/* リピートしている豆 */}
+      {repeats.length > 0 && (
+        <section className="flex flex-col gap-3">
+          <h3 className="text-sm font-semibold text-[#CE9C68] uppercase tracking-wider">
+            何度も買っている豆
+          </h3>
+          <div className="flex flex-col gap-2">
+            {repeats.slice(0, 5).map(r => (
+              <button
+                key={r.bean.id}
+                type="button"
+                onClick={() => navigate(`/analysis/bean/${r.bean.id}`)}
+                className="bg-[#2E2018] rounded-xl p-4 flex items-center gap-3 text-left active:opacity-80"
+              >
+                {r.bean.photoDataUrl ? (
+                  <img
+                    src={r.bean.photoDataUrl}
+                    alt=""
+                    className="w-11 h-11 rounded-lg object-cover shrink-0 border border-[#3e3020]"
+                  />
+                ) : (
+                  <div
+                    className="w-11 h-11 rounded-lg shrink-0"
+                    style={{ background: jacketColor(r.bean.origin || r.bean.name, r.bean.roastLevel).bg }}
+                  />
+                )}
+                <div className="min-w-0 flex-1">
+                  <p className="text-[#F7EFE6] font-medium truncate">{r.bean.name}</p>
+                  <p className="text-xs text-[#A8916F] mt-0.5">
+                    {r.cups}杯{r.avgRating != null && ` · ★${r.avgRating}`}
+                  </p>
+                </div>
+                <span className="text-xs text-[#CE9C68] border border-[#CE9C68]/40 rounded-full px-2 py-0.5 shrink-0">
+                  {r.bags}袋
+                </span>
+              </button>
+            ))}
+          </div>
+        </section>
       )}
 
       {/* 累計 */}
