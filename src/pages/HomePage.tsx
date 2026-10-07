@@ -14,9 +14,10 @@ import type { RecentJacketItem } from '../components/home/RecentJackets'
 import { jacketColor } from '../components/library/jacketColor'
 import { calcPassport } from '../components/passport/passportStats'
 import type { QuickPreset, QuickSaveInput } from '../components/brew/QuickBrewSheet'
+import { buildQuickPresets } from '../components/brew/quickPresets'
 import { useToast } from '../components/Toast'
 import { getAllBrews, getAllBeans, getAllCafeVisits, getAllEquipment, getAllCaffeineIntakes, getAllRecipes, putBrew, putCafeVisit, deleteBrew, getBrewCount, getSleepLog, putSleepLog } from '../db'
-import type { Brew, Bean, CafeVisit, Equipment, Recipe, CuppingScores, RoastLevel } from '../db'
+import type { Brew, Bean, CafeVisit, Equipment, CuppingScores, RoastLevel } from '../db'
 import {
   formatBrewDateShort, ROAST_LEVEL_LABELS, CAFE_DRINK_TYPE_LABELS, CAFE_DRINK_SIZE_LABELS,
   EQUIPMENT_TYPE_LABELS, daysSinceRoast, getBrewEquipmentIds,
@@ -24,7 +25,7 @@ import {
   hasSeenBackupIntro, markBackupIntroSeen, loadLastExportAt, exportBackup,
   calcResidualCaffeine, calcStreakDays, isSameLocalDay, calcCuppingAverage, calcFrequentFlavors,
   newId, nowISO, estimateCaffeine, estimateCafeCaffeine, calcRatio, loadSettings, localDateKey,
-  calcFrequentRecipes, predictBedtimeResidual, DRIP_BAG_DOSE_G,
+  predictBedtimeResidual, DRIP_BAG_DOSE_G,
   withSaveTimeout, saveErrorMessage,
 } from '../db'
 import {
@@ -40,36 +41,6 @@ type RecentItem =
 type FeaturedItem =
   | { type: 'equipment'; id: string }
   | { type: 'photo'; dataUrl: string; caption: string }
-
-// ─── クイック記録のプリセット ─────────────────────────────────────────────────
-
-// 「前回と同じ」＋よく使うレシピ上位2の最大3枚。レシピは既定値だけでは豆・器具が分からないため、
-// 「そのレシピを直近で使った記録」を実体にして条件をまるごと引き継ぐ
-function buildQuickPresets(
-  brews: Brew[],
-  recipes: Recipe[],
-  beanMap: Map<string, Bean>,
-): QuickPreset[] {
-  const last = brews.at(-1)
-  if (!last) return []
-  const presets: QuickPreset[] = [
-    { id: 'last', name: '前回と同じ', brew: last, bean: last.beanId ? beanMap.get(last.beanId) : undefined },
-  ]
-  for (const { recipeId } of calcFrequentRecipes(brews)) {
-    if (recipeId === last.recipeId) continue // 「前回と同じ」と同じ条件は並べない
-    const recipe = recipes.find(r => r.id === recipeId)
-    if (!recipe) continue
-    const base = [...brews].reverse().find(b => b.recipeId === recipeId)
-    if (!base) continue
-    presets.push({
-      id: recipe.id,
-      name: recipe.name,
-      brew: base,
-      bean: base.beanId ? beanMap.get(base.beanId) : undefined,
-    })
-  }
-  return presets.slice(0, 3)
-}
 
 // ─── ランキング計算 ───────────────────────────────────────────────────────────
 
@@ -353,7 +324,7 @@ export default function HomePage() {
         )
 
         // クイック記録のプリセット（前回と同じ ＋ よく使うレシピ上位2）
-        setQuickPresets(buildQuickPresets(brews, recipesList, beanMap))
+        setQuickPresets(buildQuickPresets(brews, recipesList, beansList))
 
         // カフェ版クイック記録用の前回来店（ブリュー版と同じ「最後の1件」）
         setLastVisit(visits.at(-1) ?? null)
@@ -486,6 +457,8 @@ export default function HomePage() {
     setQuickSaving(true)
     try {
       const b = input.preset.brew
+      // 豆は付け替え済みの beanId を使う（コピー元が飲み切った袋を指していることがある）
+      const beanId = input.preset.beanId
       const bean = input.preset.bean
       const isDripBag = b.method === 'drip_bag'
       // 不正値を保存しない: シート側でクランプ済みの値だけを採用する
@@ -504,7 +477,7 @@ export default function HomePage() {
         createdAt: nowISO(),
         brewedAt: nowISO(),
         method: b.method,
-        beanId: b.beanId,
+        beanId,
         recipeId: b.recipeId,
         doseG,
         waterG: input.waterG,

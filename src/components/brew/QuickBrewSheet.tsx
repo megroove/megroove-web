@@ -12,7 +12,10 @@ export interface QuickPreset {
   id: string
   name: string     // 「前回と同じ」 または レシピ名
   brew: Brew       // コピー元の記録
-  bean?: Bean
+  // 実際に使う豆。コピー元が飲み切った袋なら「今の袋」に付け替えてある（buildQuickPresets）。
+  // 保存はこちらを使うこと（brew.beanId は前の袋を指していることがある）
+  beanId?: string
+  bean?: Bean      // beanId の実体（表示用）
 }
 
 export interface QuickSaveInput {
