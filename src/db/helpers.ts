@@ -226,6 +226,17 @@ export function formatSecToMmSs(sec: number): string {
   return `${Math.floor(sec / 60)}:${String(sec % 60).padStart(2, '0')}`
 }
 
+/**
+ * 抽出中に数えた注湯回数を、記録の値に反映するかを決める。
+ *
+ * **一度も数えていない（0回）なら、いまの値をそのまま残す。** 抽出中画面を
+ * 時間の計測だけに使った人の、前回値コピーや手入力を消さないため
+ * （総抽出時間は必ず実測が入るのに対し、注湯は「数えない」選択がありうる）。
+ */
+export function resolvePourCount(tapped: number, current?: number): number | undefined {
+  return Number.isFinite(tapped) && tapped > 0 ? Math.floor(tapped) : current
+}
+
 // ─── Bean remaining ──────────────────────────────────────────────────────────
 
 // 内容量が未入力の豆は null（残量管理の対象外）

@@ -12,7 +12,7 @@ import {
   saveBrewDraft, loadBrewDraft, clearBrewDraft, getBrewEquipmentIds,
   DRIP_BAG_DOSE_G, BREW_METHOD_LABELS, formatSecToMmSs,
   BREW_BLOCK_SIDE, BREW_SIDE_LABELS, BREW_SIDE_SUBTITLES, calcRecentMusic,
-  withSaveTimeout, saveErrorMessage, beanOrigins, currentBagId,
+  withSaveTimeout, saveErrorMessage, beanOrigins, currentBagId, resolvePourCount,
 } from '../db'
 import type { BrewDraft } from '../db'
 import StarRating from '../components/brew/StarRating'
@@ -633,6 +633,11 @@ export default function BrewPage() {
                 placeholder="—"
                 className="w-full bg-transparent text-[#F7EFE6] text-xl font-semibold outline-none placeholder-[#4a3a2a] tabular-nums"
               />
+              {!isEditMode && (
+                <p className="text-[11px] text-[#6b5a4a] mt-2">
+                  抽出中に数えると、ここに入ります
+                </p>
+              )}
             </div>
           </div>
         )
@@ -1007,7 +1012,12 @@ export default function BrewPage() {
         <BrewingOverlay
           summary={brewSummary}
           roastLevel={selectedBean?.roastLevel}
-          onDone={sec => { setTotalTimeSec(sec); setShowBrewing(false); setSide('B') }}
+          onDone={(sec, pours) => {
+            setTotalTimeSec(sec)
+            setPourCount(prev => resolvePourCount(pours, prev))
+            setShowBrewing(false)
+            setSide('B')
+          }}
           onCancel={() => setShowBrewing(false)}
         />
       )}

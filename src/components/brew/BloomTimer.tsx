@@ -73,16 +73,16 @@ export default function BloomTimer({ autoStart = false }: Props) {
   const ss = String(remaining % 60).padStart(2, '0')
 
   return (
-    <div className="flex flex-col gap-3">
-      {/* プリセット（アイドル時のみ） */}
+    <div className="flex flex-col gap-2">
+      {/* プリセット（アイドル時のみ）。抽出中画面は自動スタートなので、通常は出ない */}
       {!running && elapsed === 0 && (
-        <div className="flex gap-2">
+        <div className="flex gap-1.5">
           {presets.map(s => (
             <button
               key={s}
               type="button"
               onClick={() => setTargetSec(s)}
-              className={`flex-1 py-1.5 rounded-xl text-sm transition-colors ${
+              className={`flex-1 py-1.5 rounded-lg text-xs transition-colors ${
                 targetSec === s ? 'bg-[#993C1D] text-[#F7EFE6]' : 'bg-[#3e3020] text-[#CE9C68]'
               }`}
             >
@@ -92,9 +92,9 @@ export default function BloomTimer({ autoStart = false }: Props) {
         </div>
       )}
 
-      <div className="flex items-center gap-4">
-        {/* 円形プログレス */}
-        <div className="relative w-16 h-16 flex-shrink-0">
+      {/* 円・状態・操作を1行に収める（抽出中画面でスクロールさせないため） */}
+      <div className="flex items-center gap-3">
+        <div className="relative w-14 h-14 shrink-0">
           <svg viewBox="0 0 64 64" className="w-full h-full -rotate-90">
             <circle cx="32" cy="32" r="28" fill="none" stroke="#3e3020" strokeWidth="4" />
             <circle
@@ -112,23 +112,27 @@ export default function BloomTimer({ autoStart = false }: Props) {
           </span>
         </div>
 
-        {/* コントロール */}
-        <div className="flex gap-2 flex-1">
+        {/* 状態は文字でも示す（色だけで語らない・§9） */}
+        <p className={`text-xs flex-1 min-w-0 ${done ? 'text-emerald-400' : 'text-[#CE9C68]'}`}>
+          {done ? '蒸らし完了' : '蒸らし'}
+        </p>
+
+        <div className="flex gap-1.5 shrink-0">
           {done ? (
             <button type="button" onClick={reset}
-              className="flex-1 py-2.5 rounded-xl bg-[#3e3020] text-[#CE9C68] text-sm"
+              className="min-h-11 px-3 rounded-xl bg-[#3e3020] text-[#CE9C68] text-xs"
             >
               リセット
             </button>
           ) : running ? (
             <>
               <button type="button" onClick={() => setRunning(false)}
-                className="flex-1 py-2.5 rounded-xl bg-[#3e3020] text-[#CE9C68] text-sm"
+                className="min-h-11 px-3 rounded-xl bg-[#3e3020] text-[#CE9C68] text-xs"
               >
                 一時停止
               </button>
               <button type="button" onClick={reset}
-                className="flex-1 py-2.5 rounded-xl bg-[#3e3020] text-[#6b5a4a] text-sm"
+                className="min-h-11 px-3 rounded-xl bg-[#3e3020] text-[#A8916F] text-xs"
               >
                 リセット
               </button>
@@ -136,29 +140,25 @@ export default function BloomTimer({ autoStart = false }: Props) {
           ) : elapsed > 0 ? (
             <>
               <button type="button" onClick={() => setRunning(true)}
-                className="flex-1 py-2.5 rounded-xl bg-[#993C1D] text-[#F7EFE6] text-sm font-semibold"
+                className="min-h-11 px-3 rounded-xl bg-[#993C1D] text-[#F7EFE6] text-xs font-semibold"
               >
                 再開
               </button>
               <button type="button" onClick={reset}
-                className="flex-1 py-2.5 rounded-xl bg-[#3e3020] text-[#CE9C68] text-sm"
+                className="min-h-11 px-3 rounded-xl bg-[#3e3020] text-[#CE9C68] text-xs"
               >
                 リセット
               </button>
             </>
           ) : (
             <button type="button" onClick={() => setRunning(true)}
-              className="flex-1 py-2.5 rounded-xl bg-[#993C1D] text-[#F7EFE6] text-sm font-semibold"
+              className="min-h-11 px-4 rounded-xl bg-[#993C1D] text-[#F7EFE6] text-xs font-semibold"
             >
               スタート
             </button>
           )}
         </div>
       </div>
-
-      {done && (
-        <p className="text-xs text-emerald-400 text-center">蒸らし完了！注湯を始めましょう</p>
-      )}
     </div>
   )
 }

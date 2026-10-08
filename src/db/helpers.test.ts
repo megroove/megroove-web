@@ -13,6 +13,7 @@ import {
   clampTweakValue,
   estimateCaffeine,
   predictBedtimeResidual,
+  resolvePourCount,
   resolveVinyl,
   saveErrorMessage,
   toVinylColorId,
@@ -367,5 +368,27 @@ describe('beanOrigins / isBlendBean', () => {
   it('産地が無ければ空', () => {
     expect(beanOrigins(undefined)).toEqual([])
     expect(beanOrigins({})).toEqual([])
+  })
+})
+
+describe('resolvePourCount（抽出中に数えた注湯回数の反映）', () => {
+  it('数えた回数があれば、それで上書きする', () => {
+    expect(resolvePourCount(3, undefined)).toBe(3)
+    expect(resolvePourCount(4, 3)).toBe(4)
+  })
+
+  // 抽出中画面を「時間の計測だけ」に使う人の値を消さないための規則
+  it('一度も数えていなければ、いまの値をそのまま残す', () => {
+    expect(resolvePourCount(0, 3)).toBe(3)
+    expect(resolvePourCount(0, undefined)).toBeUndefined()
+  })
+
+  it('壊れた値は数えなかった扱いにする', () => {
+    expect(resolvePourCount(NaN, 3)).toBe(3)
+    expect(resolvePourCount(-1, 3)).toBe(3)
+  })
+
+  it('整数に丸める', () => {
+    expect(resolvePourCount(2.7, undefined)).toBe(2)
   })
 })
