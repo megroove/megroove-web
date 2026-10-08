@@ -349,12 +349,18 @@ export default function BrewPage() {
   const mainBlocks   = layout.main.filter(id => BREW_BLOCK_SIDE[id] === side)
   const detailBlocks = layout.detail.filter(id => BREW_BLOCK_SIDE[id] === side)
 
-  // Side B の冒頭サマリ「◯◯を△△で、15g／240g、2:30」
-  const brewSummary = [
+  // 何を淹れた一杯かの一行「◯◯を△△で、15g／240g」
+  const brewSummaryBase = [
     `${selectedBean?.name ?? (isDripBag ? '銘柄なし' : 'ホームブリュー')}を${BREW_METHOD_LABELS[method]}で`,
     isDripBag ? `${waterG}g` : `${doseG}g／${waterG}g`,
-    totalTimeSec ? formatSecToMmSs(totalTimeSec) : null,
-  ].filter(Boolean).join('、')
+  ].join('、')
+
+  // Side B の冒頭サマリ。ここでは totalTimeSec は「この一杯の実測」なので時間も添える。
+  // 抽出中画面には渡さない ― あちらで入っているのは**前回の一杯の時間**で、
+  // すぐ上を動いている計測値と食い違って見える
+  const brewSummary = totalTimeSec
+    ? `${brewSummaryBase}、${formatSecToMmSs(totalTimeSec)}`
+    : brewSummaryBase
 
   // 保存の可否（豆必須。ドリップバッグは銘柄なしでも保存可）
   const beanMissing = !isDripBag && !beanId
@@ -795,7 +801,7 @@ export default function BrewPage() {
 
         {/* Side B は、何を淹れた一杯かを一行で思い出せるようにしておく */}
         {side === 'B' && (
-          <p className="text-xs text-[#6b5a4a]">{brewSummary}</p>
+          <p className="text-xs text-[#A8916F]">{brewSummary}</p>
         )}
 
         {side === 'A' && (<>
@@ -1010,7 +1016,7 @@ export default function BrewPage() {
       {/* 抽出中（針を落とす）。完了で総抽出時間を確定し、そのまま味わいの評価へ送り出す */}
       {showBrewing && (
         <BrewingOverlay
-          summary={brewSummary}
+          summary={brewSummaryBase}
           roastLevel={selectedBean?.roastLevel}
           onDone={(sec, pours) => {
             setTotalTimeSec(sec)
