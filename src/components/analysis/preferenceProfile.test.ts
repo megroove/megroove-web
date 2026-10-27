@@ -69,6 +69,7 @@ describe('calcPreferenceProfile', () => {
     expect(p.enough).toBe(true)
     expect(p.before.count).toBe(10)
     expect(p.recent.count).toBe(10)
+    expect(p.all.count).toBe(20)
     expect(p.recent.scores.acidity!).toBeGreaterThan(p.before.scores.acidity!)
     expect(p.leading?.key).toBe('acidity')
     expect(p.changes.map(c => c.key).sort()).toEqual(['acidity', 'bitterness'])

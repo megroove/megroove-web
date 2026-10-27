@@ -11,7 +11,10 @@ import { jacketColor } from '../components/library/jacketColor'
 import TrendChart from '../components/analysis/TrendChart'
 import AgingWindowCard from '../components/analysis/AgingWindowCard'
 import {
-  calcWeightedScores, generateInsight, rankBrews,
+  calcPreferenceProfile, changeMessage, collectTasteSamples, PREFERENCE_DEFAULTS,
+} from '../components/analysis/preferenceProfile'
+import {
+  generateInsight, rankBrews,
   calcMonthlyTrend, calcBestConditions, calcBeanStats, calcAgingWindow,
 } from '../components/analysis/stats'
 import { RankBadge, GlobeIcon, CupIcon } from '../components/icons'
@@ -124,9 +127,26 @@ export default function AnalysisPage() {
     }).catch(() => setDbError(true))
   }, [])
 
-  const { scores, count } = useMemo(() => calcWeightedScores(brews), [brews])
-  const insight           = useMemo(() => generateInsight(scores), [scores])
-  const hasEnoughData     = count >= 3
+  // 好みプロファイル（抽出＋カフェのうち星とカッピングがそろった記録）。
+  // 3杯未満は空の状態、以前・最近がそれぞれ最低件数に届くまでは全期間の1枚、届いたら重ねて見せる
+  const profile = useMemo(
+    () => calcPreferenceProfile(collectTasteSamples(brews, visits, [...beanMap.values()]), new Date()),
+    [brews, visits, beanMap],
+  )
+  const count         = profile.total
+  const hasEnoughData = count >= 3
+  const canCompare    = profile.before.count >= PREFERENCE_DEFAULTS.minCount
+    && profile.recent.count >= PREFERENCE_DEFAULTS.minCount
+  const mainScores    = canCompare ? profile.recent.scores : profile.all.scores
+  const profileText   = useMemo(
+    () => (profile.leading ? changeMessage(profile.leading) : generateInsight(mainScores)),
+    [profile.leading, mainScores],
+  )
+  const favoriteText = [
+    profile.favorites.roastLevel && ROAST_LEVEL_LABELS[profile.favorites.roastLevel],
+    profile.favorites.country,
+    profile.favorites.process,
+  ].filter(Boolean).join(' / ')
 
   const bestConditions = useMemo(() => calcBestConditions(brews), [brews])
   // ゴールデンレシピ = 生涯ベストの一杯（★4以上が3杯以上あるときのみ）
@@ -187,23 +207,52 @@ export default function AnalysisPage() {
         </div>
       )}
 
-      {/* レーダーチャート */}
+      {/* 好みのレーダーチャート（好みプロファイル）。以前＝A面（点線）／最近＝B面（実線） */}
       <section className="bg-[#2E2018] rounded-xl p-5 flex flex-col items-center gap-4">
         <div className="w-full flex items-center justify-between">
           <h3 className="text-sm font-semibold text-[#CE9C68] uppercase tracking-wider">
             好みのレーダーチャート
           </h3>
           {hasEnoughData && (
-            <span className="text-xs text-[#6b5a4a]">{count}杯の平均</span>
+            <span className="text-xs text-[#A8916F]">
+              {canCompare ? `最近${profile.recent.count}杯・以前${profile.before.count}杯` : `${count}杯の平均`}
+            </span>
           )}
         </div>
 
         {hasEnoughData ? (
           <>
-            <RadarChart scores={scores} />
-            {insight && (
+            <RadarChart scores={mainScores} compare={canCompare ? profile.before.scores : undefined} />
+            {canCompare && (
+              <div className="flex items-center justify-center gap-5 text-xs text-[#A8916F]">
+                <span className="flex items-center gap-1.5">
+                  <svg width="22" height="6" aria-hidden="true">
+                    <line x1="1" y1="3" x2="21" y2="3" stroke="#A8916F" strokeWidth="1.5" strokeDasharray="4 3" />
+                  </svg>
+                  <span><span className="text-[#F7EFE6]">A面</span> 以前</span>
+                </span>
+                <span className="flex items-center gap-1.5">
+                  <svg width="22" height="6" aria-hidden="true">
+                    <line x1="1" y1="3" x2="21" y2="3" stroke="#993C1D" strokeWidth="2.5" />
+                  </svg>
+                  <span><span className="text-[#F7EFE6]">B面</span> 最近（直近{PREFERENCE_DEFAULTS.recentDays}日）</span>
+                </span>
+              </div>
+            )}
+            {profileText && (
               <p className="text-sm text-[#CE9C68] text-center leading-relaxed px-2">
-                {insight}
+                {profileText}
+              </p>
+            )}
+            {favoriteText && (
+              <p className="text-xs text-[#A8916F] text-center">
+                最近のお気に入り：<span className="text-[#F7EFE6]">{favoriteText}</span>
+              </p>
+            )}
+            {!canCompare && (
+              <p className="text-xs text-[#A8916F] text-center leading-relaxed px-2">
+                以前と最近（直近{PREFERENCE_DEFAULTS.recentDays}日）にそれぞれ{PREFERENCE_DEFAULTS.minCount}杯たまると、
+                好みの移り変わりを重ねて表示します
               </p>
             )}
           </>
@@ -225,13 +274,17 @@ export default function AnalysisPage() {
                 />
               ))}
             </svg>
-            <p className="text-sm text-[#6b5a4a]">
-              星評価＋カッピングスコア入りの記録が
+            <p className="text-sm text-[#A8916F] leading-relaxed">
+              もう少し記録すると傾向がわかります
               <br />
-              3杯以上で表示されます
+              <span className="text-xs">
+                星評価＋カッピング入りの一杯（カフェも含む）が
+                <br />
+                3杯以上で表示されます
+              </span>
             </p>
             {count > 0 && (
-              <p className="text-xs text-[#4a3a2a]">現在 {count} 杯</p>
+              <p className="text-xs text-[#A8916F]">現在 {count} 杯</p>
             )}
           </div>
         )}

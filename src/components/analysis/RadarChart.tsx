@@ -1,4 +1,5 @@
 // 5軸レーダーチャート（星評価加重平均値を受け取り SVG で描画）
+// compare を渡すと、点線の多角形として下に敷く（好みプロファイルの「以前」＝A面）
 
 const AXES = [
   { key: 'acidity' as const,    label: '酸味' },
@@ -51,10 +52,14 @@ export interface RadarScores {
   aftertaste?: number
 }
 
-interface Props { scores: RadarScores }
+interface Props {
+  scores: RadarScores
+  compare?: RadarScores
+}
 
-export default function RadarChart({ scores }: Props) {
+export default function RadarChart({ scores, compare }: Props) {
   const values = AXES.map(a => scores[a.key] ?? 0)
+  const compareValues = compare ? AXES.map(a => compare[a.key] ?? 0) : null
 
   return (
     <svg width="100%" viewBox="0 0 240 240" className="mx-auto" style={{ maxWidth: 280 }}>
@@ -71,6 +76,18 @@ export default function RadarChart({ scores }: Props) {
         const [x, y] = axisPoint(i, 5)
         return <line key={i} x1={CX} y1={CY} x2={x} y2={y} stroke="#2e1a0e" strokeWidth="1" />
       })}
+
+      {/* 比較（以前）: 点線・薄い色。数値ラベルは付けない（重なって読めなくなるため） */}
+      {compareValues && (
+        <polygon
+          points={dataPoints(compareValues)}
+          fill="rgba(168, 145, 111, 0.10)"
+          stroke="#A8916F"
+          strokeWidth="1.5"
+          strokeDasharray="4 3"
+          strokeLinejoin="round"
+        />
+      )}
 
       {/* データポリゴン */}
       <polygon

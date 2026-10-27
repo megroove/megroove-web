@@ -141,6 +141,7 @@ export interface FavoriteSummary {
 export interface PreferenceProfile {
   enough: boolean          // false なら「もう少し記録すると傾向がわかります」
   total: number
+  all: PeriodProfile       // 全期間（重ねる前の段階で1枚だけ見せるとき用）
   before: PeriodProfile
   recent: PeriodProfile
   changes: AxisChange[]    // しきい値以上の差がある軸（差の大きい順）。どちらかの期間が最低件数に満たなければ空
@@ -218,6 +219,7 @@ export function calcPreferenceProfile(
   return {
     enough: samples.length >= opt.minCount,
     total: samples.length,
+    all: { scores: weightedAxes(samples, byRating), count: samples.length },
     before, recent, changes, leading, favorites,
   }
 }
