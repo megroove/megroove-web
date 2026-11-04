@@ -41,8 +41,20 @@ export interface Bean {
    * という2つの壊れ方をする（どちらも実際に起きる）。
    */
   lineageId?: string
-  photoDataUrl?: string   // 任意。袋/パッケージ等の写真（base64 JPEG、最大800px）。無くても自然に表示する
+  /** リスト画像（袋の表面など）。一覧のサムネイルに使う。base64（WebP、非対応環境は JPEG）、最大800px。無くても自然に表示する */
+  photoDataUrl?: string
+  roaster?: string        // ロースター（焙煎所）
+  flavorNotes?: string[]  // 袋に書かれたフレーバーノート（記録の「フレーバー」とは別。豆の説明）
+  /** 袋に書かれたおすすめの淹れ方。数値が読めたものはレシピを作るのに使う */
+  brewGuide?: BrewGuide
   createdAt: string    // ISO datetime
+}
+
+export interface BrewGuide {
+  text?: string    // 書いてあるまま（例: 「15g / 220ml / 90℃・中細挽き」）
+  doseG?: number
+  waterG?: number
+  tempC?: number
 }
 
 // ─── Equipment ──────────────────────────────────────────────────────────────

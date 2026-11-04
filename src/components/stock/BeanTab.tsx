@@ -4,6 +4,7 @@ import {
   getAllBeans, getAllBrews, putBean, deleteBean, newId, nowISO,
   ROAST_LEVEL_LABELS, daysSinceRoast, formatBeanRemaining,
   withSaveTimeout, saveErrorMessage, isBlendBean, beanLineageId, beanBagNumber,
+  splitNotes, formatBrewGuide,
 } from '../../db'
 import { Field, TextInput, NumberInput, DateInput, ChipSelect, DeleteButton, ModalSheet, SaveButton } from './FormHelpers'
 import { useToast } from '../Toast'
@@ -17,19 +18,20 @@ const ROAST_LEVELS: RoastLevel[] = ['light', 'light-medium', 'medium', 'medium-d
 const PROCESS_PRESETS = ['ウォッシュト', 'ナチュラル', 'ハニー', 'アナエロビック']
 
 function BeanForm({
-  initial, repurchaseOf, recentOrigins, recentFarms, recentVarieties,
+  initial, repurchaseOf, recentOrigins, recentFarms, recentVarieties, recentRoasters,
   onSave, onDelete, onCancel, onRepurchase,
 }: {
   initial?: Bean
   /**
    * 買い直し。これが入っていると「同じ商品の新しい袋」を作る。
-   * 商品の属性（名前・産地・品種・精製・焙煎度・内容量）は引き継ぎ、
+   * 商品の属性（名前・産地・品種・精製・焙煎度・内容量・ロースター・フレーバー・おすすめの淹れ方）は引き継ぎ、
    * 袋の属性（焙煎日・在庫メモ）は空にする。
    */
   repurchaseOf?: Bean
   recentOrigins: string[]
   recentFarms: string[]
   recentVarieties: string[]
+  recentRoasters: string[]
   /** 第2引数は「前の袋を飲み切りにした」場合のその袋 */
   onSave: (b: Bean, finishedPrevious?: Bean) => void
   onDelete?: () => void
@@ -56,6 +58,12 @@ function BeanForm({
   const [decaf,       setDecaf]       = useState(base?.decaf         ?? false)
   const [stockNote,   setStockNote]   = useState(initial?.stockNote   ?? '')
   const [photoDataUrl, setPhotoDataUrl] = useState<string | undefined>(base?.photoDataUrl)
+  const [roaster,     setRoaster]     = useState(base?.roaster       ?? '')
+  const [notesText,   setNotesText]   = useState((base?.flavorNotes ?? []).join('、'))
+  const [guideText,   setGuideText]   = useState(base?.brewGuide?.text ?? '')
+  const [guideDose,   setGuideDose]   = useState<number | undefined>(base?.brewGuide?.doseG)
+  const [guideWater,  setGuideWater]  = useState<number | undefined>(base?.brewGuide?.waterG)
+  const [guideTemp,   setGuideTemp]   = useState<number | undefined>(base?.brewGuide?.tempC)
   // 買い直したら前の袋は終わっている方が多いので既定 ON。並行して開けている人は外せる
   const [finishPrev,  setFinishPrev]  = useState(true)
   const [saving,      setSaving]      = useState(false)
@@ -88,6 +96,12 @@ function BeanForm({
         decaf:       decaf            || undefined,
         stockNote:   stockNote.trim() || undefined,
         photoDataUrl: photoDataUrl    || undefined,
+        roaster:     roaster.trim()   || undefined,
+        flavorNotes: splitNotes(notesText).length > 0 ? splitNotes(notesText) : undefined,
+        brewGuide:   (() => {
+          const g = { text: guideText.trim() || undefined, doseG: guideDose, waterG: guideWater, tempC: guideTemp }
+          return formatBrewGuide(g) ? g : undefined
+        })(),
         createdAt:  initial?.createdAt ?? nowISO(),
         // 買い直しなら前の袋と同じ系統に紐づける（前の袋は書き換えない）
         lineageId:  repurchaseOf ? beanLineageId(repurchaseOf) : initial?.lineageId,
@@ -149,8 +163,22 @@ function BeanForm({
         <TextInput value={name} onChange={setName} placeholder="例: エチオピア イルガチェフェ" autoFocus />
       </Field>
 
-      <Field label="写真（任意・袋やパッケージなど）">
-        <PhotoField value={photoDataUrl} onChange={setPhotoDataUrl} onError={m => showToast(m, { type: 'error' })} />
+      <Field label="ロースター">
+        <OriginInput
+          value={roaster} onChange={setRoaster} placeholder="任意（例: ◯◯珈琲焙煎所）"
+          recentOrigins={recentRoasters} master={[]} suggestionIcon={<ClockIcon size={13} />}
+        />
+      </Field>
+
+      <Field label="リスト画像（任意・袋の表面など。一覧のサムネイルになります）">
+        <PhotoField
+          value={photoDataUrl}
+          onChange={setPhotoDataUrl}
+          onError={m => showToast(m, { type: 'error' })}
+          format="webp"
+          emptyLabel="撮影する"
+          allowLibrary
+        />
       </Field>
 
       <Field label="焙煎度">
@@ -291,6 +319,34 @@ function BeanForm({
         </div>
       </Field>
 
+      <Field label="フレーバーノート（袋の記載）">
+        <TextInput value={notesText} onChange={setNotesText} placeholder="任意（例: ジャスミン、ベルガモット）" />
+      </Field>
+
+      <Field label="おすすめの淹れ方（袋の記載）">
+        <div className="flex flex-col gap-2">
+          <TextInput value={guideText} onChange={setGuideText} placeholder="任意（例: 15g / 220ml / 90℃・中細挽き）" />
+          {/* 値が入るとプレースホルダーが消えるので、小さな見出しを常に出す */}
+          <div className="grid grid-cols-3 gap-2">
+            <label className="flex flex-col gap-1">
+              <span className="text-[11px] text-[#A8916F]">粉量（g）</span>
+              <NumberInput value={guideDose}  onChange={setGuideDose}  placeholder="任意" min={1} />
+            </label>
+            <label className="flex flex-col gap-1">
+              <span className="text-[11px] text-[#A8916F]">湯量（g）</span>
+              <NumberInput value={guideWater} onChange={setGuideWater} placeholder="任意" min={1} />
+            </label>
+            <label className="flex flex-col gap-1">
+              <span className="text-[11px] text-[#A8916F]">湯温（℃）</span>
+              <NumberInput value={guideTemp}  onChange={setGuideTemp}  placeholder="任意" min={1} />
+            </label>
+          </div>
+          <p className="text-[11px] text-[#A8916F] leading-relaxed">
+            数値を入れておくと、記録画面からこの条件のレシピを作れます
+          </p>
+        </div>
+      </Field>
+
       <Field label="在庫メモ">
         <textarea
           value={stockNote}
@@ -318,15 +374,19 @@ function BeanForm({
   )
 }
 
-function BeanRow({ bean, brews, bagNumber, onClick, muted }: {
-  bean: Bean; brews: Brew[]; bagNumber: number; onClick: () => void; muted?: boolean
+function BeanRow({ bean, brews, bagNumber, onClick, onFinish, muted }: {
+  bean: Bean; brews: Brew[]; bagNumber: number; onClick: () => void
+  /** 編集を開かずに飲み切りにする（開封中の豆だけ） */
+  onFinish?: () => void
+  muted?: boolean
 }) {
   const remaining = !bean.finishedAt ? formatBeanRemaining(bean, brews) : null
   return (
+    <div className="relative">
     <button
       type="button"
       onClick={onClick}
-      className={`w-full bg-[#2E2018] rounded-xl p-4 text-left active:opacity-80 ${muted ? 'opacity-60' : ''}`}
+      className={`w-full bg-[#2E2018] rounded-xl p-4 text-left active:opacity-80 ${muted ? 'opacity-60' : ''} ${onFinish ? 'pr-24' : ''}`}
     >
       <div className="flex gap-3 items-start">
         {bean.photoDataUrl && (
@@ -356,6 +416,17 @@ function BeanRow({ bean, brews, bagNumber, onClick, muted }: {
         </div>
       </div>
     </button>
+    {onFinish && (
+      <button
+        type="button"
+        onClick={onFinish}
+        aria-label={`「${bean.name}」を飲み切りにする`}
+        className="absolute right-3 top-1/2 -translate-y-1/2 min-h-11 px-3 rounded-full border border-[#CE9C68]/40 text-xs text-[#CE9C68] active:opacity-70"
+      >
+        飲み切り
+      </button>
+    )}
+    </div>
   )
 }
 
@@ -414,6 +485,28 @@ export default function BeanTab() {
     })
   }
 
+  // 編集を開かずに飲み切りにする。押し間違いに備えて取り消しを付ける
+  const handleFinish = async (bean: Bean) => {
+    const finished = { ...bean, finishedAt: nowISO() }
+    try {
+      await withSaveTimeout(putBean(finished))
+    } catch (e) {
+      showToast(saveErrorMessage(e), { type: 'error' })
+      return
+    }
+    setBeans(prev => upsert(prev, finished))
+    showToast(`「${bean.name}」を飲み切りにしました`, {
+      action: {
+        label: '取り消す',
+        onClick: () => {
+          putBean(bean)
+            .then(() => setBeans(prev => upsert(prev, bean)))
+            .catch(() => showToast('取り消しに失敗しました', { type: 'error' }))
+        },
+      },
+    })
+  }
+
   const activeBeans   = beans.filter(b => !b.finishedAt)
   const finishedBeans = beans.filter(b => Boolean(b.finishedAt))
   // 産地・農園・品種のユーザー履歴（新しく登録した豆を優先）
@@ -423,6 +516,7 @@ export default function BeanTab() {
   const recentOrigins   = pick(b => b.origin)
   const recentFarms     = pick(b => b.farm)
   const recentVarieties = pick(b => b.variety)
+  const recentRoasters  = pick(b => b.roaster)
 
   return (
     <div className="flex-1 overflow-y-auto px-4 py-4">
@@ -440,6 +534,7 @@ export default function BeanTab() {
               brews={brews}
               bagNumber={beanBagNumber(bean, beans)}
               onClick={() => setEditing(bean)}
+              onFinish={() => handleFinish(bean)}
             />
           ))}
           {finishedBeans.length > 0 && (
@@ -477,6 +572,7 @@ export default function BeanTab() {
           recentOrigins={recentOrigins}
           recentFarms={recentFarms}
           recentVarieties={recentVarieties}
+          recentRoasters={recentRoasters}
           onSave={handleSave}
           onDelete={
             !repurchasing && editing !== 'new' && editing !== null

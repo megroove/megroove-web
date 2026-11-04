@@ -16,7 +16,7 @@ import { calcPassport } from '../components/passport/passportStats'
 import type { QuickPreset, QuickSaveInput } from '../components/brew/QuickBrewSheet'
 import { buildQuickPresets } from '../components/brew/quickPresets'
 import { useToast } from '../components/Toast'
-import { getAllBrews, getAllBeans, getAllCafeVisits, getAllEquipment, getAllCaffeineIntakes, getAllRecipes, putBrew, putCafeVisit, deleteBrew, getBrewCount, getSleepLog, putSleepLog } from '../db'
+import { getAllBrews, getAllBeans, getAllCafeVisits, getAllEquipment, getAllCaffeineIntakes, getAllRecipes, putBrew, putCafeVisit, deleteBrew, getBrewCount, getSleepLog, putSleepLog, putBean } from '../db'
 import type { Brew, Bean, CafeVisit, Equipment, CuppingScores, RoastLevel } from '../db'
 import {
   formatBrewDateShort, ROAST_LEVEL_LABELS, CAFE_DRINK_TYPE_LABELS, CAFE_DRINK_SIZE_LABELS,
@@ -26,7 +26,7 @@ import {
   calcResidualCaffeine, calcStreakDays, isSameLocalDay, calcCuppingAverage, calcFrequentFlavors,
   newId, nowISO, estimateCaffeine, estimateCafeCaffeine, calcRatio, loadSettings, localDateKey,
   predictBedtimeResidual, DRIP_BAG_DOSE_G,
-  withSaveTimeout, saveErrorMessage,
+  withSaveTimeout, saveErrorMessage, crossedEmpty,
 } from '../db'
 import {
   CupIcon, CafeIcon, TrophyIcon, CameraIcon, DownloadIcon, MoonIcon,
@@ -251,7 +251,7 @@ export default function HomePage() {
   const [quickSavedRated, setQuickSavedRated] = useState(true) // 演出の出し分け（星ありはフル）
   // 直前に保存した1件（トーストの「取り消す」対象）。取り消し済みの id は二重実行しない
   const [lastQuickSaved, setLastQuickSaved] = useState<
-    { id: string; label: string; roastLevel?: RoastLevel } | null
+    { id: string; label: string; roastLevel?: RoastLevel; emptiedBean?: Bean } | null
   >(null)
   const undoneRef = useRef<Set<string>>(new Set())
   const [savedBrewCount, setSavedBrewCount] = useState(0)
@@ -471,6 +471,8 @@ export default function HomePage() {
           ? estimateCaffeine(doseG, bean?.decaf)
           : b.caffeineAmount
       const count = await getBrewCount()
+      // この一杯で残量が尽きるか（保存前の記録で判定する）。尽きたら演出のあと飲み切りを提案する
+      const emptied = bean && !isDripBag && crossedEmpty(bean, await getAllBrews(), doseG) ? bean : undefined
       const id = newId()
       await withSaveTimeout(putBrew({
         id,
@@ -498,6 +500,7 @@ export default function HomePage() {
         id,
         label: [bean?.name ?? (isDripBag ? '銘柄なし' : 'ホームブリュー'), amounts].filter(Boolean).join('、'),
         roastLevel: bean?.roastLevel,
+        emptiedBean: emptied,
       })
       setSavedBrewCount(count + 1)
       setQuickSavedRated(input.rating > 0)
@@ -531,11 +534,24 @@ export default function HomePage() {
     setShowQuickAnim(false)
     loadHome()
     if (!lastQuickSaved) return
-    const { id, label } = lastQuickSaved
+    const { id, label, emptiedBean } = lastQuickSaved
     showToast(`記録しました · ${label}`, {
       type: 'success',
       action: { label: '取り消す', onClick: () => { void handleQuickUndo(id) } },
     })
+    if (emptiedBean) {
+      showToast(`「${emptiedBean.name}」の残量が0になりました`, {
+        durationMs: 8000,
+        action: {
+          label: '飲み切りにする',
+          onClick: () => {
+            putBean({ ...emptiedBean, finishedAt: nowISO() })
+              .then(() => { loadHome(); showToast('飲み切りにしました。ストックから戻せます', { type: 'success' }) })
+              .catch(e => showToast(saveErrorMessage(e), { type: 'error' }))
+          },
+        },
+      })
+    }
   }, [loadHome, lastQuickSaved, showToast, handleQuickUndo])
 
   // 針を落とす: 評価待ちの一杯（最新）に星をつけて再生する

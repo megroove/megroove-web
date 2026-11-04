@@ -3,7 +3,7 @@ import { useNavigate, useParams, useLocation } from 'react-router-dom'
 import type { Brew, Bean, Equipment, Recipe, CuppingScores, BrewBlockId, BrewMethod, BrewSide } from '../db'
 import {
   getAllBeans, getAllEquipment, getAllRecipes, getAllBrews, getAllCafeVisits,
-  getBrew, putBrew, getBrewCount,
+  getBrew, putBrew, getBrewCount, putBean, putRecipe,
   newId, nowISO, calcCuppingAverage, calcRatio, estimateCaffeine, predictBedtimeResidual,
   loadSettings, loadBrewLayout, resizeImage,
   ROAST_LEVEL_LABELS, daysSinceRoast,
@@ -13,6 +13,7 @@ import {
   DRIP_BAG_DOSE_G, BREW_METHOD_LABELS, formatSecToMmSs,
   BREW_BLOCK_SIDE, BREW_SIDE_LABELS, BREW_SIDE_SUBTITLES, calcRecentMusic,
   withSaveTimeout, saveErrorMessage, beanOrigins, currentBagId, resolvePourCount,
+  crossedEmpty, formatBrewGuide, brewGuideHasNumbers,
 } from '../db'
 import type { BrewDraft } from '../db'
 import StarRating from '../components/brew/StarRating'
@@ -145,6 +146,8 @@ export default function BrewPage() {
   const [savedRated, setSavedRated] = useState(true) // 保存時に評価が付いていたか（演出の出し分け用）
   const [savedNewCountries, setSavedNewCountries] = useState<string[]>([]) // はじめての産地なら演出に添える（ブレンドは複数ありうる）
   const [saving, setSaving] = useState(false)
+  // この一杯で残量が尽きた豆。保存演出のあと「飲み切りにする」を提案する（自動では切り替えない）
+  const emptiedBeanRef = useRef<Bean | null>(null)
 
   // 入力途中の下書き（新規記録のみ）。復元表示のフラグと自動保存の基準
   const [draftRestored, setDraftRestored] = useState(false)
@@ -426,6 +429,8 @@ export default function BrewPage() {
         ...buildBrewFields(),
         brewedAt: fromDatetimeLocal(brewedAtLocal),
       }
+      emptiedBeanRef.current =
+        selectedBean && !isDripBag && crossedEmpty(selectedBean, allBrews, brew.doseG) ? selectedBean : null
       await withSaveTimeout(putBrew(brew))
       clearBrewDraft() // 保存できたので下書きは不要
       setSavedBrewCount(count + 1)
@@ -442,7 +447,42 @@ export default function BrewPage() {
   const handleAnimDone = useCallback(() => {
     setShowSaveAnim(false)
     navigate('/')
-  }, [navigate])
+    const emptied = emptiedBeanRef.current
+    emptiedBeanRef.current = null
+    if (emptied) {
+      showToast(`「${emptied.name}」の残量が0になりました`, {
+        durationMs: 8000,
+        action: {
+          label: '飲み切りにする',
+          onClick: () => {
+            putBean({ ...emptied, finishedAt: nowISO() })
+              .then(() => showToast('飲み切りにしました。ストックから戻せます', { type: 'success' }))
+              .catch(e => showToast(saveErrorMessage(e), { type: 'error' }))
+          },
+        },
+      })
+    }
+  }, [navigate, showToast])
+
+  // 袋の「おすすめの淹れ方」からレシピを作って選ぶ。同じ名前のレシピがあればそれを選ぶだけ
+  const handleGuideRecipe = async (bean: Bean) => {
+    const g = bean.brewGuide
+    if (!g) return
+    const name = `${bean.name}（袋の推奨）`
+    const existing = recipes.find(r => r.name === name)
+    if (existing) { handleRecipeSelect(existing); return }
+    try {
+      const recipe: Recipe = {
+        id: newId(), name, createdAt: nowISO(),
+        defaultDoseG: g.doseG, defaultWaterG: g.waterG, defaultTempC: g.tempC,
+      }
+      await withSaveTimeout(putRecipe(recipe))
+      handleRecipeSelect(recipe)
+      showToast('袋の推奨からレシピを作りました', { type: 'success' })
+    } catch (e) {
+      showToast(saveErrorMessage(e), { type: 'error' })
+    }
+  }
 
   const handleBeanSelect = (bean: Bean) => {
     setBeanId(bean.id)
@@ -863,6 +903,24 @@ export default function BrewPage() {
             </button>
           )}
         </div>
+
+        {/* 袋に書かれたおすすめの淹れ方。入力値は変えず、数値があればレシピを作れる（ドリップバッグはレシピを持たない） */}
+        {selectedBean && formatBrewGuide(selectedBean.brewGuide) && (
+          <div className="w-full -mt-2 px-1 flex items-center justify-between gap-3">
+            <p className="text-xs text-[#A8916F] min-w-0">
+              袋の推奨：<span className="text-[#F7EFE6]">{formatBrewGuide(selectedBean.brewGuide)}</span>
+            </p>
+            {!isDripBag && brewGuideHasNumbers(selectedBean.brewGuide) && (
+              <button
+                type="button"
+                onClick={() => handleGuideRecipe(selectedBean)}
+                className="shrink-0 min-h-11 px-3 rounded-full border border-dashed border-[#CE9C68]/60 text-xs text-[#CE9C68] active:opacity-70"
+              >
+                この条件でレシピを作る
+              </button>
+            )}
+          </div>
+        )}
 
         {/* 抽出方法（スリムトグル）。ドリップバッグでは粉量・挽き目などを出し分ける */}
         <div className="w-full bg-[#2E2018] rounded-xl px-4 py-2.5 flex items-center justify-between gap-3">

@@ -83,8 +83,15 @@ function AddBeanForm({ mode, onAdd, onCancel, recentOrigins }: {
       </div>
 
       <div>
-        <label className="text-xs text-[#CE9C68] mb-1.5 block">写真（任意）</label>
-        <PhotoField value={photoDataUrl} onChange={setPhotoDataUrl} onError={m => showToast(m, { type: 'error' })} />
+        <label className="text-xs text-[#CE9C68] mb-1.5 block">リスト画像（任意・袋の表面など）</label>
+        <PhotoField
+          value={photoDataUrl}
+          onChange={setPhotoDataUrl}
+          onError={m => showToast(m, { type: 'error' })}
+          format="webp"
+          emptyLabel="撮影する"
+          allowLibrary
+        />
       </div>
 
       {/* 銘柄（ドリップバッグ）は焙煎度・焙煎日・産地・内容量を出さず、最小入力にする */}

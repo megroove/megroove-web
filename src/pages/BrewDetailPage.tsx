@@ -252,6 +252,10 @@ export default function BrewDetailPage() {
               {bean.farm && <Row label="農園" value={bean.farm} />}
               {bean.variety && <Row label="品種" value={bean.variety} />}
               {bean.process && <Row label="精製" value={bean.process} />}
+              {bean.roaster && <Row label="ロースター" value={bean.roaster} />}
+              {bean.flavorNotes && bean.flavorNotes.length > 0 && (
+                <Row label="袋の記載" value={bean.flavorNotes.join('・')} />
+              )}
             </>
           )}
           {recipe && <Row label="レシピ" value={recipe.name} />}

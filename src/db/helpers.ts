@@ -1,4 +1,4 @@
-import type { Bean, Brew, CuppingScores, BrewMethod, RoastLevel } from './types'
+import type { Bean, Brew, BrewGuide, CuppingScores, BrewMethod, RoastLevel } from './types'
 
 export function newId(): string {
   return crypto.randomUUID()
@@ -305,6 +305,39 @@ export function calcBeanRemainingG(bean: Bean, brews: Brew[]): number | null {
     0,
   )
   return Math.max(0, Math.round((bean.initialAmountG - used) * 10) / 10)
+}
+
+/**
+ * この一杯で豆の残量が尽きたか（保存前の記録 brewsBefore に対して doseG を足したとき、0 をまたいだか）。
+ * すでに 0 だった豆は対象外 ― 内容量の入力が実際より少ないだけなので、毎回聞くとうるさい。
+ */
+export function crossedEmpty(bean: Bean, brewsBefore: Brew[], doseG: number | undefined): boolean {
+  if (bean.finishedAt || !doseG) return false
+  const before = calcBeanRemainingG(bean, brewsBefore)
+  if (before === null || before <= 0) return false
+  return before - doseG <= 0
+}
+
+// 「1, 2、3」「ジャスミン / ベルガモット」などを配列にする（袋のフレーバーノート入力用）
+export function splitNotes(text: string): string[] {
+  return text.split(/[,、，/／\n]+/).map(s => s.trim()).filter(Boolean)
+}
+
+// おすすめの淹れ方を1行で（書いてあるままのテキストを優先し、無ければ数値から組み立てる）
+export function formatBrewGuide(g: BrewGuide | undefined): string | null {
+  if (!g) return null
+  if (g.text?.trim()) return g.text.trim()
+  const parts = [
+    g.doseG !== undefined ? `${g.doseG}g` : null,
+    g.waterG !== undefined ? `${g.waterG}g` : null,
+    g.tempC !== undefined ? `${g.tempC}℃` : null,
+  ].filter(Boolean)
+  return parts.length > 0 ? parts.join(' / ') : null
+}
+
+/** 粉量・湯量・湯温のどれかが数値で入っていればレシピを作れる */
+export function brewGuideHasNumbers(g: BrewGuide | undefined): boolean {
+  return g?.doseG !== undefined || g?.waterG !== undefined || g?.tempC !== undefined
 }
 
 // 残量から「あと約何杯か」を推定（その豆の平均粉量、なければ15g）
@@ -833,7 +866,8 @@ export function saveBrewLayout(layout: BrewLayoutSettings): void {
 
 const MAX_PHOTO_FILE_SIZE = 20 * 1024 * 1024 // 20MB
 
-export function resizeImage(file: File, maxPx = 800): Promise<string> {
+// format='webp' は WebP で書き出し、書き出せない環境（canvas が WebP を返さない）では JPEG に戻す
+export function resizeImage(file: File, maxPx = 800, format: 'jpeg' | 'webp' = 'jpeg'): Promise<string> {
   if (!file.type.startsWith('image/')) {
     return Promise.reject(new Error('画像ファイルを選択してください'))
   }
@@ -852,6 +886,10 @@ export function resizeImage(file: File, maxPx = 800): Promise<string> {
       canvas.width = w
       canvas.height = h
       canvas.getContext('2d')!.drawImage(img, 0, 0, w, h)
+      if (format === 'webp') {
+        const webp = canvas.toDataURL('image/webp', 0.82)
+        if (webp.startsWith('data:image/webp')) { resolve(webp); return }
+      }
       resolve(canvas.toDataURL('image/jpeg', 0.82))
     }
     img.onerror = () => { URL.revokeObjectURL(url); reject(new Error('画像の読み込みに失敗しました')) }

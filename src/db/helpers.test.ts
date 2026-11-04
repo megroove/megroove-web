@@ -4,6 +4,10 @@ import {
   BREW_BLOCK_LABELS,
   BREW_BLOCK_SIDE,
   SaveTimeoutError,
+  brewGuideHasNumbers,
+  crossedEmpty,
+  formatBrewGuide,
+  splitNotes,
   beanOrigins,
   calcFrequentRecipes,
   calcRecentMusic,
@@ -390,5 +394,60 @@ describe('resolvePourCount（抽出中に数えた注湯回数の反映）', () 
 
   it('整数に丸める', () => {
     expect(resolvePourCount(2.7, undefined)).toBe(2)
+  })
+})
+
+describe('crossedEmpty', () => {
+  const bean = { id: 'b', name: 'X', roastLevel: 'medium' as const, initialAmountG: 30, createdAt: '' }
+  const brew = (doseG: number) => ({
+    id: Math.random().toString(), beanId: 'b', doseG, flavors: [], cupping: {},
+    brewedAt: '2026-11-01T00:00:00.000Z', createdAt: '',
+  })
+
+  it('この一杯で残量が0をまたいだら true', () => {
+    expect(crossedEmpty(bean, [brew(15)], 15)).toBe(true)
+    expect(crossedEmpty(bean, [brew(15)], 20)).toBe(true)
+  })
+
+  it('まだ残るなら false', () => {
+    expect(crossedEmpty(bean, [brew(10)], 15)).toBe(false)
+  })
+
+  it('すでに0だった豆は毎回聞かない', () => {
+    expect(crossedEmpty(bean, [brew(15), brew(15)], 15)).toBe(false)
+  })
+
+  it('内容量が無い・飲み切り済み・粉量なしは対象外', () => {
+    expect(crossedEmpty({ ...bean, initialAmountG: undefined }, [], 15)).toBe(false)
+    expect(crossedEmpty({ ...bean, finishedAt: '2026-11-01' }, [brew(15)], 15)).toBe(false)
+    expect(crossedEmpty(bean, [brew(15)], undefined)).toBe(false)
+  })
+})
+
+describe('splitNotes', () => {
+  it('読点・カンマ・スラッシュ・改行で区切り、空を捨てる', () => {
+    expect(splitNotes('ジャスミン、ベルガモット, 桃 / ハチミツ\nカカオ、 ')).toEqual(
+      ['ジャスミン', 'ベルガモット', '桃', 'ハチミツ', 'カカオ'],
+    )
+  })
+})
+
+describe('formatBrewGuide / brewGuideHasNumbers', () => {
+  it('書いてあるままのテキストを優先する', () => {
+    expect(formatBrewGuide({ text: '15g / 220ml / 90℃', doseG: 15 })).toBe('15g / 220ml / 90℃')
+  })
+
+  it('テキストが無ければ数値から組み立てる', () => {
+    expect(formatBrewGuide({ doseG: 15, tempC: 90 })).toBe('15g / 90℃')
+  })
+
+  it('何も無ければ null', () => {
+    expect(formatBrewGuide({ text: '  ' })).toBeNull()
+    expect(formatBrewGuide(undefined)).toBeNull()
+  })
+
+  it('数値が1つでもあればレシピを作れる', () => {
+    expect(brewGuideHasNumbers({ text: '中細挽き' })).toBe(false)
+    expect(brewGuideHasNumbers({ waterG: 220 })).toBe(true)
   })
 })
