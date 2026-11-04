@@ -341,8 +341,9 @@ function BrewTab({ displayMode }: { displayMode: DisplayMode }) {
                           key={brew.id}
                           photoUrl={brew.photoDataUrl}
                           color={jacketColor(bean?.origin || bean?.name, bean?.roastLevel)}
-                          title={bean?.origin ?? bean?.name ?? fallback}
-                          subtitle={bean?.origin ? bean.name : undefined}
+                          // 上＝豆名（大）／下＝産地。記録詳細・リスト表示と同じく豆名を主にそろえる
+                          title={bean?.name ?? bean?.origin ?? fallback}
+                          subtitle={bean?.name ? bean.origin : undefined}
                           caption={`${bean ? ROAST_LEVEL_LABELS[bean.roastLevel] + ' · ' : ''}${formatBrewDateShort(brew.brewedAt)}`}
                           rating={brew.rating}
                           unrated={!brew.rating}

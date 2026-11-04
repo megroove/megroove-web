@@ -4,9 +4,9 @@ interface Props {
   /** 写真があればジャケットの絵として使う。無ければ色地に文字だけ */
   photoUrl?: string
   color: JacketColor
-  /** ジャケットに刷る主題（産地 or 豆名 or カフェ名） */
+  /** ジャケットに刷る主題（豆名 or カフェ名） */
   title: string
-  /** 同じく副題（品種・ドリンク名など） */
+  /** 同じく副題（産地・ドリンク名など） */
   subtitle?: string
   /** ジャケットの下に置く一行（焙煎度・抽出方法・日付） */
   caption: string
