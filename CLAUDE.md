@@ -285,6 +285,7 @@ Brew（抽出ログ）が Bean と Recipe を参照し、そこから条件を�
 - id (UUID), 日時 (brewedAt) — 既定は現在時刻だが、新規/編集どちらでも変更可能（過去の一杯をあとから記録できる）
 - Bean 参照（UI上は必須だがデータ層は任意）, Recipe 参照(任意)
 - method（抽出方法。未設定＝通常ドリップ / drip_bag＝ドリップバッグ）
+- water（任意）— 使った水（定番チップ＋自由入力）。習慣なので前回値をコピーする（drinkStyle と同じ扱い）
 - その回の実値: 粉量 / 湯量 / 比率(計算) / 挽き目 / 湯温 / 器具（複数可 equipmentIds。旧 equipmentId は読み取り互換で残置・種類で分類表示）/ 総抽出時間 / 注湯回数
   - **ドリップバッグ（method=drip_bag）**: 粉量・挽き目・レシピは自分で決めないため入力欄を隠し、保存もしない
     （豆残量に加算されない）。カフェインは代表量 `DRIP_BAG_DOSE_G`（8g）×12mg で推定（参考値）。湯量・湯温は残す
@@ -415,7 +416,7 @@ Bean / Equipment / Recipe は **記録画面からもその場で生成できる
 ### BrewBlockId 一覧（と固定の面）
 | ブロック | 面 |
 |---|---|
-| `recipe` / `dose_water` / `grind_temp` / `equipment` / `extraction` | Side A（準備と抽出） |
+| `recipe` / `dose_water` / `grind_temp` / `equipment` / `extraction` / `water`（水） | Side A（準備と抽出） |
 | `rating` / `flavors` / `scene`（シーン・飲み方） / `cupping` / `note` / `photo` / `music`（聴いていた曲） | Side B（味わいと評価） |
 
 「豆」はブロックではなく Side A 固定。

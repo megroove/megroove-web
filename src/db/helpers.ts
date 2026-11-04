@@ -436,6 +436,7 @@ export interface BrewDraft {
   photoDataUrl?: string
   musicTitle?: string
   musicArtist?: string
+  water?: string
   showDetail: boolean
   side?: BrewSide   // 後から追加（任意）。古い下書きは Side A から再開する
 }
@@ -759,6 +760,17 @@ export function calcRecentMusic(
   }
 }
 
+// 水の入力候補: 過去に入力した水（定番チップ以外）を新しい順に返す。銘柄名を2回目からタップで入れるため
+export function calcRecentWater(brews: { water?: string; brewedAt: string }[], max = 10): string[] {
+  const seen = new Set<string>()
+  for (const b of [...brews].sort((a, c) => c.brewedAt.localeCompare(a.brewedAt))) {
+    const v = b.water?.trim()
+    if (v && !WATER_OPTIONS.includes(v)) seen.add(v)
+    if (seen.size >= max) break
+  }
+  return [...seen]
+}
+
 // ─── Brew Layout Settings (localStorage) ─────────────────────────────────────
 
 export type BrewBlockId =
@@ -774,6 +786,7 @@ export type BrewBlockId =
   | 'note'
   | 'photo'
   | 'music'
+  | 'water'
 
 export const BREW_BLOCK_LABELS: Record<BrewBlockId, string> = {
   recipe:     'レシピ',
@@ -788,11 +801,14 @@ export const BREW_BLOCK_LABELS: Record<BrewBlockId, string> = {
   note:       'メモ',
   photo:      '写真',
   music:      '聴いていた曲',
+  water:      '水',
 }
 
 // シーン（単一選択）と飲み方（複数選択）の定番チップ
 export const SCENE_OPTIONS = ['朝の一杯', '仕事のおとも', '食後', 'リラックス', '来客', '外で']
 export const DRINK_STYLE_OPTIONS = ['ブラック', 'ミルク', '砂糖', 'アイス']
+// 水の定番チップ（銘柄などは自由入力）
+export const WATER_OPTIONS = ['水道水', '浄水', '軟水', '硬水', 'RO水']
 
 // 記録画面の2面構成。準備系＝Side A、評価系＝Side B に固定分類する。
 // ゾーン（main/detail/hidden）は各面の中の見せ方として従来どおり効く（CLAUDE.md §7）。
@@ -807,6 +823,7 @@ export const BREW_BLOCK_SIDE: Record<BrewBlockId, BrewSide> = {
   grind_temp: 'A',
   equipment:  'A',
   extraction: 'A',
+  water:      'A',
   rating:     'B',
   flavors:    'B',
   scene:      'B',
@@ -831,7 +848,7 @@ export const DEFAULT_BREW_LAYOUT: BrewLayoutSettings = {
 
 const ALL_BREW_BLOCKS: BrewBlockId[] = [
   'recipe', 'dose_water', 'grind_temp', 'rating', 'flavors', 'scene',
-  'cupping', 'equipment', 'extraction', 'note', 'photo', 'music',
+  'cupping', 'equipment', 'extraction', 'note', 'photo', 'music', 'water',
 ]
 
 const BREW_LAYOUT_KEY = 'megroove-brew-layout'

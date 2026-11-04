@@ -11,6 +11,7 @@ import {
   beanOrigins,
   calcFrequentRecipes,
   calcRecentMusic,
+  calcRecentWater,
   isBlendBean,
   calcResidualCaffeine,
   loadBrewLayout,
@@ -449,5 +450,18 @@ describe('formatBrewGuide / brewGuideHasNumbers', () => {
   it('数値が1つでもあればレシピを作れる', () => {
     expect(brewGuideHasNumbers({ text: '中細挽き' })).toBe(false)
     expect(brewGuideHasNumbers({ waterG: 220 })).toBe(true)
+  })
+})
+
+describe('calcRecentWater', () => {
+  it('定番チップ以外の水を新しい順に重複なしで返す', () => {
+    const brews = [
+      { water: '◯◯の天然水', brewedAt: '2026-11-01' },
+      { water: '水道水', brewedAt: '2026-11-03' },
+      { water: '△△ウォーター', brewedAt: '2026-11-02' },
+      { water: '◯◯の天然水 ', brewedAt: '2026-11-04' },
+      { brewedAt: '2026-11-05' },
+    ]
+    expect(calcRecentWater(brews)).toEqual(['◯◯の天然水', '△△ウォーター'])
   })
 })

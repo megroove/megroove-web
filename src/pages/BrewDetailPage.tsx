@@ -285,6 +285,7 @@ export default function BrewDetailPage() {
             />
           )}
           {brew.pourCount !== undefined && <Row label="注湯回数" value={`${brew.pourCount}回`} />}
+          {brew.water && <Row label="水" value={brew.water} />}
         </Section>
 
         {/* ── レビュー: どう感じたか ────────────────────────────────────── */}

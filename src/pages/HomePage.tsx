@@ -491,6 +491,7 @@ export default function HomePage() {
         rating: input.rating || undefined,
         flavors: b.flavors,
         drinkStyle: b.drinkStyle,
+        water: b.water,
         cupping: {},
         caffeineAmount,
       }))

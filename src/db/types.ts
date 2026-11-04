@@ -186,6 +186,7 @@ export interface Brew {
   equipmentIds?: string[]    // 使用した器具（複数可）
   totalTimeSec?: number      // 総抽出時間 (秒)
   pourCount?: number         // 注湯回数
+  water?: string             // 使った水（水道水 / 浄水 / 銘柄名など）。習慣なので前回値を引き継ぐ
   rating?: number            // 星評価 1–5
   flavors: string[]          // フレーバーチップ
   scene?: string             // シーン（朝の一杯 / 仕事のおとも 等）

@@ -8,7 +8,7 @@ import {
   loadSettings, loadBrewLayout, resizeImage,
   ROAST_LEVEL_LABELS, daysSinceRoast,
   toDatetimeLocal, fromDatetimeLocal, formatBeanRemaining, calcFrequentFlavors,
-  SCENE_OPTIONS, DRINK_STYLE_OPTIONS,
+  SCENE_OPTIONS, DRINK_STYLE_OPTIONS, WATER_OPTIONS, calcRecentWater,
   saveBrewDraft, loadBrewDraft, clearBrewDraft, getBrewEquipmentIds,
   DRIP_BAG_DOSE_G, BREW_METHOD_LABELS, formatSecToMmSs,
   BREW_BLOCK_SIDE, BREW_SIDE_LABELS, BREW_SIDE_SUBTITLES, calcRecentMusic,
@@ -29,7 +29,7 @@ import { newCountriesFor } from '../components/passport/passportStats'
 import BrewingOverlay from '../components/brew/BrewingOverlay'
 import { useToast } from '../components/Toast'
 import OriginInput from '../components/OriginInput'
-import { CameraIcon, CaffeineIcon, MusicIcon } from '../components/icons'
+import { CameraIcon, CaffeineIcon, ClockIcon, MusicIcon } from '../components/icons'
 
 function Stepper({
   label,
@@ -130,6 +130,7 @@ export default function BrewPage() {
   const [note, setNote] = useState('')
   // 聴いていた曲（任意）。その瞬間の文脈なので、シーンと同じく前回値はコピーしない
   const [musicTitle, setMusicTitle] = useState('')
+  const [water, setWater] = useState('')
   const [musicArtist, setMusicArtist] = useState('')
 
   const [photoDataUrl, setPhotoDataUrl] = useState<string | undefined>()
@@ -177,6 +178,7 @@ export default function BrewPage() {
 
   // 聴いていた曲の入力候補（過去に入力したもの・新しい順）
   const recentMusic = useMemo(() => calcRecentMusic(allBrews), [allBrews])
+  const recentWater = useMemo(() => calcRecentWater(allBrews), [allBrews])
 
   // 「よく使う」フレーバー（全ブリュー＋カフェ記録から集計）
   const [frequentFlavors, setFrequentFlavors] = useState<string[]>([])
@@ -211,6 +213,7 @@ export default function BrewPage() {
     setFlavors(b.flavors)
     // 飲み方は習慣なので引き継ぐ。シーンはその瞬間の文脈なのでコピーしない
     setDrinkStyle(b.drinkStyle ?? [])
+    setWater(b.water ?? '') // 水も習慣なので引き継ぐ
     if (copyEval) {
       setRating(b.rating ?? 0)
       setCupping(b.cupping)
@@ -245,6 +248,7 @@ export default function BrewPage() {
     setPhotoDataUrl(d.photoDataUrl)
     setMusicTitle(d.musicTitle ?? '')
     setMusicArtist(d.musicArtist ?? '')
+    setWater(d.water ?? '')
     setShowDetail(d.showDetail)
     setSide(d.side ?? 'A') // 古い下書きには無いので Side A から再開する
   }, [])
@@ -296,11 +300,11 @@ export default function BrewPage() {
   const buildDraft = useCallback((): BrewDraft => ({
     brewedAtLocal, method, beanId, recipeId, doseG, waterG, grindSize, tempC, rating,
     flavors, scene, drinkStyle, cupping, equipmentIds, totalTimeSec, pourCount,
-    note, photoDataUrl, musicTitle, musicArtist, showDetail, side,
+    note, photoDataUrl, musicTitle, musicArtist, water, showDetail, side,
   }), [
     brewedAtLocal, method, beanId, recipeId, doseG, waterG, grindSize, tempC, rating,
     flavors, scene, drinkStyle, cupping, equipmentIds, totalTimeSec, pourCount,
-    note, photoDataUrl, musicTitle, musicArtist, showDetail, side,
+    note, photoDataUrl, musicTitle, musicArtist, water, showDetail, side,
   ])
 
   // 「入力が変わったか」の判定に使う鍵。面の切り替えや詳細の開閉は**見た目の状態**であって
@@ -395,6 +399,7 @@ export default function BrewPage() {
     cuppingAverage: calcCuppingAverage(cupping),
     caffeineAmount: estimatedCaffeine,
     photoDataUrl,
+    water:       water.trim()       || undefined,
     musicTitle:  musicTitle.trim()  || undefined,
     musicArtist: musicArtist.trim() || undefined,
     note: note.trim() || undefined,
@@ -685,6 +690,35 @@ export default function BrewPage() {
                 </p>
               )}
             </div>
+          </div>
+        )
+
+      case 'water':
+        return (
+          <div key="water" className="bg-[#2E2018] rounded-xl p-4 flex flex-col gap-3">
+            <p className="text-xs text-[#CE9C68]">水</p>
+            <div className="flex flex-wrap gap-2">
+              {WATER_OPTIONS.map(w => (
+                <button
+                  key={w}
+                  type="button"
+                  onClick={() => setWater(water === w ? '' : w)}
+                  className={`px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${
+                    water === w ? 'bg-[#993C1D] text-[#F7EFE6]' : 'bg-[#3e3020] text-[#CE9C68]'
+                  }`}
+                >
+                  {w}
+                </button>
+              ))}
+            </div>
+            <OriginInput
+              value={WATER_OPTIONS.includes(water) ? '' : water}
+              onChange={setWater}
+              placeholder="銘柄などは自由入力（例: ◯◯の天然水）"
+              master={[]}
+              recentOrigins={recentWater}
+              suggestionIcon={<ClockIcon size={13} />}
+            />
           </div>
         )
 
