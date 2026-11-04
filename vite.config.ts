@@ -1,3 +1,4 @@
+/// <reference types="vitest/config" />
 import { defineConfig, type Plugin } from 'vite'
 import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
@@ -14,6 +15,25 @@ const relaxCspForDev = (): Plugin => ({
   },
 })
 
+// AI ラベル解析を有効にしたビルドだけ、CSP に Worker の送り先と Turnstile（ボット対策）を足す。
+// 無効なビルド（今の本番）の CSP は index.html のまま＝外部への送り先は増えない
+const aiScanCsp = (): Plugin => {
+  let env: Record<string, string> = {}
+  return {
+    name: 'ai-scan-csp',
+    configResolved(c) { env = c.env as Record<string, string> },
+    transformIndexHtml(html) {
+      if (env.VITE_AI_SCAN_ENABLED !== 'true' || !env.VITE_LABEL_API_URL) return html
+      const api = new URL(env.VITE_LABEL_API_URL).origin
+      const turnstile = 'https://challenges.cloudflare.com'
+      return html
+        .replace("connect-src 'self'", `connect-src 'self' ${api}`)
+        .replace("script-src 'self'", `script-src 'self' ${turnstile}`)
+        .replace('frame-ancestors', `frame-src ${turnstile}; frame-ancestors`)
+    },
+  }
+}
+
 // 実機（iPhone 等）確認用: HTTPS=1 のときだけ自己署名証明書で dev/preview を https にする。
 // http の LAN IP（例 http://192.168.0.12:4173）は「安全なコンテキスト」ではないため、
 // ブラウザが crypto.randomUUID() を提供せず、保存が一切できない（= 本番では起きない確認環境の問題）。
@@ -25,6 +45,7 @@ export default defineConfig({
   plugins: [
     ...httpsForDevice,
     relaxCspForDev(),
+    aiScanCsp(),
     react(),
     tailwindcss(),
     VitePWA({
@@ -73,4 +94,6 @@ export default defineConfig({
     }),
   ],
   base: '/megroove-web/',
+  // worker/ は別プロジェクト（Cloudflare Worker）。テストはそちらで走らせる
+  test: { exclude: ['**/node_modules/**', 'worker/**'] },
 })

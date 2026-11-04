@@ -1,6 +1,6 @@
 import { useState } from 'react'
 
-export function Field({ label, children }: { label: string; children: React.ReactNode }) {
+export function Field({ label, children }: { label: React.ReactNode; children: React.ReactNode }) {
   return (
     <div>
       <label className="text-xs text-[#CE9C68] mb-1.5 block">{label}</label>

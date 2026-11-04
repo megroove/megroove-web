@@ -1,0 +1,26 @@
+// Megroove の API（豆ラベルの AI 解析）。シークレットは wrangler secret put で登録し、ここには書かない:
+//   ANTHROPIC_API_KEY … Claude API のキー
+//   TURNSTILE_SECRET  … Turnstile のシークレットキー
+{
+  "name": "megroove-api",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-10-01",
+  "compatibility_flags": ["nodejs_compat"],
+  "observability": { "enabled": true },
+  "vars": {
+    // 受け付ける送り元（カンマ区切り・完全一致）
+    "ALLOWED_ORIGINS": "https://megroove.github.io",
+    // Turnstile の検証結果に含まれるホスト名と照合する（空なら照合しない）
+    "TURNSTILE_HOSTNAME": "megroove.github.io"
+  },
+  "env": {
+    // 開発用。localhost から呼べる。Turnstile は Cloudflare のテスト用キーを使う想定
+    "dev": {
+      "name": "megroove-api-dev",
+      "vars": {
+        "ALLOWED_ORIGINS": "http://localhost:5173,https://localhost:4173",
+        "TURNSTILE_HOSTNAME": ""
+      }
+    }
+  }
+}

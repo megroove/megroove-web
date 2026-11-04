@@ -204,6 +204,16 @@ export async function getOrCreateUserSecret(): Promise<string> {
   return hex
 }
 
+// AI 解析の回数制限に使う端末ID（UUID）。Worker 側で1日の回数を数えるためだけに送る。
+// バックアップには含めない（機種変更で引き継ぐ必要がなく、含めると端末をまたいで回数を共有してしまう）
+export async function getOrCreateDeviceId(): Promise<string> {
+  const existing = await getMeta('deviceId')
+  if (existing) return existing
+  const id = crypto.randomUUID()
+  await setMeta('deviceId', id)
+  return id
+}
+
 // ─── Clear all ───────────────────────────────────────────────────────────────
 
 export async function clearAllData(): Promise<void> {

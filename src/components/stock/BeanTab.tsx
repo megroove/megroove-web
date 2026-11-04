@@ -12,6 +12,18 @@ import OriginInput from '../OriginInput'
 import PhotoField from '../PhotoField'
 import { ClockIcon } from '../icons'
 import EmptyState from '../EmptyState'
+import LabelScanSection from './LabelScanSection'
+import { applyLabelToForm, type BeanLabelResult, type LabelFieldKey } from './labelScan'
+import { isLabelScanEnabled } from './labelScanClient'
+
+// AI が下書きに入れた欄の印（確かめてから保存してもらうため）
+function AiMark() {
+  return (
+    <span className="ml-1.5 inline-block align-middle text-[10px] leading-none px-1.5 py-0.5 rounded-full border border-[#CE9C68]/60 text-[#CE9C68]">
+      AI<span className="sr-only">が読み取った値</span>
+    </span>
+  )
+}
 
 const ROAST_LEVELS: RoastLevel[] = ['light', 'light-medium', 'medium', 'medium-dark', 'dark']
 
@@ -64,10 +76,42 @@ function BeanForm({
   const [guideDose,   setGuideDose]   = useState<number | undefined>(base?.brewGuide?.doseG)
   const [guideWater,  setGuideWater]  = useState<number | undefined>(base?.brewGuide?.waterG)
   const [guideTemp,   setGuideTemp]   = useState<number | undefined>(base?.brewGuide?.tempC)
+  // 焙煎度は常に何か選ばれているので、新規でまだ触っていないあいだだけ「空」とみなす（AI の当てはめ用）
+  const [roastTouched, setRoastTouched] = useState(Boolean(base))
+  const [aiFilled,    setAiFilled]    = useState<Set<LabelFieldKey>>(new Set())
+  const ai = (key: LabelFieldKey, label: string) => <>{label}{aiFilled.has(key) && <AiMark />}</>
   // 買い直したら前の袋は終わっている方が多いので既定 ON。並行して開けている人は外せる
   const [finishPrev,  setFinishPrev]  = useState(true)
   const [saving,      setSaving]      = useState(false)
   const showToast = useToast()
+
+  // ラベルの解析結果を、空いている欄にだけ下書きとして入れる。入れた欄の数を返す
+  const handleLabelResult = (result: BeanLabelResult): number => {
+    const { patch, filled } = applyLabelToForm({
+      name, roaster, origin, blend, farm, variety, process, roastLevel,
+      roastLevelIsDefault: !roastTouched, notesText, roastedAt, amountG,
+      guideText, guideDose, guideWater, guideTemp,
+    }, result)
+    if (patch.name !== undefined) setName(patch.name)
+    if (patch.roaster !== undefined) setRoaster(patch.roaster)
+    if (patch.origin !== undefined) setOrigin(patch.origin)
+    if (patch.blend !== undefined) setBlend(patch.blend)
+    if (patch.farm !== undefined) setFarm(patch.farm)
+    if (patch.variety !== undefined) setVariety(patch.variety)
+    if (patch.process !== undefined) setProcess(patch.process)
+    if (patch.roastLevel !== undefined) { setRoastLevel(patch.roastLevel); setRoastTouched(true) }
+    if (patch.notesText !== undefined) setNotesText(patch.notesText)
+    if (patch.roastedAt !== undefined) setRoastedAt(patch.roastedAt)
+    if (patch.amountG !== undefined) setAmountG(patch.amountG)
+    if (filled.includes('guide')) {
+      setGuideText(patch.guideText ?? '')
+      setGuideDose(patch.guideDose)
+      setGuideWater(patch.guideWater)
+      setGuideTemp(patch.guideTemp)
+    }
+    setAiFilled(prev => new Set([...prev, ...filled]))
+    return filled.length
+  }
 
   const handleSave = async () => {
     if (!name.trim() || saving) return
@@ -159,11 +203,13 @@ function BeanForm({
         </div>
       )}
 
-      <Field label="名前 *">
+      {isLabelScanEnabled() && <LabelScanSection listImage={photoDataUrl} onResult={handleLabelResult} />}
+
+      <Field label={ai('name', '名前 *')}>
         <TextInput value={name} onChange={setName} placeholder="例: エチオピア イルガチェフェ" autoFocus />
       </Field>
 
-      <Field label="ロースター">
+      <Field label={ai('roaster', 'ロースター')}>
         <OriginInput
           value={roaster} onChange={setRoaster} placeholder="任意（例: ◯◯珈琲焙煎所）"
           recentOrigins={recentRoasters} master={[]} suggestionIcon={<ClockIcon size={13} />}
@@ -181,20 +227,20 @@ function BeanForm({
         />
       </Field>
 
-      <Field label="焙煎度">
+      <Field label={ai('roastLevel', '焙煎度')}>
         <ChipSelect
           options={ROAST_LEVELS.map(l => ({ value: l, label: ROAST_LEVEL_LABELS[l] }))}
           value={roastLevel}
-          onChange={setRoastLevel}
+          onChange={v => { setRoastLevel(v); setRoastTouched(true) }}
         />
       </Field>
 
       <div className="grid grid-cols-2 gap-3">
-        <Field label="焙煎日"><DateInput value={roastedAt}   onChange={setRoastedAt}   /></Field>
+        <Field label={ai('roastedAt', '焙煎日')}><DateInput value={roastedAt}   onChange={setRoastedAt}   /></Field>
         <Field label="購入日"><DateInput value={purchasedAt} onChange={setPurchasedAt} /></Field>
       </div>
 
-      <Field label="内容量（g）— 入力すると記録から残量を自動計算">
+      <Field label={ai('amountG', '内容量（g）— 入力すると記録から残量を自動計算')}>
         <NumberInput value={amountG} onChange={setAmountG} placeholder="例: 200" min={1} />
       </Field>
 
@@ -225,7 +271,7 @@ function BeanForm({
         </button>
       )}
 
-      <Field label={blend.length > 0 ? 'ブレンドの産地' : '産地'}>
+      <Field label={ai('origin', blend.length > 0 ? 'ブレンドの産地' : '産地')}>
         {blend.length > 0 ? (
           <div className="flex flex-col gap-2">
             {blend.map((o, i) => (
@@ -283,13 +329,13 @@ function BeanForm({
       </Field>
 
       <div className="grid grid-cols-2 gap-3">
-        <Field label="農園">
+        <Field label={ai('farm', '農園')}>
           <OriginInput
             value={farm} onChange={setFarm} placeholder="任意"
             recentOrigins={recentFarms} master={[]} suggestionIcon={<ClockIcon size={13} />}
           />
         </Field>
-        <Field label="品種">
+        <Field label={ai('variety', '品種')}>
           <OriginInput
             value={variety} onChange={setVariety} placeholder="任意"
             recentOrigins={recentVarieties} master={[]} suggestionIcon={<ClockIcon size={13} />}
@@ -297,7 +343,7 @@ function BeanForm({
         </Field>
       </div>
 
-      <Field label="精製方法">
+      <Field label={ai('process', '精製方法')}>
         <div className="flex flex-col gap-2">
           <div className="flex flex-wrap gap-2">
             {PROCESS_PRESETS.map(p => (
@@ -319,11 +365,11 @@ function BeanForm({
         </div>
       </Field>
 
-      <Field label="フレーバーノート（袋の記載）">
+      <Field label={ai('notes', 'フレーバーノート（袋の記載）')}>
         <TextInput value={notesText} onChange={setNotesText} placeholder="任意（例: ジャスミン、ベルガモット）" />
       </Field>
 
-      <Field label="おすすめの淹れ方（袋の記載）">
+      <Field label={ai('guide', 'おすすめの淹れ方（袋の記載）')}>
         <div className="flex flex-col gap-2">
           <TextInput value={guideText} onChange={setGuideText} placeholder="任意（例: 15g / 220ml / 90℃・中細挽き）" />
           {/* 値が入るとプレースホルダーが消えるので、小さな見出しを常に出す */}

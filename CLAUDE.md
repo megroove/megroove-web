@@ -168,13 +168,20 @@ competing する要求が出たら、必ずこの順位で判断する。
   - ストア: `beans` / `equipment` / `recipes` / `brews`（byBrewedAt インデックス）/ `cafeVisits`（byVisitedAt インデックス）/
     `caffeineIntakes`（byConsumedAt インデックス。コーヒー以外のカフェイン飲料の摂取ログ）/
     `sleepLogs`（keyPath=`date`・1日1件。睡眠の主観評価。補助機能・オプトイン）/
-    `meta`（内部値。データ提供の仮名ID導出に使う `userSecret` 等。`clearAllData` の対象外）
+    `meta`（内部値。データ提供の仮名ID導出に使う `userSecret`、AI 解析の回数制限に使う `deviceId` 等。`clearAllData` の対象外。
+    `deviceId` は**バックアップに含めない**＝端末をまたいで回数を共有しない）
   - iOS版 SwiftData の「ローカル完結」と同じ思想。データは端末・ブラウザ内のみに保持
   - 各エンティティは **UUID** を持つ（iOS版と揃える）
 - **ルーティング**: `react-router-dom` + `HashRouter`（GitHub Pages 対応。base: `/megroove-web/`）
 - **公開**: GitHub Pages（`megroove` アカウント。サーバー費用ゼロ）
 - **PWA**: `vite-plugin-pwa` + Workbox（generateSW モード）
 - **バックアップ**: JSON ファイル書き出し／読み込み（`src/components/stock/DataTab.tsx`）
+- **AI 解析の Worker**: `worker/`（Cloudflare Worker・別デプロイ。手順は `worker/README.md`）。豆ラベルの写真を
+  `claude-haiku-5-5` に渡し、書かれた項目だけを JSON で返す。API キーは Worker の secret のみ。アプリ側の入口は
+  ビルド時の環境変数 `VITE_AI_SCAN_ENABLED` / `VITE_LABEL_API_URL` / `VITE_TURNSTILE_SITE_KEY` で出し分け、
+  有効なビルドだけ CSP に送り先と Turnstile を足す（`vite.config.ts` の `aiScanCsp`）。Turnstile のスクリプトは
+  解析を開いたときだけ読み込む＝使わない人の端末からは何も送らない。結果は**空いている欄にだけ**下書きとして入れ、
+  AI の印を付ける（`applyLabelToForm`）。自動保存はしない
 - **テスト**: Vitest（`npm test`）。**UI ではなく純粋関数を守る**方針で、`*.test.ts` を対象コードの隣に置く。
   対象は「壊れると気づきにくく、壊れると痛い」もの ― 集計ロジック（カフェインの傾向・年間まとめ・月アルバム）、
   不正値のクランプ、コントラスト担保、保存エラーの文言分岐、レイアウト設定の補完など。
@@ -196,6 +203,7 @@ competing する要求が出たら、必ずこの順位で判断する。
 | `megroove-onboarded` | 初回起動フィーチャーツアーの完了フラグ |
 | `megroove-sleep-prompt-date` | 睡眠の朝ポップアップを当日出したか（1日1回・2回目起動では出さない） |
 | `megroove-sleep-snooze-date` | 朝ポップアップで「あとで」を選んだ日（その日はホームに静かなカードを残す） |
+| `megroove-ai-scan-consent` | 豆ラベルの AI 解析で、写真を外部（Anthropic）に送ることへの同意日時（初回だけ聞く） |
 
 ### Web特有の注意点（iOS版との違い）
 
