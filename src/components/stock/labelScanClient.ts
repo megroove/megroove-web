@@ -1,5 +1,5 @@
 import { getOrCreateDeviceId, resizeImage } from '../../db'
-import { toLabelScanError, type BeanLabelResult, type LabelScanError } from './labelScan'
+import { toLabelScanError, type BeanLabelResult, type LabelQuota, type LabelScanError } from './labelScan'
 
 // 豆ラベルの AI 解析を呼ぶ側。設定はビルド時の環境変数で渡す（.env.*.local。リポジトリには入れない）:
 //   VITE_AI_SCAN_ENABLED   … 'true' のときだけ入口を出す（回数制限と法務がそろうまで本番では出さない）
@@ -31,7 +31,7 @@ function toImagePayload(dataUrl: string): { data: string } {
 }
 
 export type LabelScanOutcome =
-  | { ok: true; result: BeanLabelResult }
+  | { ok: true; result: BeanLabelResult; remaining: number | null }
   | { ok: false; error: LabelScanError }
 
 /**
@@ -61,14 +61,30 @@ export async function analyzeLabel(
       body: JSON.stringify({ images, turnstileToken, deviceId: await getOrCreateDeviceId() }),
       signal: controller.signal,
     })
-    const body = await res.json().catch(() => null) as { ok?: boolean; result?: BeanLabelResult; error?: string } | null
+    const body = await res.json().catch(() => null) as
+      { ok?: boolean; result?: BeanLabelResult; remaining?: number; error?: string } | null
     if (res.ok && body?.ok && body.result) {
-      return body.result.isCoffeeLabel ? { ok: true, result: body.result } : { ok: false, error: 'not_coffee' }
+      if (!body.result.isCoffeeLabel) return { ok: false, error: 'not_coffee' }
+      return { ok: true, result: body.result, remaining: typeof body.remaining === 'number' ? body.remaining : null }
     }
     return { ok: false, error: toLabelScanError(body?.error) }
   } catch (e) {
     return { ok: false, error: e instanceof DOMException && e.name === 'AbortError' ? 'timeout' : 'network' }
   } finally {
     clearTimeout(timer)
+  }
+}
+
+/** 今日あと何回使えるか。取れなければ null（表示を出さないだけで、読み取りは妨げない） */
+export async function fetchLabelQuota(): Promise<LabelQuota | null> {
+  if (!API_URL) return null
+  try {
+    const deviceId = await getOrCreateDeviceId()
+    const res = await fetch(`${API_URL.replace(/\/$/, '')}/quota?deviceId=${encodeURIComponent(deviceId)}`)
+    const body = await res.json() as { ok?: boolean; remaining?: number; blockedBy?: LabelQuota['blockedBy'] }
+    if (!res.ok || !body.ok || typeof body.remaining !== 'number') return null
+    return { remaining: body.remaining, blockedBy: body.blockedBy ?? null }
+  } catch {
+    return null
   }
 }

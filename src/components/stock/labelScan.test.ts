@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { applyLabelToForm, labelScanErrorMessage, toLabelScanError, type BeanLabelResult, type LabelFormValues } from './labelScan'
+import { applyLabelToForm, labelScanErrorMessage, quotaFromError, quotaNotice, toLabelScanError, type BeanLabelResult, type LabelFormValues } from './labelScan'
 
 const empty: LabelFormValues = {
   name: '', roaster: '', origin: '', blend: [], farm: '', variety: '', process: '',
@@ -58,5 +58,19 @@ describe('toLabelScanError / labelScanErrorMessage', () => {
 
   it('どの失敗でも手入力に戻れることを添える', () => {
     expect(labelScanErrorMessage('offline')).toMatch(/手入力はそのまま続けられます$/)
+  })
+})
+
+describe('quotaNotice / quotaFromError', () => {
+  it('残りがあれば回数、無ければどの上限かを伝える', () => {
+    expect(quotaNotice({ remaining: 1, blockedBy: null })).toBe('本日あと1回')
+    expect(quotaNotice({ remaining: 0, blockedBy: 'device' })).toMatch(/^今日の読み取りは使いました/)
+    expect(quotaNotice({ remaining: 0, blockedBy: 'global' })).toMatch(/受付は終了/)
+    expect(quotaNotice({ remaining: 0, blockedBy: 'ip' })).toMatch(/この回線/)
+  })
+  it('上限のエラーだけ残り0回に変える', () => {
+    expect(toLabelScanError('ip_limit')).toBe('ip_limit')
+    expect(quotaFromError('global_limit')).toEqual({ remaining: 0, blockedBy: 'global' })
+    expect(quotaFromError('upstream_error')).toBeNull()
   })
 })

@@ -1,6 +1,7 @@
 // Megroove の API（豆ラベルの AI 解析）。シークレットは wrangler secret put で登録し、ここには書かない:
 //   ANTHROPIC_API_KEY … Claude API のキー
 //   TURNSTILE_SECRET  … Turnstile のシークレットキー
+//   HASH_SECRET       … 回数の記録で端末ID・IP をハッシュにする鍵（乱数。誰も知る必要がない）
 {
   "name": "megroove-api",
   "main": "src/index.ts",
@@ -11,16 +12,30 @@
     // 受け付ける送り元（カンマ区切り・完全一致）
     "ALLOWED_ORIGINS": "https://megroove.github.io",
     // Turnstile の検証結果に含まれるホスト名と照合する（空なら照合しない）
-    "TURNSTILE_HOSTNAME": "megroove.github.io"
+    "TURNSTILE_HOSTNAME": "megroove.github.io",
+    // 1日の上限（日本時間0時に切り替わる）。端末は成功だけ、IP と全体は Claude を呼んだ回数を数える
+    "LIMIT_DEVICE": "1",
+    "LIMIT_IP": "5",
+    "LIMIT_GLOBAL": "50"
   },
+  // 回数の記録（schema は migrations/）
+  "d1_databases": [
+    { "binding": "DB", "database_name": "megroove-usage", "database_id": "3e720239-dd35-4cb1-9a37-c7ccc83fda9b" }
+  ],
   "env": {
     // 開発用。localhost から呼べる。Turnstile は Cloudflare のテスト用キーを使う想定
     "dev": {
       "name": "megroove-api-dev",
       "vars": {
         "ALLOWED_ORIGINS": "http://localhost:5173,https://localhost:4173",
-        "TURNSTILE_HOSTNAME": ""
-      }
+        "TURNSTILE_HOSTNAME": "",
+        "LIMIT_DEVICE": "1",
+        "LIMIT_IP": "5",
+        "LIMIT_GLOBAL": "50"
+      },
+      "d1_databases": [
+        { "binding": "DB", "database_name": "megroove-usage-dev", "database_id": "b45f194e-e10b-42fc-8bfc-03249fb949e4" }
+      ]
     }
   }
 }

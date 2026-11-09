@@ -265,7 +265,7 @@
 ## 次の一手（新しいセッションはここを見る）
 
 **2026-10-27 から「AI写真解析・好みプロファイル・収益化の土台」に着手中**（下の節）。
-P0〜P3 が完了・本番確認済み（バンドル `index-BODqWLjJ.js`）。取扱説明書とLPも反映済み（`diff` 一致）。**P4（Worker と AI 解析）は実装済み・実 API で読み取り確認済み・未公開**。次は P5（回数制限）。P4 と P5 は**法務の追記と同時にまとめて公開**する（ユーザー決定）。
+P0〜P3 が完了・本番確認済み（バンドル `index-BODqWLjJ.js`）。取扱説明書とLPも反映済み（`diff` 一致）。**P4（Worker と AI 解析）は実装済み・実 API で読み取り確認済み・未公開**。**P5（回数制限）も実装済み・未公開**（dev で実確認待ち）。次は P6。P4 と P5 は**法務の追記と同時にまとめて公開**する（ユーザー決定）。
 テーマB の残り（B-3/B-4）はこの一連の作業のあとに回す。
 
 ### AI写真解析・好みプロファイル・収益化の土台（2026-10-27〜）
@@ -341,7 +341,14 @@ P0〜P3 が完了・本番確認済み（バンドル `index-BODqWLjJ.js`）。�
     iPhone では起きない（WebKit が読める・選択時に JPEG 化される）。P7 までに「選んだ時点で読めないと伝え、Safari か JPEG を案内」に直す候補
   - Turnstile は localhost の Chrome で毎回チェックボックスを出す（トークンは1回きりなので成功後に取り直す）。正常動作。画面のない Chrome は通れないので、実 API の試験はユーザーのブラウザで行う
   - 手元の `.env.development.local`（git 管理外）は試験用 Worker と本物のサイトキーを向いている
-- P5 回数制限（D1。先に枠を取り、失敗したら返す方式）。端末 ID は `meta` ストアに置き、バックアップには含めない
+- **✅ P5 回数制限（2026-11-09 実装・未公開）**。決定: **失敗したら端末の枠だけ返す**（IP と全体は Claude を呼んだ回数＝失敗も数える。
+  失敗を繰り返されても費用は全体50回で必ず止まる）。
+  - Worker: `quota.ts`（`reserve` は device → ip → global の順に枠を取り、当たったら先に取った枠を返す・`remaining`・`jstDay`）、
+    `D1CounterStore`（`INSERT … ON CONFLICT DO UPDATE … WHERE count < 上限 RETURNING` の1文で判定と加算）。Turnstile を通ってから枠を取る。
+    `GET /quota?deviceId=` で残り回数。エラー `device_limit` / `ip_limit` / `global_limit`（429）。テスト 35件
+  - D1: `megroove-usage`（本番）/ `megroove-usage-dev`（dev）を作成し、`migrations/0001_usage.sql` を両方に適用済み。
+    `HASH_SECRET` は **dev だけ登録済み**（本番は公開時に `openssl rand -hex 32 | npx wrangler secret put HASH_SECRET`）
+  - アプリ: 読み取り欄の先頭に「本日あと1回」、使い切ったら写真の欄を畳んで理由の一言だけ（`quotaNotice`・テスト）。上限のエラーも同じ一言に寄せる
 - P6 寄付（サービスの比較はこのとき）・アフィリエイト枠（JSON で管理・フラグで非表示）
 - P7 法務の追記・CSP（Worker と `challenges.cloudflare.com`）・セキュリティの点検・本番切り替え・説明書とLPの追従
 

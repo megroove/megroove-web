@@ -5,7 +5,10 @@
 
 ## 構成
 
-- `src/index.ts` … 入口。CORS（`ALLOWED_ORIGINS` と完全一致）→ 本文の大きさ → 形と画像の中身の検証 → Turnstile → 解析
+- `src/index.ts` … 入口。`POST /analyze`: CORS（`ALLOWED_ORIGINS` と完全一致）→ 本文の大きさ → 形と画像の中身の検証 → Turnstile →
+  回数の枠を取る → 解析（失敗したら端末の枠だけ返す）。`GET /quota?deviceId=` は今日の残り回数（表示用）
+- `src/quota.ts` … 1日の回数制限（日本時間0時で切り替え）。端末 `LIMIT_DEVICE`（成功だけ数える）・IP `LIMIT_IP`・全体 `LIMIT_GLOBAL`
+  （この2つは Claude を呼んだ回数＝費用の上限）。端末ID・IP は `HASH_SECRET` で HMAC にしてから D1 に置き、前日より前は消す
 - `src/validate.ts` … 入力の検証（純粋関数。1枚 1.5MB・3枚まで・JPEG/PNG/WebP を先頭バイトで判定）
 - `src/analyzer.ts` … 解析の差し替え口（`LabelAnalyzer`）。将来 Web 検索で補う版はここに足す
 - `src/beanLabel.ts` … 返す項目の schema・指示文・返す前の後始末（日付・数値の範囲・長さ）
@@ -17,7 +20,9 @@
 3. シークレットを登録する（値はターミナルに貼る。ファイルには書かない）
    - `npx wrangler secret put ANTHROPIC_API_KEY`
    - `npx wrangler secret put TURNSTILE_SECRET`
-4. `npm run deploy` → 表示された URL（`https://megroove-api.<アカウント>.workers.dev`）をアプリのビルド設定に使う
+4. 回数の記録（D1）: `npx wrangler d1 migrations apply megroove-usage --remote`（dev は `megroove-usage-dev --remote --env dev`）。
+   ハッシュの鍵は乱数を直接流し込む（誰も知る必要がない）: `openssl rand -hex 32 | npx wrangler secret put HASH_SECRET`
+5. `npm run deploy` → 表示された URL（`https://megroove-api.<アカウント>.workers.dev`）をアプリのビルド設定に使う
 
 ## 開発
 

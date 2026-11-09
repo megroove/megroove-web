@@ -25,7 +25,7 @@ export type ValidationResult =
   | { ok: true; value: AnalyzeRequest }
   | { ok: false; error: ValidationError }
 
-const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+export const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 const BASE64_RE = /^[A-Za-z0-9+/]+={0,2}$/
 
 /** 先頭のバイト列（マジックナンバー）から画像の種類を判定する。対象外なら null */

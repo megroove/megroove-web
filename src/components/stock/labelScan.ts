@@ -100,6 +100,7 @@ export function applyLabelToForm(current: LabelFormValues, r: BeanLabelResult): 
 export type LabelScanError =
   | 'offline' | 'network' | 'timeout' | 'turnstile_failed' | 'unreadable' | 'not_coffee'
   | 'image_too_large' | 'unsupported_image' | 'too_many_images' | 'upstream_error' | 'unknown'
+  | 'device_limit' | 'ip_limit' | 'global_limit'
 
 const MESSAGES: Record<LabelScanError, string> = {
   offline: 'オフラインのため読み取れません。通信できる場所でもう一度お試しください',
@@ -113,6 +114,9 @@ const MESSAGES: Record<LabelScanError, string> = {
   too_many_images: '写真は3枚までです',
   upstream_error: '読み取りサービスが混み合っています。少し時間をおいてお試しください',
   unknown: '読み取りに失敗しました',
+  device_limit: '今日の読み取りは使いました（毎日0時に戻ります）',
+  ip_limit: 'この回線からの今日の読み取りは上限に達しました（毎日0時に戻ります）',
+  global_limit: '今日の読み取りの受付は終了しました（毎日0時に再開します）',
 }
 
 export function labelScanErrorMessage(e: LabelScanError): string {
@@ -124,8 +128,36 @@ export function toLabelScanError(code: unknown): LabelScanError {
   switch (code) {
     case 'turnstile_failed': case 'unreadable': case 'image_too_large': case 'unsupported_image':
     case 'too_many_images': case 'upstream_error':
+    case 'device_limit': case 'ip_limit': case 'global_limit':
       return code
     case 'body_too_large': return 'image_too_large'
     default: return 'unknown'
   }
+}
+
+// ─── 今日の残り回数（表示用。判定は Worker が行う） ──────────────────────────────
+
+export type QuotaBlockedBy = 'device' | 'ip' | 'global'
+
+export interface LabelQuota {
+  remaining: number
+  blockedBy: QuotaBlockedBy | null
+}
+
+const LIMIT_BY_SCOPE: Record<QuotaBlockedBy, LabelScanError> = {
+  device: 'device_limit', ip: 'ip_limit', global: 'global_limit',
+}
+
+/** 読み取り欄に添える一言。使い切っていれば、どの上限かを伝える */
+export function quotaNotice(q: LabelQuota): string {
+  if (q.remaining > 0) return `本日あと${q.remaining}回`
+  return MESSAGES[LIMIT_BY_SCOPE[q.blockedBy ?? 'device']]
+}
+
+/** 上限のエラーなら、残り0回として扱える */
+export function quotaFromError(e: LabelScanError): LabelQuota | null {
+  if (e === 'device_limit') return { remaining: 0, blockedBy: 'device' }
+  if (e === 'ip_limit') return { remaining: 0, blockedBy: 'ip' }
+  if (e === 'global_limit') return { remaining: 0, blockedBy: 'global' }
+  return null
 }

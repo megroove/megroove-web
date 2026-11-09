@@ -1,9 +1,11 @@
 import { useEffect, useRef, useState } from 'react'
 import RecordDisk from '../brew/RecordDisk'
 import { CameraIcon } from '../icons'
-import { labelScanErrorMessage, type BeanLabelResult } from './labelScan'
 import {
-  analyzeLabel, hasLabelScanConsent, saveLabelScanConsent, TURNSTILE_SITE_KEY,
+  labelScanErrorMessage, quotaFromError, quotaNotice, type BeanLabelResult, type LabelQuota,
+} from './labelScan'
+import {
+  analyzeLabel, fetchLabelQuota, hasLabelScanConsent, saveLabelScanConsent, TURNSTILE_SITE_KEY,
 } from './labelScanClient'
 import { loadTurnstile } from './turnstile'
 
@@ -30,6 +32,7 @@ export default function LabelScanSection({ listImage, onResult }: Props) {
   const [useListImage, setUseListImage] = useState(false)
   const [token, setToken] = useState<string | null>(null)
   const [status, setStatus] = useState<Status>({ kind: 'idle' })
+  const [quota, setQuota] = useState<LabelQuota | null>(null) // 取れなければ表示しないだけ
   const widgetRef = useRef<HTMLDivElement>(null)
   const widgetId = useRef<string | null>(null)
   const cameraRef = useRef<HTMLInputElement>(null)
@@ -55,6 +58,14 @@ export default function LabelScanSection({ listImage, onResult }: Props) {
       if (widgetId.current && window.turnstile) window.turnstile.remove(widgetId.current)
       widgetId.current = null
     }
+  }, [open])
+
+  // 今日の残り回数（表示用。判定は Worker）
+  useEffect(() => {
+    if (!open) return
+    let cancelled = false
+    fetchLabelQuota().then(q => { if (!cancelled) setQuota(q) })
+    return () => { cancelled = true }
   }, [open])
 
   // プレビュー用の URL は、外したとき・画面を閉じたときに解放する
@@ -87,7 +98,13 @@ export default function LabelScanSection({ listImage, onResult }: Props) {
     setStatus({ kind: 'analyzing' })
     const outcome = await analyzeLabel(files.map(f => f.file), useListImage ? listImage : undefined, token)
     resetToken()
-    if (!outcome.ok) { setStatus({ kind: 'error', message: labelScanErrorMessage(outcome.error) }); return }
+    if (!outcome.ok) {
+      const q = quotaFromError(outcome.error)
+      if (q) { setQuota(q); setStatus({ kind: 'idle' }); return } // 上限は欄の一言で伝える
+      setStatus({ kind: 'error', message: labelScanErrorMessage(outcome.error) })
+      return
+    }
+    if (outcome.remaining !== null) setQuota({ remaining: outcome.remaining, blockedBy: outcome.remaining > 0 ? null : 'device' })
     const filled = onResult(outcome.result)
     clearFiles() // 解析用の写真はここで手放す（保存しない）
     setUseListImage(false)
@@ -101,6 +118,7 @@ export default function LabelScanSection({ listImage, onResult }: Props) {
 
   const hasImages = files.length + listCount > 0
   const analyzing = status.kind === 'analyzing'
+  const exhausted = quota?.remaining === 0
 
   if (!open) {
     return (
@@ -134,9 +152,16 @@ export default function LabelScanSection({ listImage, onResult }: Props) {
         </div>
       ) : (
         <>
-          <p className="text-xs text-[#A8916F] leading-relaxed">
-            情報が書かれた面（裏のラベルなど）を最大{MAX_PHOTOS}枚。写真は読み取りにだけ使い、保存しません。
-          </p>
+          {quota && (
+            <p className={`text-xs font-medium ${exhausted ? 'text-[#E8A27A]' : 'text-[#CE9C68]'}`} role="status">
+              {quotaNotice(quota)}
+            </p>
+          )}
+          {!exhausted && (
+            <p className="text-xs text-[#A8916F] leading-relaxed">
+              情報が書かれた面（裏のラベルなど）を最大{MAX_PHOTOS}枚。写真は読み取りにだけ使い、保存しません。
+            </p>
+          )}
 
           {files.length > 0 && (
             <div className="grid grid-cols-3 gap-2">
@@ -156,7 +181,7 @@ export default function LabelScanSection({ listImage, onResult }: Props) {
             </div>
           )}
 
-          {room > 0 && (
+          {room > 0 && !exhausted && (
             <div className="flex gap-2">
               <button
                 type="button"
@@ -179,7 +204,7 @@ export default function LabelScanSection({ listImage, onResult }: Props) {
           <input ref={libraryRef} type="file" accept="image/*" multiple className="hidden"
             onChange={e => { addFiles(e.target.files); e.target.value = '' }} />
 
-          {listImage && (
+          {listImage && !exhausted && (
             <label className="flex items-center gap-2.5 min-h-11 cursor-pointer">
               <input
                 type="checkbox"
@@ -216,7 +241,7 @@ export default function LabelScanSection({ listImage, onResult }: Props) {
                 </button>
               </div>
             </div>
-          ) : (
+          ) : !exhausted && (
             <button
               type="button"
               onClick={handleRead}
