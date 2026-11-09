@@ -8,7 +8,7 @@ export const ROAST_LEVELS = ['light', 'light-medium', 'medium', 'medium-dark', '
 export const BeanLabelSchema = z.object({
   isCoffeeLabel: z.boolean().describe('写真がコーヒー豆の袋やラベルかどうか'),
   name: z.string().nullable().describe('商品名（豆の名前）'),
-  roaster: z.string().nullable().describe('ロースター（焙煎所・店名）'),
+  roaster: z.string().nullable().describe('ロースター（焙煎所・店名。会社の種類は付けない）'),
   origins: z.array(z.string()).describe('産地。国名は日本語（カタカナ）、地域は書いてあるまま。例: "エチオピア イルガチェフェ"。ブレンドなら複数'),
   farm: z.string().nullable().describe('農園・生産者・ウォッシングステーション'),
   variety: z.string().nullable().describe('品種'),
@@ -39,7 +39,8 @@ export const SYSTEM_PROMPT = `あなたはコーヒー豆の袋の写真から�
   - medium: 中煎り / ハイ / シティ
   - medium-dark: 中深煎り / フルシティ
   - dark: 深煎り / フレンチ / イタリアン
-- 焙煎日は年・月・日がそろって読めるときだけ YYYY-MM-DD で返します
+- ロースターは焙煎した店・ブランドの名前だけを返します。「株式会社」などの会社の種類や、括弧での言い換えは付けません。販売者と製造者（焙煎者）が別に書かれていれば製造者の方です
+- 焙煎日は年・月・日がそろって読めるときだけ YYYY-MM-DD で返します。賞味期限・製造日・包装日は焙煎日ではありません
 - 内容量・粉量・湯量・湯温は数字だけを返します（単位は g・℃ にそろえる。ml は g と同じ数として扱う）
 - コーヒー豆の袋やラベルでなければ isCoffeeLabel を false にして、ほかは空にしてください`
 
