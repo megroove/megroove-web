@@ -5,6 +5,7 @@ import type { VinylColorId } from '../db'
 import { loadSettings, saveSettings } from '../db'
 import VinylPicker from '../components/brew/VinylPicker'
 import { MoonIcon } from '../components/icons'
+import { MONETIZATION } from '../components/monetization'
 
 export default function SettingsPage() {
   const navigate = useNavigate()
@@ -121,6 +122,23 @@ export default function SettingsPage() {
           <p className="text-sm text-[#F7EFE6]">プライバシーポリシー</p>
           <span className="text-[#6b5a4a] text-sm ml-3">→</span>
         </button>
+        {/* 応援の入口。URL が設定されているときだけ出す。お願いやポップアップは出さない */}
+        {MONETIZATION.support.url && (
+          <a
+            href={MONETIZATION.support.url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="w-full bg-[#2E2018] rounded-xl px-4 py-4 flex items-center justify-between active:opacity-80"
+          >
+            <div className="text-left">
+              <p className="text-sm text-[#F7EFE6]">Megroove を応援する</p>
+              <p className="text-xs text-[#A8916F] mt-0.5">
+                {MONETIZATION.support.service ? `${MONETIZATION.support.service} で` : ''}応援できます（任意・機能は同じです）
+              </p>
+            </div>
+            <span className="text-[#A8916F] text-sm ml-3">↗</span>
+          </a>
+        )}
         <a
           href="mailto:megroove.app@gmail.com"
           className="w-full bg-[#2E2018] rounded-xl px-4 py-4 flex items-center justify-between active:opacity-80"

@@ -6,12 +6,14 @@ import {
   formatBrewDateShort, formatSecToMmSs, ROAST_LEVEL_LABELS, beanOrigins,
 } from '../db'
 import RadarChart from '../components/analysis/RadarChart'
+import AffiliatePicks from '../components/analysis/AffiliatePicks'
+import { MONETIZATION, pickAffiliateItems, preferenceTags } from '../components/monetization'
 import { calcRepeatBeans } from '../components/analysis/repeatBeans'
 import { jacketColor } from '../components/library/jacketColor'
 import TrendChart from '../components/analysis/TrendChart'
 import AgingWindowCard from '../components/analysis/AgingWindowCard'
 import {
-  calcPreferenceProfile, changeMessage, collectTasteSamples, PREFERENCE_DEFAULTS,
+  calcPreferenceProfile, changeMessage, collectTasteSamples, currentPreference, PREFERENCE_DEFAULTS,
 } from '../components/analysis/preferenceProfile'
 import {
   generateInsight, rankBrews,
@@ -129,10 +131,17 @@ export default function AnalysisPage() {
 
   // 好みプロファイル（抽出＋カフェのうち星とカッピングがそろった記録）。
   // 3杯未満は空の状態、以前・最近がそれぞれ最低件数に届くまでは全期間の1枚、届いたら重ねて見せる
-  const profile = useMemo(
-    () => calcPreferenceProfile(collectTasteSamples(brews, visits, [...beanMap.values()]), new Date()),
+  const samples = useMemo(
+    () => collectTasteSamples(brews, visits, [...beanMap.values()]),
     [brews, visits, beanMap],
   )
+  const profile = useMemo(() => calcPreferenceProfile(samples, new Date()), [samples])
+  // アフィリエイト枠（設定で無効なら空＝何も出ない）。今の好みのタグと重なるものだけ
+  const affiliateItems = useMemo(() => {
+    if (!MONETIZATION.affiliate.enabled) return []
+    const tags = preferenceTags({ ...profile.favorites, direction: currentPreference(samples, new Date())?.direction })
+    return pickAffiliateItems(MONETIZATION.affiliate, tags)
+  }, [samples, profile.favorites])
   const count         = profile.total
   const hasEnoughData = count >= 3
   const canCompare    = profile.before.count >= PREFERENCE_DEFAULTS.minCount
@@ -255,6 +264,7 @@ export default function AnalysisPage() {
                 好みの移り変わりを重ねて表示します
               </p>
             )}
+            <AffiliatePicks items={affiliateItems} />
           </>
         ) : (
           <div className="py-8 flex flex-col items-center gap-2 text-center">

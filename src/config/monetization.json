@@ -1,0 +1,10 @@
+{
+  "support": {
+    "url": "",
+    "service": "Ko-fi"
+  },
+  "affiliate": {
+    "enabled": false,
+    "items": []
+  }
+}
