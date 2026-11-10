@@ -15,6 +15,7 @@ import EmptyState from '../EmptyState'
 import LabelScanSection from './LabelScanSection'
 import { applyLabelToForm, type BeanLabelResult, type LabelFieldKey } from './labelScan'
 import { isLabelScanEnabled } from './labelScanClient'
+import { clearBeanDraft, loadBeanDraft, saveBeanDraft } from './beanDraft'
 
 // AI が下書きに入れた欄の印（確かめてから保存してもらうため）
 function AiMark() {
@@ -31,7 +32,7 @@ const PROCESS_PRESETS = ['ウォッシュト', 'ナチュラル', 'ハニー', '
 
 function BeanForm({
   initial, repurchaseOf, recentOrigins, recentFarms, recentVarieties, recentRoasters,
-  onSave, onDelete, onCancel, onRepurchase,
+  onSave, onDelete, onCancel, onRepurchase, onDiscardDraft,
 }: {
   initial?: Bean
   /**
@@ -49,41 +50,59 @@ function BeanForm({
   onDelete?: () => void
   onCancel: () => void
   onRepurchase?: () => void
+  /** 新規の入力途中を捨てて、空のフォームから始め直す */
+  onDiscardDraft?: () => void
 }) {
   // 買い直しは「新しい袋」なので、引き継ぐ値は商品の属性だけ
   const base = initial ?? repurchaseOf
   const todayISO = new Date().toISOString().slice(0, 10)
-  const [name,        setName]        = useState(base?.name          ?? '')
-  const [roastLevel,  setRoastLevel]  = useState<RoastLevel>(base?.roastLevel ?? 'medium')
-  const [roastedAt,   setRoastedAt]   = useState(initial?.roastedAt   ?? '')
+  // 新規だけ、前回「閉じる」した入力途中から再開する（保存できたら消す）
+  const isNew = !initial && !repurchaseOf
+  const [draft] = useState(() => isNew ? loadBeanDraft() : null)
+  const [name,        setName]        = useState(draft?.name ?? base?.name ?? '')
+  const [roastLevel,  setRoastLevel]  = useState<RoastLevel>(draft?.roastLevel ?? base?.roastLevel ?? 'medium')
+  const [roastedAt,   setRoastedAt]   = useState(draft?.roastedAt ?? initial?.roastedAt ?? '')
   const [purchasedAt, setPurchasedAt] = useState(
-    initial?.purchasedAt ?? (repurchaseOf ? todayISO : ''),
+    draft?.purchasedAt ?? initial?.purchasedAt ?? (repurchaseOf ? todayISO : ''),
   )
-  const [amountG,     setAmountG]     = useState<number | undefined>(base?.initialAmountG)
+  const [amountG,     setAmountG]     = useState<number | undefined>(draft ? draft.amountG : base?.initialAmountG)
   const [finished,    setFinished]    = useState(Boolean(initial?.finishedAt))
-  const [origin,      setOrigin]      = useState(base?.origin        ?? '')
+  const [origin,      setOrigin]      = useState(draft?.origin ?? base?.origin ?? '')
   // ブレンドの構成産地。空配列＝シングル（既定）。比率は持たない（§5）
-  const [blend,       setBlend]       = useState<string[]>(base?.origins ?? [])
-  const [farm,        setFarm]        = useState(base?.farm          ?? '')
-  const [variety,     setVariety]     = useState(base?.variety       ?? '')
-  const [process,     setProcess]     = useState(base?.process       ?? '')
-  const [decaf,       setDecaf]       = useState(base?.decaf         ?? false)
-  const [stockNote,   setStockNote]   = useState(initial?.stockNote   ?? '')
-  const [photoDataUrl, setPhotoDataUrl] = useState<string | undefined>(base?.photoDataUrl)
-  const [roaster,     setRoaster]     = useState(base?.roaster       ?? '')
-  const [notesText,   setNotesText]   = useState((base?.flavorNotes ?? []).join('、'))
-  const [guideText,   setGuideText]   = useState(base?.brewGuide?.text ?? '')
-  const [guideDose,   setGuideDose]   = useState<number | undefined>(base?.brewGuide?.doseG)
-  const [guideWater,  setGuideWater]  = useState<number | undefined>(base?.brewGuide?.waterG)
-  const [guideTemp,   setGuideTemp]   = useState<number | undefined>(base?.brewGuide?.tempC)
+  const [blend,       setBlend]       = useState<string[]>(draft?.blend ?? base?.origins ?? [])
+  const [farm,        setFarm]        = useState(draft?.farm ?? base?.farm ?? '')
+  const [variety,     setVariety]     = useState(draft?.variety ?? base?.variety ?? '')
+  const [process,     setProcess]     = useState(draft?.process ?? base?.process ?? '')
+  const [decaf,       setDecaf]       = useState(draft?.decaf ?? base?.decaf ?? false)
+  const [stockNote,   setStockNote]   = useState(draft?.stockNote ?? initial?.stockNote ?? '')
+  const [photoDataUrl, setPhotoDataUrl] = useState<string | undefined>(draft ? draft.photoDataUrl : base?.photoDataUrl)
+  const [roaster,     setRoaster]     = useState(draft?.roaster ?? base?.roaster ?? '')
+  const [notesText,   setNotesText]   = useState(draft?.notesText ?? (base?.flavorNotes ?? []).join('、'))
+  const [guideText,   setGuideText]   = useState(draft?.guideText ?? base?.brewGuide?.text ?? '')
+  const [guideDose,   setGuideDose]   = useState<number | undefined>(draft ? draft.guideDose : base?.brewGuide?.doseG)
+  const [guideWater,  setGuideWater]  = useState<number | undefined>(draft ? draft.guideWater : base?.brewGuide?.waterG)
+  const [guideTemp,   setGuideTemp]   = useState<number | undefined>(draft ? draft.guideTemp : base?.brewGuide?.tempC)
   // 焙煎度は常に何か選ばれているので、新規でまだ触っていないあいだだけ「空」とみなす（AI の当てはめ用）
-  const [roastTouched, setRoastTouched] = useState(Boolean(base))
-  const [aiFilled,    setAiFilled]    = useState<Set<LabelFieldKey>>(new Set())
+  const [roastTouched, setRoastTouched] = useState(draft?.roastTouched ?? Boolean(base))
+  const [aiFilled,    setAiFilled]    = useState<Set<LabelFieldKey>>(new Set(draft?.aiFilled ?? []))
   const ai = (key: LabelFieldKey, label: string) => <>{label}{aiFilled.has(key) && <AiMark />}</>
   // 買い直したら前の袋は終わっている方が多いので既定 ON。並行して開けている人は外せる
   const [finishPrev,  setFinishPrev]  = useState(true)
   const [saving,      setSaving]      = useState(false)
   const showToast = useToast()
+
+  // 入力のたびに下書きを退避する（新規のみ。空なら消える）
+  useEffect(() => {
+    if (!isNew) return
+    saveBeanDraft({
+      name, roastLevel, roastTouched, roastedAt, purchasedAt, amountG, origin, blend, farm, variety, process,
+      decaf, stockNote, photoDataUrl, roaster, notesText, guideText, guideDose, guideWater, guideTemp,
+      aiFilled: [...aiFilled],
+    })
+  }, [
+    isNew, name, roastLevel, roastTouched, roastedAt, purchasedAt, amountG, origin, blend, farm, variety, process,
+    decaf, stockNote, photoDataUrl, roaster, notesText, guideText, guideDose, guideWater, guideTemp, aiFilled,
+  ])
 
   // ラベルの解析結果を、空いている欄にだけ下書きとして入れる。入れた欄の数を返す
   const handleLabelResult = (result: BeanLabelResult): number => {
@@ -171,7 +190,10 @@ function BeanForm({
     }
 
     setSaving(false)
-    if (saved) onSave(saved, archived ?? undefined)
+    if (saved) {
+      if (isNew) clearBeanDraft()
+      onSave(saved, archived ?? undefined)
+    }
   }
 
   return (
@@ -200,6 +222,15 @@ function BeanForm({
               <span className="text-sm text-[#F7EFE6]">前の袋を飲み切りにする</span>
             </label>
           )}
+        </div>
+      )}
+
+      {draft && onDiscardDraft && (
+        <div className="flex items-center justify-between gap-3 -mt-1">
+          <p className="text-xs text-[#A8916F]">前回の入力途中から再開しています</p>
+          <button type="button" onClick={onDiscardDraft} className="min-h-11 px-2 text-xs text-[#CE9C68] shrink-0">
+            消して最初から
+          </button>
         </div>
       )}
 
@@ -482,6 +513,8 @@ export default function BeanTab() {
   const [editing, setEditing]       = useState<Bean | 'new' | null>(null)
   // 買い直し中の「前の袋」。editing とは別に持つ（編集 → 買い直しへ切り替わる）
   const [repurchasing, setRepurchasing] = useState<Bean | null>(null)
+  // 「消して最初から」でフォームを作り直すための番号
+  const [newFormKey, setNewFormKey] = useState(0)
   const showToast = useToast()
 
   useEffect(() => {
@@ -612,7 +645,7 @@ export default function BeanTab() {
       <ModalSheet open={editing !== null}>
         <BeanForm
           // 買い直し中は initial を渡さない（新しい袋を作るため）
-          key={repurchasing ? `repurchase-${repurchasing.id}` : editing === 'new' ? 'new' : editing?.id}
+          key={repurchasing ? `repurchase-${repurchasing.id}` : editing === 'new' ? `new-${newFormKey}` : editing?.id}
           initial={repurchasing || editing === 'new' ? undefined : (editing ?? undefined)}
           repurchaseOf={repurchasing ?? undefined}
           recentOrigins={recentOrigins}
@@ -630,6 +663,7 @@ export default function BeanTab() {
               ? () => setRepurchasing(editing)
               : undefined
           }
+          onDiscardDraft={() => { clearBeanDraft(); setNewFormKey(k => k + 1) }}
           onCancel={() => { setEditing(null); setRepurchasing(null) }}
         />
       </ModalSheet>

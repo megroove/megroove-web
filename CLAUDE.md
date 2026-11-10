@@ -206,6 +206,7 @@ competing する要求が出たら、必ずこの順位で判断する。
 | `megroove-onboarded` | 初回起動フィーチャーツアーの完了フラグ |
 | `megroove-sleep-prompt-date` | 睡眠の朝ポップアップを当日出したか（1日1回・2回目起動では出さない） |
 | `megroove-sleep-snooze-date` | 朝ポップアップで「あとで」を選んだ日（その日はホームに静かなカードを残す） |
+| `megroove-bean-draft` | 豆を追加（**新規のみ**）の入力途中。「閉じる」や画面遷移で消えないよう退避し、AI の印も残す。保存成功・「消して最初から」で消去（`src/components/stock/beanDraft.ts`） |
 | `megroove-ai-scan-consent` | 豆ラベルの AI 解析で、写真を外部（Anthropic）に送ることへの同意日時（初回だけ聞く） |
 
 ### Web特有の注意点（iOS版との違い）
