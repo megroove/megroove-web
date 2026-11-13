@@ -4,8 +4,8 @@ import { MONETIZATION, parseMonetizationConfig, pickAffiliateItems, preferenceTa
 const item = (id: string, tags: string[]): AffiliateItem => ({ id, title: id, url: `https://example.com/${id}`, tags })
 
 describe('parseMonetizationConfig', () => {
-  it('出荷時の設定は、応援もアフィリエイトも出さない', () => {
-    expect(MONETIZATION.support.url).toBe('')
+  it('出荷時の設定: 応援は https の URL だけ、アフィリエイトは出さない', () => {
+    expect(MONETIZATION.support.url).toMatch(/^(https:\/\/.+)?$/)
     expect(MONETIZATION.affiliate.enabled).toBe(false)
   })
   it('https 以外のリンクと欠けた項目は捨てる', () => {

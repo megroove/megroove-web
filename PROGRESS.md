@@ -354,7 +354,7 @@ P0〜P3 が完了・本番確認済み（バンドル `index-BODqWLjJ.js`）。�
   編集・買い直しは対象外（元の豆から作り直せる）。容量超過は写真を外して再試行（記録画面の下書きと同じ流儀）。`beanDraft.ts`＋テスト。
   dev で 閉じる→開き直し・リロード後も残る・消して最初から を確認。**P5 の実確認（本日あと1回 → 使いました）はユーザー確認済み**
 - **✅ P6 応援の入口とアフィリエイト枠の土台（2026-11-10 実装・未公開）**。決定: 応援は **Ko-fi**（1回ごとの応援は手数料0%）・入口は**設定画面だけ**。
-  - `src/config/monetization.json` の `support.url` が空のあいだは入口を出さない。**ユーザーが Ko-fi のページを作ったら URL を入れる**
+  - `src/config/monetization.json` の `support.url` が空のあいだは入口を出さない。**2026-11-13 に `https://ko-fi.com/kazu18` を設定済み**（公開は P7 の本番切り替えと一緒）
     （特典なしの応援だけにする＝特商法の表示は原則不要の見込み。P7 で確認）。文言は「寄付」ではなく「応援」（寄付金控除と誤解させない）
   - アフィリエイトは `enabled: false`・`items: []` で出荷。項目は `{ id, title, description?, url(https), tags }`、タグは
     `roast:` / `country:` / `process:` / `taste:`（`currentPreference().direction` で最も強まっている味）。`pickAffiliateItems` は重なり順に最大2件
