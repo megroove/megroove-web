@@ -369,6 +369,13 @@ P0〜P3 が完了・本番確認済み（バンドル `index-BODqWLjJ.js`）。�
   - **✅ P7b HEIC（2026-11-16・未公開）**: 読み取りの写真を選んだ時点で `Image` に読ませ、読めないものは外して
     「この形式の写真（HEIC など）は…Safari で開くか JPEG で」と伝える。CDP（パソコンの Chrome）で HEIC＋JPEG を同時に選び、HEIC だけ外れることを確認。
     豆の**リスト画像**（`PhotoField`）の HEIC は対象外（従来どおり縮小の失敗で伝わる）
+  - **✅ P7c セキュリティの点検（2026-11-16）**: **直したもの**＝Cloudflare の自動のリクエストログ（invocation logs）を止めた
+    （`/quota?deviceId=` の生の端末ID や接続元が最大3日残りうる＝ポリシーの「ハッシュにして翌日まで」と矛盾。自前のエラーログは残す。dev にも反映済み）。
+    **確認して問題なし**＝本番 vars（送り元は `https://megroove.github.io` だけ・Turnstile のホスト名照合あり・上限 1/5/50）、
+    検証（枚数3・1枚1.5MB・先頭バイトで型判定・本文の上限）、Turnstile → 枠 → 解析の順、ログは種類と状態だけ、`max_tokens` 8000＝1回の上限 約$0.004、
+    API キー等はリポジトリに無い（`.dev.vars` は gitignore）、CSP は Worker と `challenges.cloudflare.com`（script-src・frame-src）だけ＝Cloudflare の公式の要件どおり。
+    **受け入れたリスク**＝Origin はブラウザ以外なら偽れる（守りは Turnstile と回数）／`/quota` は Turnstile なし（漏れるのは残り回数だけ。
+    連打されても止まるのは無料枠＝機能だけで費用は増えない）／全体50回を使い切られると、その日は誰も読めない（費用の上限を優先）
 
 ### 1. 中期テーマB の残り（B-2・注湯カウンターは完了）
 

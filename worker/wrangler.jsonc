@@ -7,7 +7,9 @@
   "main": "src/index.ts",
   "compatibility_date": "2026-10-01",
   "compatibility_flags": ["nodejs_compat"],
-  "observability": { "enabled": true },
+  // 自前のエラーログ（種類と状態だけ）は残し、Cloudflare が自動で取るリクエストのログは止める。
+  // 自動のログには URL（/quota の端末ID）や接続元の情報が入りうるため＝プライバシーポリシーの「ハッシュにしてから翌日まで」と合わなくなる
+  "observability": { "enabled": true, "logs": { "invocation_logs": false } },
   "vars": {
     // 受け付ける送り元（カンマ区切り・完全一致）
     "ALLOWED_ORIGINS": "https://megroove.github.io",
