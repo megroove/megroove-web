@@ -17,6 +17,7 @@ import SettingsPage from './pages/SettingsPage'
 import BrewLayoutPage from './pages/BrewLayoutPage'
 import DataProvisionPage from './pages/DataProvisionPage'
 import PrivacyPage from './pages/PrivacyPage'
+import TermsPage from './pages/TermsPage'
 import PassportPage from './pages/PassportPage'
 import YearPage from './pages/YearPage'
 import OnboardingTour, { hasCompletedOnboarding } from './components/OnboardingTour'
@@ -66,6 +67,7 @@ function AppRoutes() {
         <Route path="/settings/brew-layout"    element={<BrewLayoutPage />} />
         <Route path="/settings/data-provision" element={<DataProvisionPage />} />
         <Route path="/settings/privacy"        element={<PrivacyPage />} />
+        <Route path="/settings/terms"          element={<TermsPage />} />
         <Route path="/passport"             element={<PassportPage />} />
         <Route path="/year"                 element={<YearPage />} />
       </Routes>

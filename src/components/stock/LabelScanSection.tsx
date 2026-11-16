@@ -221,8 +221,9 @@ export default function LabelScanSection({ listImage, onResult }: Props) {
             <div className="bg-[#1a0a05] rounded-xl p-3.5 flex flex-col gap-3">
               <p className="text-xs text-[#F7EFE6] leading-relaxed">
                 読み取りのため、選んだ写真を <strong>Anthropic 社の AI（Claude）</strong>に送ります。
-                写真はサーバーにも端末にも保存されません。結果は下書きとして入るだけで、確認してから保存できます。
-                詳しくは設定のプライバシーポリシーをご覧ください。
+                Megroove は写真を保存せず、Anthropic 社も原則30日以内に削除し、学習には使いません。
+                AI の読み取りは誤ることがあるので、結果は下書きとして入ります。確かめてから保存してください。
+                詳しくは設定のプライバシーポリシーと利用規約をご覧ください。
               </p>
               <div className="flex gap-2">
                 <button

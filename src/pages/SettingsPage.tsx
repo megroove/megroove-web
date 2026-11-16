@@ -122,6 +122,14 @@ export default function SettingsPage() {
           <p className="text-sm text-[#F7EFE6]">プライバシーポリシー</p>
           <span className="text-[#6b5a4a] text-sm ml-3">→</span>
         </button>
+        <button
+          type="button"
+          onClick={() => navigate('/settings/terms')}
+          className="w-full bg-[#2E2018] rounded-xl px-4 py-4 flex items-center justify-between active:opacity-80"
+        >
+          <p className="text-sm text-[#F7EFE6]">利用規約</p>
+          <span className="text-[#6b5a4a] text-sm ml-3">→</span>
+        </button>
         {/* 応援の入口。URL が設定されているときだけ出す。お願いやポップアップは出さない */}
         {MONETIZATION.support.url && (
           <a
