@@ -10,6 +10,17 @@ import {
 import { loadTurnstile } from './turnstile'
 
 const MAX_PHOTOS = 3
+const UNREADABLE_PHOTO =
+  'この形式の写真（HEIC など）は、このブラウザでは読めません。iPhone の Safari で開くか、JPEG で保存し直した写真を選んでください'
+
+function canDecode(url: string): Promise<boolean> {
+  return new Promise(resolve => {
+    const img = new Image()
+    img.onload = () => resolve(img.naturalWidth > 0)
+    img.onerror = () => resolve(false)
+    img.src = url
+  })
+}
 
 interface Props {
   /** 豆のリスト画像（あれば「リスト画像も解析に使う」を出す） */
@@ -81,11 +92,15 @@ export default function LabelScanSection({ listImage, onResult }: Props) {
   const listCount = useListImage && listImage ? 1 : 0
   const room = MAX_PHOTOS - files.length - listCount
 
-  const addFiles = (list: FileList | null) => {
+  // 選んだ時点で読めるか確かめる。パソコンの Chrome は HEIC（iPhone の写真）を読めず、
+  // 「読み取る」まで分からないうえにプレビューも崩れるため、ここで外して伝える
+  const addFiles = async (list: FileList | null) => {
     if (!list) return
     const picked = [...list].slice(0, Math.max(0, room)).map(file => ({ file, url: URL.createObjectURL(file) }))
-    setFiles(prev => [...prev, ...picked])
-    setStatus({ kind: 'idle' })
+    const readable = await Promise.all(picked.map(p => canDecode(p.url)))
+    picked.filter((_, i) => !readable[i]).forEach(p => URL.revokeObjectURL(p.url))
+    setFiles(prev => [...prev, ...picked.filter((_, i) => readable[i])])
+    setStatus(readable.every(Boolean) ? { kind: 'idle' } : { kind: 'error', message: UNREADABLE_PHOTO })
   }
 
   const resetToken = () => {
@@ -200,9 +215,9 @@ export default function LabelScanSection({ listImage, onResult }: Props) {
             </div>
           )}
           <input ref={cameraRef} type="file" accept="image/*" capture="environment" className="hidden"
-            onChange={e => { addFiles(e.target.files); e.target.value = '' }} />
+            onChange={e => { void addFiles(e.target.files); e.target.value = '' }} />
           <input ref={libraryRef} type="file" accept="image/*" multiple className="hidden"
-            onChange={e => { addFiles(e.target.files); e.target.value = '' }} />
+            onChange={e => { void addFiles(e.target.files); e.target.value = '' }} />
 
           {listImage && !exhausted && (
             <label className="flex items-center gap-2.5 min-h-11 cursor-pointer">
