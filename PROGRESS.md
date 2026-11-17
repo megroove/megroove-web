@@ -376,6 +376,10 @@ P0〜P3 が完了・本番確認済み（バンドル `index-BODqWLjJ.js`）。�
     API キー等はリポジトリに無い（`.dev.vars` は gitignore）、CSP は Worker と `challenges.cloudflare.com`（script-src・frame-src）だけ＝Cloudflare の公式の要件どおり。
     **受け入れたリスク**＝Origin はブラウザ以外なら偽れる（守りは Turnstile と回数）／`/quota` は Turnstile なし（漏れるのは残り回数だけ。
     連打されても止まるのは無料枠＝機能だけで費用は増えない）／全体50回を使い切られると、その日は誰も読めない（費用の上限を優先）
+  - **P7d 本番切り替え（2026-11-17 公開・バンドル `index-D49M-z4C.js`）**: 本番 Worker `https://megroove-api.megroove-app.workers.dev`
+    はユーザーが自分のターミナルでデプロイ（Claude Code の自動モードでは本番デプロイが止められた）＋ secret 3つ登録。本番用キー `megroove-prod`（約6か月・2027-05 中旬に失効）。
+    `.env.production`（公開値のみ）で読み取りを有効化。`/quota` の応答と別オリジン拒否、本番 CSP に Worker が入ったことを確認。
+    **iPhone での実読み取り・応援・規約の目視はユーザー確認待ち**
 
 ### 1. 中期テーマB の残り（B-2・注湯カウンターは完了）
 
