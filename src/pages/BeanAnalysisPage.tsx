@@ -11,6 +11,7 @@ import AgingWindowCard from '../components/analysis/AgingWindowCard'
 import PhotoLightbox from '../components/PhotoLightbox'
 import { calcWeightedScores, rankBrews, calcAgingWindow } from '../components/analysis/stats'
 import { CupIcon } from '../components/icons'
+import { formatYen, homeCostAverage } from '../components/analysis/brewCost'
 
 export default function BeanAnalysisPage() {
   const navigate = useNavigate()
@@ -56,6 +57,12 @@ export default function BeanAnalysisPage() {
   const avgRating = ratings.length > 0
     ? ratings.reduce((a, b) => a + b, 0) / ratings.length
     : undefined
+
+  // 1杯の豆代。袋ごとに値段が違ってよいので、各記録はその記録の袋で計算する
+  const cost = useMemo(() => {
+    const bagMap = new Map(bags.map(b => [b.id, b]))
+    return homeCostAverage(beanBrews, id => bagMap.get(id))
+  }, [bags, beanBrews])
 
   const best = useMemo(
     () => (beanBrews.some(b => b.rating) ? rankBrews(beanBrews)[0] : undefined),
@@ -150,6 +157,12 @@ export default function BeanAnalysisPage() {
           <p className="text-[10px] text-[#6b5a4a] mt-1">ベスト★</p>
         </div>
       </div>
+      {cost.avgYen !== null && (
+        <p className="text-xs text-[#A8916F] -mt-1 px-1">
+          1杯あたりの豆代は平均 <span className="text-[#F7EFE6] font-semibold tabular-nums">{formatYen(cost.avgYen)}</span>
+          （{cost.count}杯から）
+        </p>
+      )}
 
       {/* この豆のレーダー */}
       {radarCount >= 3 && (

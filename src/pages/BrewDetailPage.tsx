@@ -18,6 +18,7 @@ import { useToast, notifyDataRestored } from '../components/Toast'
 import { CupIcon, MusicIcon } from '../components/icons'
 import DetailJacket from '../components/library/DetailJacket'
 import { jacketColor } from '../components/library/jacketColor'
+import { brewCostYen, formatYen } from '../components/analysis/brewCost'
 
 // 見出しは日本語を主に、英字は小さく添えるだけ（ライナーノーツらしさは出すが、
 // 何の欄かは日本語が受け持つ。A面/B面 と同じ作法）
@@ -286,6 +287,11 @@ export default function BrewDetailPage() {
           )}
           {brew.pourCount !== undefined && <Row label="注湯回数" value={`${brew.pourCount}回`} />}
           {brew.water && <Row label="水" value={brew.water} />}
+          {(() => {
+            // 豆の値段と内容量から都度計算（値段を後から入れてもさかのぼって出る）
+            const cost = brewCostYen(brew, bean ?? undefined)
+            return cost !== null && <Row label="この一杯の豆代" value={formatYen(cost)} />
+          })()}
         </Section>
 
         {/* ── レビュー: どう感じたか ────────────────────────────────────── */}

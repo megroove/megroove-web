@@ -15,13 +15,14 @@ describe('isBeanDraftEmpty', () => {
     expect(isBeanDraftEmpty({ ...empty, name: 'UMINAMIブレンド' })).toBe(false)
     expect(isBeanDraftEmpty({ ...empty, roastTouched: true })).toBe(false)
     expect(isBeanDraftEmpty({ ...empty, amountG: 100 })).toBe(false)
+    expect(isBeanDraftEmpty({ ...empty, priceYen: 1800 })).toBe(false)
     expect(isBeanDraftEmpty({ ...empty, blend: ['ブラジル'] })).toBe(false)
   })
 })
 
 describe('parseBeanDraft', () => {
   it('保存した形をそのまま戻す（AI の印も）', () => {
-    const d: BeanDraft = { ...empty, name: 'UMINAMIブレンド', roaster: '和珈屋', blend: ['ブラジル', 'コロンビア'], amountG: 100, aiFilled: ['name', 'roaster', 'origin', 'amountG'] }
+    const d: BeanDraft = { ...empty, name: 'UMINAMIブレンド', roaster: '和珈屋', blend: ['ブラジル', 'コロンビア'], amountG: 100, priceYen: 1800, aiFilled: ['name', 'roaster', 'origin', 'amountG'] }
     expect(parseBeanDraft(JSON.stringify(d))).toEqual(d)
   })
   it('壊れた・空の下書きは使わない', () => {

@@ -29,6 +29,7 @@ export interface Bean {
   roastedAt?: string   // ISO date string (YYYY-MM-DD)
   purchasedAt?: string // ISO date string
   initialAmountG?: number // 内容量 (g)。記録の粉量から残量を自動計算する
+  priceYen?: number       // 袋の値段（円・税込）。内容量と粉量から1杯のコストを都度計算する（保存しない）
   finishedAt?: string     // 飲み切った日時 (ISO)。設定されるとアーカイブ扱い
   decaf?: boolean         // デカフェ豆。カフェイン推定を通常の10%にする
   stockNote?: string

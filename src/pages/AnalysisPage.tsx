@@ -20,6 +20,7 @@ import {
   calcMonthlyTrend, calcBestConditions, calcBeanStats, calcAgingWindow,
 } from '../components/analysis/stats'
 import { RankBadge, GlobeIcon, CupIcon } from '../components/icons'
+import { cafeCostAverage, homeCostAverage, type CostAverage } from '../components/analysis/brewCost'
 
 function isThisMonth(brew: Brew): boolean {
   const d = new Date(brew.brewedAt), now = new Date()
@@ -201,6 +202,12 @@ export default function AnalysisPage() {
       originCount: origins.size,
     }
   }, [brews, visits, beanMap])
+
+  // 1杯のコスト（自宅＝豆代を都度計算／カフェ＝入れた価格）。どちらかがあれば2枚並べて比べられるようにする
+  const costs = useMemo(() => ({
+    home: homeCostAverage(brews, id => beanMap.get(id)),
+    cafe: cafeCostAverage(visits),
+  }), [brews, visits, beanMap])
 
   const now          = new Date()
   const monthLabel   = `${now.getMonth() + 1}月のトップ3`
@@ -537,6 +544,12 @@ export default function AnalysisPage() {
               <p className="text-2xl font-bold text-[#F7EFE6] tabular-nums">{totals.originCount}</p>
               <p className="text-xs text-[#CE9C68] mt-0.5">出会った産地</p>
             </div>
+            {(costs.home.avgYen !== null || costs.cafe.avgYen !== null) && (
+              <>
+                <CostTile label="自宅の一杯 平均" avg={costs.home} hint="豆の値段を入れると出ます" />
+                <CostTile label="カフェの一杯 平均" avg={costs.cafe} hint="カフェ記録に価格を入れると出ます" />
+              </>
+            )}
           </div>
         </section>
       )}
@@ -556,6 +569,26 @@ export default function AnalysisPage() {
         </div>
         <span className="text-[#6b5a4a] text-sm">→</span>
       </button>
+    </div>
+  )
+}
+
+function CostTile({ label, avg, hint }: { label: string; avg: CostAverage; hint: string }) {
+  return (
+    <div className="bg-[#2E2018] rounded-xl p-4 text-center">
+      {avg.avgYen !== null ? (
+        <>
+          <p className="text-2xl font-bold text-[#F7EFE6] tabular-nums">¥{avg.avgYen.toLocaleString()}</p>
+          <p className="text-xs text-[#CE9C68] mt-0.5">{label}</p>
+          <p className="text-[10px] text-[#A8916F] mt-0.5">{avg.count}杯から</p>
+        </>
+      ) : (
+        <>
+          <p className="text-2xl font-bold text-[#A8916F]">—</p>
+          <p className="text-xs text-[#CE9C68] mt-0.5">{label}</p>
+          <p className="text-[10px] text-[#A8916F] mt-0.5">{hint}</p>
+        </>
+      )}
     </div>
   )
 }

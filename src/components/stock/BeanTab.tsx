@@ -16,6 +16,7 @@ import LabelScanSection from './LabelScanSection'
 import { applyLabelToForm, type BeanLabelResult, type LabelFieldKey } from './labelScan'
 import { isLabelScanEnabled } from './labelScanClient'
 import { clearBeanDraft, loadBeanDraft, saveBeanDraft } from './beanDraft'
+import { beanYenPerGram, formatYen } from '../analysis/brewCost'
 
 // AI が下書きに入れた欄の印（確かめてから保存してもらうため）
 function AiMark() {
@@ -66,6 +67,8 @@ function BeanForm({
     draft?.purchasedAt ?? initial?.purchasedAt ?? (repurchaseOf ? todayISO : ''),
   )
   const [amountG,     setAmountG]     = useState<number | undefined>(draft ? draft.amountG : base?.initialAmountG)
+  // 買い直しでも前の袋の値段を初期値にする（値上がりしていたら直すだけ）
+  const [priceYen,    setPriceYen]    = useState<number | undefined>(draft ? draft.priceYen : base?.priceYen)
   const [finished,    setFinished]    = useState(Boolean(initial?.finishedAt))
   const [origin,      setOrigin]      = useState(draft?.origin ?? base?.origin ?? '')
   // ブレンドの構成産地。空配列＝シングル（既定）。比率は持たない（§5）
@@ -95,12 +98,12 @@ function BeanForm({
   useEffect(() => {
     if (!isNew) return
     saveBeanDraft({
-      name, roastLevel, roastTouched, roastedAt, purchasedAt, amountG, origin, blend, farm, variety, process,
+      name, roastLevel, roastTouched, roastedAt, purchasedAt, amountG, priceYen, origin, blend, farm, variety, process,
       decaf, stockNote, photoDataUrl, roaster, notesText, guideText, guideDose, guideWater, guideTemp,
       aiFilled: [...aiFilled],
     })
   }, [
-    isNew, name, roastLevel, roastTouched, roastedAt, purchasedAt, amountG, origin, blend, farm, variety, process,
+    isNew, name, roastLevel, roastTouched, roastedAt, purchasedAt, amountG, priceYen, origin, blend, farm, variety, process,
     decaf, stockNote, photoDataUrl, roaster, notesText, guideText, guideDose, guideWater, guideTemp, aiFilled,
   ])
 
@@ -148,6 +151,7 @@ function BeanForm({
         roastedAt:   roastedAt   || undefined,
         purchasedAt: purchasedAt || undefined,
         initialAmountG: amountG,
+        priceYen,
         finishedAt:  finished ? (initial?.finishedAt ?? nowISO()) : undefined,
         // ブレンドなら代表産地（先頭）を origin に、構成産地を origins に入れる。
         // こうすると表示系（ジャケットの色・一覧の見出し）は従来どおり動く
@@ -273,6 +277,18 @@ function BeanForm({
 
       <Field label={ai('amountG', '内容量（g）— 入力すると記録から残量を自動計算')}>
         <NumberInput value={amountG} onChange={setAmountG} placeholder="例: 200" min={1} />
+      </Field>
+
+      <Field label="袋の値段（円・税込）— 内容量と合わせて1杯のコストを計算">
+        <NumberInput value={priceYen} onChange={setPriceYen} placeholder="例: 1800" min={1} />
+        {(() => {
+          const perGram = beanYenPerGram({ priceYen, initialAmountG: amountG })
+          return perGram !== null && (
+            <p className="text-xs text-[#A8916F] mt-1.5">
+              1gあたり{formatYen(perGram)}（15gで{formatYen(perGram * 15)}）
+            </p>
+          )
+        })()}
       </Field>
 
       <div className="flex items-center gap-2">

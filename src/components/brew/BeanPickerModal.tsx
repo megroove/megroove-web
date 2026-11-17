@@ -33,6 +33,7 @@ function AddBeanForm({ mode, onAdd, onCancel, recentOrigins }: {
   const [roastedAt, setRoastedAt] = useState('')
   const [origin, setOrigin] = useState('')
   const [amountG, setAmountG] = useState<number | undefined>()
+  const [priceYen, setPriceYen] = useState<number | undefined>()
   const [decaf, setDecaf] = useState(false)
   const [photoDataUrl, setPhotoDataUrl] = useState<string | undefined>()
   const [submitting, setSubmitting] = useState(false)
@@ -51,6 +52,7 @@ function AddBeanForm({ mode, onAdd, onCancel, recentOrigins }: {
         roastedAt: roastedAt || undefined,
         origin: origin.trim() || undefined,
         initialAmountG: amountG,
+        priceYen,
         decaf: decaf || undefined,
         photoDataUrl: photoDataUrl || undefined,
         createdAt: nowISO(),
@@ -157,6 +159,21 @@ function AddBeanForm({ mode, onAdd, onCancel, recentOrigins }: {
             value={amountG ?? ''}
             onChange={e => setAmountG(e.target.value ? Number(e.target.value) : undefined)}
             placeholder="例: 200"
+            className="w-full bg-[#3e3020] text-[#F7EFE6] rounded-xl px-4 py-3 outline-none placeholder-[#6b5a4a] tabular-nums"
+          />
+        </div>
+      )}
+
+      {!isBrand && (
+        <div>
+          <label className="text-xs text-[#CE9C68] mb-1.5 block">袋の値段 円（任意・1杯のコストを計算）</label>
+          <input
+            type="number"
+            inputMode="numeric"
+            min={1}
+            value={priceYen ?? ''}
+            onChange={e => setPriceYen(e.target.value ? Number(e.target.value) : undefined)}
+            placeholder="例: 1800"
             className="w-full bg-[#3e3020] text-[#F7EFE6] rounded-xl px-4 py-3 outline-none placeholder-[#6b5a4a] tabular-nums"
           />
         </div>

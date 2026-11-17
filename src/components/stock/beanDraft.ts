@@ -13,6 +13,7 @@ export interface BeanDraft {
   roastedAt: string
   purchasedAt: string
   amountG?: number
+  priceYen?: number
   origin: string
   blend: string[]
   farm: string
@@ -44,7 +45,7 @@ export function isBeanDraftEmpty(d: BeanDraft): boolean {
   ]
   return texts.every(t => !t.trim()) &&
     !d.roastTouched && !d.decaf && !d.photoDataUrl &&
-    [d.amountG, d.guideDose, d.guideWater, d.guideTemp].every(n => n === undefined)
+    [d.amountG, d.priceYen, d.guideDose, d.guideWater, d.guideTemp].every(n => n === undefined)
 }
 
 /** 読み込んだ値を形で締める（手で書き換えられた・古い形でも壊れない）。使えなければ null */
@@ -65,6 +66,7 @@ export function parseBeanDraft(raw: string | null): BeanDraft | null {
     roastedAt: str(o.roastedAt),
     purchasedAt: str(o.purchasedAt),
     amountG: num(o.amountG),
+    priceYen: num(o.priceYen),
     origin: str(o.origin),
     blend: Array.isArray(o.blend) ? o.blend.map(str).slice(0, 12) : [],
     farm: str(o.farm),
